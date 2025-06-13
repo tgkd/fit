@@ -1,33 +1,92 @@
-import { StyleSheet, Text, type TextProps } from 'react-native';
+import { useMemo } from "react";
+import { StyleSheet, Text, type TextProps } from "react-native";
 
-import { useThemeColor } from '@/hooks/useThemeColor';
+import { Colors } from "@/constants/Colors";
+import { useThemeColor } from "@/hooks/useThemeColor";
 
 export type ThemedTextProps = TextProps & {
   lightColor?: string;
   darkColor?: string;
-  type?: 'default' | 'title' | 'defaultSemiBold' | 'subtitle' | 'link';
+  selectable?: boolean;
+  uiTextView?: boolean;
+  textAlign?: "auto" | "left" | "right" | "center" | "justify";
+  size?: "lg" | "md" | "sm" | "xs" | "xxs";
+  type?:
+    | "default"
+    | "title"
+    | "defaultSemiBold"
+    | "subtitle"
+    | "link"
+    | "secondary";
 };
 
 export function ThemedText({
   style,
   lightColor,
   darkColor,
-  type = 'default',
+  type = "default",
+  selectable = true,
+  uiTextView = true,
+  textAlign,
+  size,
   ...rest
 }: ThemedTextProps) {
-  const color = useThemeColor({ light: lightColor, dark: darkColor }, 'text');
+  const colorType = useMemo(() => {
+    switch (type) {
+      case "secondary":
+        return {
+          dark: Colors.dark.textSecondary,
+          light: Colors.light.textSecondary,
+        };
+
+      default:
+        return {
+          dark: darkColor || Colors.dark.text,
+          light: lightColor || Colors.light.text,
+        };
+    }
+  }, [type]);
+
+  const color = useThemeColor(colorType, "text");
+  const linkColor = useThemeColor(colorType, "link");
+  const selectionHighlightColor = useThemeColor(
+    {
+      light: "rgba(0, 122, 255, 0.3)", // iOS blue with opacity
+      dark: "rgba(64, 156, 255, 0.3)", // Lighter blue for dark mode
+    },
+    "text"
+  );
+
+  const sizeStyle = useMemo(() => {
+    switch (size) {
+      case "md":
+        return styles.md;
+      case "sm":
+        return styles.sm;
+      case "xs":
+        return styles.xs;
+      case "xxs":
+        return styles.xxs;
+      default:
+        return styles.default;
+    }
+  }, [size]);
 
   return (
     <Text
       style={[
         { color },
-        type === 'default' ? styles.default : undefined,
-        type === 'title' ? styles.title : undefined,
-        type === 'defaultSemiBold' ? styles.defaultSemiBold : undefined,
-        type === 'subtitle' ? styles.subtitle : undefined,
-        type === 'link' ? styles.link : undefined,
+        type === "default" ? styles.default : undefined,
+        type === "title" ? styles.title : undefined,
+        type === "defaultSemiBold" ? styles.defaultSemiBold : undefined,
+        type === "subtitle" ? styles.subtitle : undefined,
+        type === "link" ? [styles.link, { color: linkColor }] : undefined,
+        textAlign ? { textAlign } : undefined,
+        size ? sizeStyle : undefined,
         style,
       ]}
+      selectable={selectable}
+      selectionColor={selectionHighlightColor}
       {...rest}
     />
   );
@@ -35,26 +94,44 @@ export function ThemedText({
 
 const styles = StyleSheet.create({
   default: {
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: 17,
+    lineHeight: 22,
   },
   defaultSemiBold: {
-    fontSize: 16,
-    lineHeight: 24,
-    fontWeight: '600',
+    fontSize: 17,
+    lineHeight: 22,
+    fontWeight: "600",
   },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    lineHeight: 32,
+    fontSize: 34,
+    fontWeight: "700",
+    lineHeight: 41,
+    letterSpacing: 0.41,
   },
   subtitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 22,
+    fontWeight: "600",
+    lineHeight: 28,
+    letterSpacing: 0.35,
   },
   link: {
-    lineHeight: 30,
-    fontSize: 16,
-    color: '#0a7ea4',
+    fontSize: 17,
+    lineHeight: 22,
+  },
+  md: {
+    fontSize: 15,
+    lineHeight: 20,
+  },
+  sm: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  xs: {
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  xxs: {
+    fontSize: 9,
+    lineHeight: 14,
   },
 });

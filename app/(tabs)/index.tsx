@@ -4,7 +4,6 @@ import { ScrollView, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/components/ThemedText";
-import { ThemedView } from "@/components/ThemedView";
 import { CircularProgressChart } from "@/components/charts/CircularProgressChart";
 import { StressChart } from "@/components/charts/StressChart";
 import { Card } from "@/components/ui/Card";
@@ -40,99 +39,95 @@ export default function HomeScreen() {
 
         <StressChart data={data} />
 
-        <ThemedView style={styles.metricsContainer}>
-          <ThemedView style={styles.metricCard}>
-            <ThemedText type="subtitle">{i18n.t("home.sleep")}</ThemedText>
+        <Card>
+          <ThemedText type="subtitle">{i18n.t("home.sleep")}</ThemedText>
+          <ThemedText type="title">
+            {i18n.t("home.sleepHours", { hours: data.sleepHours })}
+          </ThemedText>
+          <ThemedText>
+            {i18n.t("home.performance", {
+              performance: data.sleepPerformance.toFixed(1),
+            })}
+          </ThemedText>
+          <ThemedText>
+            {i18n.t("home.consistency", {
+              consistency: data.sleepConsistency.toFixed(1),
+            })}
+          </ThemedText>
+        </Card>
+
+        <Card>
+          <ThemedText type="subtitle">{i18n.t("home.heartRate")}</ThemedText>
+          <ThemedText type="title">
+            {i18n.t("home.restingHeartRateValue", {
+              value: data.restingHeartRate,
+            })}
+          </ThemedText>
+          <ThemedText>{i18n.t("home.restingHeartRate")}</ThemedText>
+        </Card>
+
+        <Card>
+          <ThemedText type="subtitle">{i18n.t("home.activity")}</ThemedText>
+          <ThemedText type="title">{data.steps.toLocaleString()}</ThemedText>
+          <ThemedText>{i18n.t("home.stepsToday")}</ThemedText>
+          <ThemedText>
+            {i18n.t("home.caloriesBurned", {
+              calories: Math.round(data.caloriesBurned),
+            })}
+          </ThemedText>
+        </Card>
+
+        <Card>
+          <ThemedText type="subtitle">{i18n.t("home.recovery")}</ThemedText>
+          <ThemedText type="title">
+            {i18n.t("home.recoveryScore", {
+              score: data.recoveryScore.toFixed(1),
+            })}
+          </ThemedText>
+          <ThemedText>{i18n.t("home.recoveryScoreLabel")}</ThemedText>
+        </Card>
+
+        <Card>
+          <ThemedText type="subtitle">{i18n.t("home.strain")}</ThemedText>
+          <ThemedText type="title">
+            {i18n.t("home.strainScore", {
+              score: data.strainScore.toFixed(1),
+            })}
+          </ThemedText>
+          <ThemedText>{i18n.t("home.trainingStrain")}</ThemedText>
+        </Card>
+
+        <Card>
+          <ThemedText type="subtitle">{i18n.t("home.bloodOxygen")}</ThemedText>
+          <ThemedText type="title">
+            {i18n.t("home.bloodOxygenValue", {
+              value: data.bloodOxygen.toFixed(1),
+            })}
+          </ThemedText>
+          <ThemedText>{i18n.t("home.spo2")}</ThemedText>
+        </Card>
+
+        <Card>
+          <ThemedText type="subtitle">{i18n.t("home.stress")}</ThemedText>
+          <ThemedText type="title">
+            {i18n.t("home.stressLevelValue", {
+              value: data.stressLevel.toFixed(1),
+            })}
+          </ThemedText>
+          <ThemedText>{i18n.t("home.stressLevel")}</ThemedText>
+        </Card>
+
+        {data.hrvValues.length > 0 && (
+          <Card>
+            <ThemedText type="subtitle">{i18n.t("home.hrv")}</ThemedText>
             <ThemedText type="title">
-              {i18n.t("home.sleepHours", { hours: data.sleepHours })}
-            </ThemedText>
-            <ThemedText>
-              {i18n.t("home.performance", {
-                performance: data.sleepPerformance.toFixed(1),
+              {i18n.t("home.hrvValue", {
+                value: data.hrvValues[data.hrvValues.length - 1].toFixed(1),
               })}
             </ThemedText>
-            <ThemedText>
-              {i18n.t("home.consistency", {
-                consistency: data.sleepConsistency.toFixed(1),
-              })}
-            </ThemedText>
-          </ThemedView>
-
-          <ThemedView style={styles.metricCard}>
-            <ThemedText type="subtitle">{i18n.t("home.heartRate")}</ThemedText>
-            <ThemedText type="title">
-              {i18n.t("home.restingHeartRateValue", {
-                value: data.restingHeartRate,
-              })}
-            </ThemedText>
-            <ThemedText>{i18n.t("home.restingHeartRate")}</ThemedText>
-          </ThemedView>
-
-          <ThemedView style={styles.metricCard}>
-            <ThemedText type="subtitle">{i18n.t("home.activity")}</ThemedText>
-            <ThemedText type="title">{data.steps.toLocaleString()}</ThemedText>
-            <ThemedText>{i18n.t("home.stepsToday")}</ThemedText>
-            <ThemedText>
-              {i18n.t("home.caloriesBurned", {
-                calories: Math.round(data.caloriesBurned),
-              })}
-            </ThemedText>
-          </ThemedView>
-
-          <ThemedView style={styles.metricCard}>
-            <ThemedText type="subtitle">{i18n.t("home.recovery")}</ThemedText>
-            <ThemedText type="title">
-              {i18n.t("home.recoveryScore", {
-                score: data.recoveryScore.toFixed(1),
-              })}
-            </ThemedText>
-            <ThemedText>{i18n.t("home.recoveryScoreLabel")}</ThemedText>
-          </ThemedView>
-
-          <ThemedView style={styles.metricCard}>
-            <ThemedText type="subtitle">{i18n.t("home.strain")}</ThemedText>
-            <ThemedText type="title">
-              {i18n.t("home.strainScore", {
-                score: data.strainScore.toFixed(1),
-              })}
-            </ThemedText>
-            <ThemedText>{i18n.t("home.trainingStrain")}</ThemedText>
-          </ThemedView>
-
-          <ThemedView style={styles.metricCard}>
-            <ThemedText type="subtitle">
-              {i18n.t("home.bloodOxygen")}
-            </ThemedText>
-            <ThemedText type="title">
-              {i18n.t("home.bloodOxygenValue", {
-                value: data.bloodOxygen.toFixed(1),
-              })}
-            </ThemedText>
-            <ThemedText>{i18n.t("home.spo2")}</ThemedText>
-          </ThemedView>
-
-          <ThemedView style={styles.metricCard}>
-            <ThemedText type="subtitle">{i18n.t("home.stress")}</ThemedText>
-            <ThemedText type="title">
-              {i18n.t("home.stressLevelValue", {
-                value: data.stressLevel.toFixed(1),
-              })}
-            </ThemedText>
-            <ThemedText>{i18n.t("home.stressLevel")}</ThemedText>
-          </ThemedView>
-
-          {data.hrvValues.length > 0 && (
-            <ThemedView style={styles.metricCard}>
-              <ThemedText type="subtitle">{i18n.t("home.hrv")}</ThemedText>
-              <ThemedText type="title">
-                {i18n.t("home.hrvValue", {
-                  value: data.hrvValues[data.hrvValues.length - 1].toFixed(1),
-                })}
-              </ThemedText>
-              <ThemedText>{i18n.t("home.hrvLabel")}</ThemedText>
-            </ThemedView>
-          )}
-        </ThemedView>
+            <ThemedText>{i18n.t("home.hrvLabel")}</ThemedText>
+          </Card>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -141,31 +136,15 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   scroll: {
     flexGrow: 1,
+    paddingHorizontal: 16,
     paddingBottom: 46,
     rowGap: 16,
-  },
-  titleContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  headerContainer: {
-    alignItems: "center",
-    paddingVertical: 20,
-    paddingHorizontal: 16,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#FFFFFF",
   },
   circularChartsContainer: {
     flexDirection: "row",
     justifyContent: "space-around",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    gap: 10,
+    gap: 12,
   },
   metricsContainer: {
     gap: 16,

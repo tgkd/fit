@@ -1,7 +1,4 @@
-import {
-  LinearGradient,
-  vec,
-} from "@shopify/react-native-skia";
+import { LinearGradient, vec } from "@shopify/react-native-skia";
 import React from "react";
 import { View } from "react-native";
 import { Pie, PolarChart } from "victory-native";
@@ -33,8 +30,8 @@ function calculateGradientPoints(
   return { startX, startY, endX, endY };
 }
 
-interface CircularProgressChartProps {
-  value: number; // Percentage value (0-100)
+interface Props {
+  value: number;
   color?: string;
   backgroundColor?: string;
   size?: number;
@@ -43,42 +40,47 @@ interface CircularProgressChartProps {
   showGradient?: boolean;
 }
 
-export const CircularProgressChart: React.FC<CircularProgressChartProps> = ({
+export function CircularProgressChart({
   value,
-  color = '#4CAF50',
-  backgroundColor = '#2a2a2a',
-  size = 110,
+  color = "#4CAF50",
+  backgroundColor = "#2a2a2a",
+  size = 96,
   label,
-  showGradient = true,
-}) => {
+  showGradient = false,
+}: Props) {
   const percentage = Math.max(0, Math.min(100, value));
   const remainingPercentage = 100 - percentage;
+  const chartSize = size - 6;
 
   const data = [
     {
       value: percentage,
       color: color,
-      label: 'progress',
+      label: "progress",
     },
     {
       value: remainingPercentage,
       color: backgroundColor,
-      label: 'remaining',
+      label: "remaining",
     },
   ];
 
   return (
-    <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+    <View style={{ alignItems: "center", justifyContent: "center" }}>
       <View style={{ width: size, height: size }}>
         <PolarChart
           data={data}
           labelKey="label"
           valueKey="value"
           colorKey="color"
+          canvasStyle={{
+            width: chartSize,
+            height: chartSize,
+          }}
         >
           <Pie.Chart innerRadius="80%" startAngle={-90}>
             {({ slice }) => {
-              if (showGradient && slice.label === 'progress') {
+              if (showGradient && slice.label === "progress") {
                 const { startX, startY, endX, endY } = calculateGradientPoints(
                   slice.radius,
                   slice.startAngle,
@@ -104,30 +106,27 @@ export const CircularProgressChart: React.FC<CircularProgressChartProps> = ({
         </PolarChart>
       </View>
 
-      {/* Centered text overlay */}
-      <View style={{
-        position: 'absolute',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}>
-        <ThemedText style={{
-          fontSize: size * 0.2,
-          fontWeight: 'bold',
-          color: color,
-        }}>
+      <View
+        style={{
+          position: "absolute",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <ThemedText
+          style={{
+            fontWeight: "bold",
+            color: color,
+          }}
+        >
           {Math.round(percentage)}%
         </ThemedText>
         {label && (
-          <ThemedText style={{
-            fontSize: size * 0.08,
-            color: '#666',
-            fontWeight: '600',
-            marginTop: 2,
-          }}>
-            {label.toUpperCase()}
+          <ThemedText size="xxs" type="secondary">
+            {label}
           </ThemedText>
         )}
       </View>
     </View>
   );
-};
+}
