@@ -4,14 +4,39 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
+import { CircularProgressChart } from "@/components/charts/CircularProgressChart";
+import { Colors } from "@/constants/Colors";
 import { HealthDataContext } from "@/context/HealthDataContext";
 
 export default function HomeScreen() {
-  const { data, writeHealthData } = use(HealthDataContext);
+  const { data } = use(HealthDataContext);
+
+  console.log("Health Data:", JSON.stringify(data, null, 2));
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <ScrollView>
+        <ThemedView style={styles.circularChartsContainer}>
+          <CircularProgressChart
+            value={data.sleepPerformance}
+            color={Colors.charts.sleep}
+            backgroundColor={Colors.charts.chartBackground}
+            label="SLEEP"
+          />
+          <CircularProgressChart
+            value={data.recoveryScore}
+            color={Colors.charts.recovery}
+            backgroundColor={Colors.charts.chartBackground}
+            label="RECOVERY"
+          />
+          <CircularProgressChart
+            value={data.strainScore}
+            color={Colors.charts.strain}
+            backgroundColor={Colors.charts.chartBackground}
+            label="STRAIN"
+          />
+        </ThemedView>
+
         <ThemedView style={styles.metricsContainer}>
           <ThemedView style={styles.metricCard}>
             <ThemedText type="subtitle">Sleep</ThemedText>
@@ -92,6 +117,24 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+  },
+  headerContainer: {
+    alignItems: "center",
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+  },
+  circularChartsContainer: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    gap: 10,
   },
   metricsContainer: {
     gap: 16,

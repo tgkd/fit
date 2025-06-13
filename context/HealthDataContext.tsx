@@ -40,6 +40,11 @@ export interface HealthData {
   bloodOxygen: number;
   stressLevel: number;
   hrvValues: number[];
+  // Secondary calculated metrics
+  sleepEfficiency: number;
+  trainingLoad: number;
+  dailySleepDurations: number[];
+  sleepStressCorrelation: number;
 }
 
 const defaultData: HealthData = {
@@ -56,6 +61,11 @@ const defaultData: HealthData = {
   bloodOxygen: 0,
   stressLevel: 0,
   hrvValues: [],
+  // Secondary calculated metrics
+  sleepEfficiency: 0,
+  trainingLoad: 0,
+  dailySleepDurations: [],
+  sleepStressCorrelation: 0,
 };
 
 // Write data interfaces
@@ -116,83 +126,48 @@ const writePermissions = [
   HKQuantityTypeIdentifier.dietaryWater,
 ];
 
-// Add environment variable to enable fake data for testing
-const USE_FAKE_DATA = false; // Set to true to use fake data in development
-
-// Check if HealthKit is available
-const isHealthKitAvailable = Platform.OS === 'ios';
-
-console.log('HealthKit availability check:');
-console.log('Platform.OS:', Platform.OS);
-console.log('isHealthKitAvailable:', isHealthKitAvailable);
-
-// Initialize HealthKit if available
+const USE_FAKE_DATA = false;
+const isHealthKitAvailable = Platform.OS === "ios";
 let healthKitInitialized = false;
 
 const initializeHealthKit = async () => {
   if (isHealthKitAvailable && !healthKitInitialized) {
     try {
-      console.log('Initializing HealthKit...');
       const isAvailable = await isHealthDataAvailable();
       if (isAvailable) {
         await requestAuthorization(readPermissions, writePermissions);
         healthKitInitialized = true;
-        console.log('HealthKit initialized successfully');
-      } else {
-        console.log('HealthKit not available on this device');
       }
     } catch (error) {
-      console.log('[ERROR] Cannot grant HealthKit permissions!', error);
+      console.log("[ERROR] Cannot grant HealthKit permissions!", error);
     }
   } else {
-    console.log('HealthKit not available or already initialized');
+    console.log("HealthKit not available or already initialized");
   }
 };
 
 export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
   const [data, setData] = useState<HealthData>(defaultData);
 
-  useEffect(() => {
-    console.log("HealthDataProvider useEffect running, USE_FAKE_DATA:", USE_FAKE_DATA);
-
-    const initData = async () => {
-      if (USE_FAKE_DATA || !isHealthKitAvailable) {
-        console.log("Using fake data");
-        setData(generateFakeHealthData());
-      } else {
-        console.log("Initializing HealthKit and fetching data...");
-        try {
-          await initializeHealthKit();
-          const fetchedData = await fetchBaseData();
-          setData(fetchedData);
-        } catch (error) {
-          console.error("fetchBaseData failed:", error);
-          // Fallback to fake data on error
-          console.log("Falling back to fake data due to error");
-          setData(generateFakeHealthData());
-        }
-      }
-    };
-
-    initData();
-  }, []);
-
-  const refresh = async () => {
-    try {
-      if (USE_FAKE_DATA || !isHealthKitAvailable) {
-        const newData = generateFakeHealthData();
-        setData(newData);
-      } else {
-        await initializeHealthKit();
-        const newData = await fetchBaseData();
-        setData(newData);
-      }
-    } catch (error) {
-      console.error("Error refreshing health data", error);
-      // Fallback to fake data on error
+  const initData = async () => {
+    if (USE_FAKE_DATA || !isHealthKitAvailable) {
+      console.log("Using fake data");
       setData(generateFakeHealthData());
+    } else {
+      try {
+        await initializeHealthKit();
+        const fetchedData = await fetchBaseData();
+        setData(fetchedData);
+      } catch (error) {
+        console.error("fetchBaseData failed:", error);
+        setData(generateFakeHealthData());
+      }
     }
   };
+
+  useEffect(() => {
+    initData();
+  }, []);
 
   const writeHealthData = async (options: WriteHealthDataOptions) => {
     try {
@@ -202,8 +177,7 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
       }
 
       await writeToAppleHealth(options);
-      // Refresh data after writing
-      await refresh();
+      await initData();
     } catch (error) {
       console.error("Error writing health data", error);
       throw error;
@@ -211,7 +185,9 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <HealthDataContext.Provider value={{ data, refresh, writeHealthData }}>
+    <HealthDataContext.Provider
+      value={{ data, refresh: initData, writeHealthData }}
+    >
       {children}
     </HealthDataContext.Provider>
   );
@@ -226,19 +202,14 @@ const ACTUAL_SLEEP_VALUES = [
 ];
 
 async function fetchBaseData() {
-  console.log("Fetching base health data...");
-
-  // Check if HealthKit is available
   if (!isHealthKitAvailable) {
-    console.log("HealthKit not available - using fake data");
-    return generateFakeHealthData();
+    throw new Error("HealthKit is not available on this platform.");
   }
 
   try {
     const data = await fetchAllData();
-    console.log("Fetched HealthKit data successfully");
-    calculateSecondary(data);
-    return data;
+    const secondaryMetrics = calculateSecondary(data);
+    return { ...data, ...secondaryMetrics };
   } catch (error) {
     console.error("Error fetching HealthKit data", error);
     throw error;
@@ -247,18 +218,12 @@ async function fetchBaseData() {
 
 async function fetchAllData() {
   try {
-    console.log("Fetching HealthKit data...");
-
     const today = new Date();
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-    // Sleep
     const sleepSamples = await queryCategorySamples(
       HKCategoryTypeIdentifier.sleepAnalysis,
-      {
-        from: sevenDaysAgo,
-        to: today,
-      }
+      { from: sevenDaysAgo, to: today }
     );
 
     const totalSleep = sleepSamples
@@ -272,7 +237,6 @@ async function fetchAllData() {
         0
       );
 
-    // Steps for today
     const stepsToday = new Date();
     stepsToday.setHours(0, 0, 0, 0);
     const stepsStat = await queryStatisticsForQuantity(
@@ -282,21 +246,16 @@ async function fetchAllData() {
       today
     );
 
-    // Resting Heart Rate
     const restingHR = await getMostRecentQuantitySample(
       HKQuantityTypeIdentifier.restingHeartRate,
-      'count/min'
+      "count/min"
     );
 
-    // Active Calories
     const caloriesStart = new Date();
     caloriesStart.setHours(0, 0, 0, 0);
     const caloriesSamples = await queryQuantitySamples(
       HKQuantityTypeIdentifier.activeEnergyBurned,
-      {
-        from: caloriesStart,
-        to: today,
-      }
+      { from: caloriesStart, to: today }
     );
 
     const totalCaloriesBurned = caloriesSamples.reduce(
@@ -304,19 +263,14 @@ async function fetchAllData() {
       0
     );
 
-    // SpO2
     const spo2Sample = await getMostRecentQuantitySample(
       HKQuantityTypeIdentifier.oxygenSaturation,
       HKUnits.Percent
     );
 
-    // HRV
     const hrvSamples = await queryQuantitySamples(
       HKQuantityTypeIdentifier.heartRateVariabilitySDNN,
-      {
-        from: sevenDaysAgo,
-        to: today,
-      }
+      { from: sevenDaysAgo, to: today }
     );
     const hrvValues = hrvSamples.map((s) => s.quantity);
 
@@ -330,7 +284,6 @@ async function fetchAllData() {
     const recoveryScore = calculateRecoveryScore(hrvValues);
     const strainScore = calculateStrainScore(totalCaloriesBurned);
     const stressLevel = calculateStressLevelFromHRV(hrvValues);
-    console.log("Stress Level:", stressLevel, "%");
 
     return {
       sleep: sleepSamples,
@@ -346,6 +299,11 @@ async function fetchAllData() {
       bloodOxygen: spo2Sample?.quantity || 0,
       stressLevel,
       hrvValues,
+      // Secondary metrics will be calculated separately
+      sleepEfficiency: 0,
+      trainingLoad: 0,
+      dailySleepDurations: [],
+      sleepStressCorrelation: 0,
     } as HealthData;
   } catch (fetchError) {
     console.error("HealthKit data fetch error", fetchError);
@@ -370,7 +328,9 @@ const calculateStressLevelFromHRV = (hrvData: number[]): number => {
 // 1. Sleep Efficiency
 // total asleep time ÷ time in bed × 100
 //////////////////////////////////////
-function calculateSleepEfficiency(rawSleepSamples: readonly HKCategorySample<HKCategoryTypeIdentifier.sleepAnalysis>[]): number {
+function calculateSleepEfficiency(
+  rawSleepSamples: readonly HKCategorySample<HKCategoryTypeIdentifier.sleepAnalysis>[]
+): number {
   let totalInBedMs = 0;
   let totalAsleepMs = 0;
 
@@ -439,17 +399,6 @@ function calculateTrainingLoad(activities: ActivitySample[]): number {
 }
 
 //////////////////////////////////////
-// 5. Stress Index
-// inverse of HRV: higher when HRV low
-//////////////////////////////////////
-function calculateStressIndex(hrvValues: number[]): number {
-  if (hrvValues.length === 0) return 0;
-  // e.g., stress = 100 − recoveryScore
-  const recovery = calculateRecoveryScore(hrvValues);
-  return parseFloat((100 - recovery).toFixed(1));
-}
-
-//////////////////////////////////////
 // 6. Pearson Correlation
 // between two metrics, e.g., sleep vs. stress
 //////////////////////////////////////
@@ -485,27 +434,16 @@ function hdToActivitySamples(hd: HealthData): ActivitySample[] {
   }));
 }
 
-function calculateSecondary(hd: HealthData) {
-  // hd.sleep contains the raw HealthValue[] sleep samples
-  console.log("Sleep Efficiency:", calculateSleepEfficiency(hd.sleep), "%");
+interface SecondaryMetrics {
+  sleepEfficiency: number;
+  trainingLoad: number;
+  dailySleepDurations: number[];
+  sleepStressCorrelation: number;
+}
 
-  const bedTimes = hd.sleep
-    .filter((s) => String(s.value) === "INBED")
-    .map((s) => new Date(s.startDate));
-  console.log("Sleep Consistency:", calculateSleepConsistency(bedTimes), "%");
-
-  console.log("Recovery Score:", calculateRecoveryScore(hd.hrvValues), "/100");
-  console.log("Stress Index:", calculateStressIndex(hd.hrvValues), "/100");
-
+function calculateSecondary(hd: HealthData): SecondaryMetrics {
   const activities: ActivitySample[] = hdToActivitySamples(hd);
-  console.log(
-    "Training Load (Energy Burned):",
-    calculateTrainingLoad(activities),
-    "kcal"
-  );
 
-  // Correlate sleep hours vs. stress index across days:
-  // Calculate daily actual sleep duration
   const dailySleepDurations: number[] = [];
   if (hd.sleep.length > 0) {
     const sleepByDate: { [key: string]: number } = {};
@@ -522,15 +460,7 @@ function calculateSecondary(hd: HealthData) {
     dailySleepDurations.push(...Object.values(sleepByDate));
   }
 
-  // Assuming hrvValues in HealthData are daily or can be mapped to the same period as sleep.
-  // For simplicity, if hrvValues are daily SDNN values, we can use them directly.
-  // If stress is calculated daily based on these, ensure alignment.
-  // This example assumes dailyStress can be derived or is available in a compatible format.
-  // The current calculateStressIndex uses the latest HRV relative to min/max, not daily.
-  // For a proper daily stress correlation, daily stress values would be needed.
-  // Here, we'll use a placeholder or a simplified approach if dailyStress is not readily available.
-  // For now, let's assume calculateStressIndex can be mapped if hrvValues represent daily readings.
-  // This part might need further refinement based on how hrvValues are structured over time.
+  let sleepStressCorrelation = 0;
   if (
     dailySleepDurations.length > 0 &&
     hd.hrvValues.length >= dailySleepDurations.length
@@ -541,34 +471,37 @@ function calculateSecondary(hd: HealthData) {
       .map((hrv) =>
         parseFloat((100 - calculateRecoveryScore([hrv])).toFixed(1))
       );
-    console.log(
-      "Sleep-Stress Correlation:",
-      pearsonCorrelation(dailySleepDurations, dailyStressApproximation)
+
+    sleepStressCorrelation = pearsonCorrelation(
+      dailySleepDurations,
+      dailyStressApproximation
     );
   } else {
     console.log("Sleep-Stress Correlation: Not enough data for correlation.");
   }
+
+  return {
+    sleepEfficiency: calculateSleepEfficiency(hd.sleep),
+    trainingLoad: calculateTrainingLoad(activities),
+    dailySleepDurations,
+    sleepStressCorrelation,
+  };
 }
 
-// Fake data generator for testing
 function generateFakeHealthData(): HealthData {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-  // Generate fake sleep data for the past 7 days
-  const fakeSleep: HKCategorySample<HKCategoryTypeIdentifier.sleepAnalysis>[] = [];
+  const fakeSleep: HKCategorySample<HKCategoryTypeIdentifier.sleepAnalysis>[] =
+    [];
   for (let i = 6; i >= 0; i--) {
     const sleepDate = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
 
-    // Bedtime (INBED) - around 10-11 PM
     const bedtime = new Date(sleepDate);
     bedtime.setHours(22 + Math.random() * 1, Math.random() * 60, 0, 0);
 
-    // Wake time - around 6-8 AM next day
     const wakeTime = new Date(bedtime.getTime() + 24 * 60 * 60 * 1000);
     wakeTime.setHours(6 + Math.random() * 2, Math.random() * 60, 0, 0);
 
-    // INBED sample
     fakeSleep.push({
       value: HKCategoryValueSleepAnalysis.inBed,
       startDate: bedtime,
@@ -577,11 +510,9 @@ function generateFakeHealthData(): HealthData {
       metadata: {},
     } as HKCategorySample<HKCategoryTypeIdentifier.sleepAnalysis>);
 
-    // ASLEEP samples (simulate different sleep stages)
     const sleepStart = new Date(bedtime.getTime() + 15 * 60 * 1000); // 15 min to fall asleep
     const sleepEnd = new Date(wakeTime.getTime() - 10 * 60 * 1000); // wake 10 min before getting up
 
-    // Core sleep
     fakeSleep.push({
       value: HKCategoryValueSleepAnalysis.asleepCore,
       startDate: sleepStart,
@@ -589,8 +520,6 @@ function generateFakeHealthData(): HealthData {
       uuid: `fake-sleep-core-${i}`,
       metadata: {},
     } as HKCategorySample<HKCategoryTypeIdentifier.sleepAnalysis>);
-
-    // Deep sleep
     fakeSleep.push({
       value: HKCategoryValueSleepAnalysis.asleepDeep,
       startDate: new Date(sleepStart.getTime() + 1 * 60 * 60 * 1000),
@@ -599,7 +528,6 @@ function generateFakeHealthData(): HealthData {
       metadata: {},
     } as HKCategorySample<HKCategoryTypeIdentifier.sleepAnalysis>);
 
-    // REM sleep
     fakeSleep.push({
       value: HKCategoryValueSleepAnalysis.asleepREM,
       startDate: new Date(sleepStart.getTime() + 5 * 60 * 60 * 1000),
@@ -609,8 +537,8 @@ function generateFakeHealthData(): HealthData {
     } as HKCategorySample<HKCategoryTypeIdentifier.sleepAnalysis>);
   }
 
-  // Generate fake calorie data for today
-  const fakeCalories: HKQuantitySample<HKQuantityTypeIdentifier.activeEnergyBurned>[] = [];
+  const fakeCalories: HKQuantitySample<HKQuantityTypeIdentifier.activeEnergyBurned>[] =
+    [];
   for (let hour = 6; hour < 22; hour++) {
     const hourlyCalories = 50 + Math.random() * 150; // 50-200 calories per hour
     const startTime = new Date(today);
@@ -619,7 +547,7 @@ function generateFakeHealthData(): HealthData {
 
     fakeCalories.push({
       quantity: hourlyCalories,
-      unit: 'kcal',
+      unit: "kcal",
       startDate: startTime,
       endDate: endTime,
       uuid: `fake-calories-${hour}`,
@@ -627,13 +555,11 @@ function generateFakeHealthData(): HealthData {
     } as HKQuantitySample<HKQuantityTypeIdentifier.activeEnergyBurned>);
   }
 
-  // Generate fake HRV values for the past 7 days
   const fakeHRV: number[] = [];
   for (let i = 0; i < 7; i++) {
-    fakeHRV.push(25 + Math.random() * 30); // HRV between 25-55ms
+    fakeHRV.push(25 + Math.random() * 30);
   }
 
-  // Calculate totals and metrics
   const totalSleep = fakeSleep
     .filter((s) => ACTUAL_SLEEP_VALUES.includes(s.value))
     .reduce(
@@ -654,7 +580,7 @@ function generateFakeHealthData(): HealthData {
     .filter((s) => s.value === HKCategoryValueSleepAnalysis.inBed)
     .map((s) => new Date(s.startDate));
 
-  return {
+  const fakeHealthData = {
     sleep: fakeSleep,
     sleepHours: parseFloat(totalSleep.toFixed(2)),
     sleepPerformance: Math.min(100, (totalSleep / 8) * 100),
@@ -668,17 +594,24 @@ function generateFakeHealthData(): HealthData {
     bloodOxygen: 95 + Math.random() * 4, // 95-99%
     stressLevel: calculateStressLevelFromHRV(fakeHRV),
     hrvValues: fakeHRV,
+    // Placeholder values for secondary metrics
+    sleepEfficiency: 0,
+    trainingLoad: 0,
+    dailySleepDurations: [],
+    sleepStressCorrelation: 0,
   };
+
+  // Calculate and add secondary metrics
+  const secondaryMetrics = calculateSecondary(fakeHealthData);
+  return { ...fakeHealthData, ...secondaryMetrics };
 }
 
-// Function to write data to Apple Health
 async function writeToAppleHealth(
   options: WriteHealthDataOptions
 ): Promise<void> {
   const promises: Promise<boolean>[] = [];
 
   try {
-    // Save steps
     if (options.steps) {
       promises.push(
         saveQuantitySample(
@@ -686,104 +619,82 @@ async function writeToAppleHealth(
           HKUnits.Count,
           options.steps,
           {
-            start: new Date(Date.now() - 60 * 60 * 1000), // 1 hour ago
+            start: new Date(Date.now() - 60 * 60 * 1000),
             end: new Date(),
           }
         )
       );
     }
 
-    // Save weight
     if (options.weight) {
       promises.push(
         saveQuantitySample(
           HKQuantityTypeIdentifier.bodyMass,
-          'kg',
+          "kg",
           options.weight,
-          {
-            start: new Date(),
-            end: new Date(),
-          }
+          { start: new Date(), end: new Date() }
         )
       );
     }
 
-    // Save height
     if (options.height) {
       promises.push(
         saveQuantitySample(
           HKQuantityTypeIdentifier.height,
-          'm',
-          options.height / 100, // Convert cm to meters
-          {
-            start: new Date(),
-            end: new Date(),
-          }
+          "m",
+          options.height / 100,
+          { start: new Date(), end: new Date() }
         )
       );
     }
 
-    // Save heart rate
     if (options.heartRate) {
       promises.push(
         saveQuantitySample(
           HKQuantityTypeIdentifier.heartRate,
-          'count/min',
+          "count/min",
           options.heartRate,
-          {
-            start: new Date(),
-            end: new Date(),
-          }
+          { start: new Date(), end: new Date() }
         )
       );
     }
 
-    // Save body fat percentage
     if (options.bodyFatPercentage) {
       promises.push(
         saveQuantitySample(
           HKQuantityTypeIdentifier.bodyFatPercentage,
           HKUnits.Percent,
-          options.bodyFatPercentage / 100, // Convert percentage to decimal
-          {
-            start: new Date(),
-            end: new Date(),
-          }
+          options.bodyFatPercentage / 100,
+          { start: new Date(), end: new Date() }
         )
       );
     }
 
-    // Save water intake
     if (options.waterIntake) {
       promises.push(
         saveQuantitySample(
           HKQuantityTypeIdentifier.dietaryWater,
-          UnitOfVolume.Liter, // Liter unit
-          options.waterIntake / 1000, // Convert ml to liters
-          {
-            start: new Date(),
-            end: new Date(),
-          }
+          UnitOfVolume.Liter,
+          options.waterIntake / 1000,
+          { start: new Date(), end: new Date() }
         )
       );
     }
 
-    // Save active energy burned
     if (options.activeEnergyBurned) {
       promises.push(
         saveQuantitySample(
           HKQuantityTypeIdentifier.activeEnergyBurned,
-          UnitOfEnergy.Kilocalories, // Kilocalorie unit
+          UnitOfEnergy.Kilocalories,
           options.activeEnergyBurned,
           {
-            start: new Date(Date.now() - 60 * 60 * 1000), // 1 hour ago
+            start: new Date(Date.now() - 60 * 60 * 1000),
             end: new Date(),
           }
         )
       );
     }
 
-    // Execute all promises
     if (promises.length > 0) {
       await Promise.all(promises);
     }
