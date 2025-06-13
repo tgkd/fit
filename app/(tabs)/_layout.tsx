@@ -34,6 +34,33 @@ export default function TabLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="sleep"
+        options={{
+          title: "Sleep",
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="bed.double.fill" color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="workouts"
+        options={{
+          title: "Workouts",
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="figure.run" color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: "Settings",
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="gear" color={color} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }
