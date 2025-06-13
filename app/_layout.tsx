@@ -11,6 +11,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { HealthDataProvider } from "@/context/HealthDataContext";
 import { useColorScheme } from "@/hooks/useColorScheme";
+import "@/lib/i18n"; // Initialize i18n
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();

@@ -282,7 +282,12 @@ async function fetchAllData() {
       sleepSamplesForConsistency
     );
     const recoveryScore = calculateRecoveryScore(hrvValues);
-    const strainScore = calculateStrainScore(totalCaloriesBurned);
+    const strainScore = calculateStrainScore({
+      activeCalories: totalCaloriesBurned,
+      restingHeartRate: restingHR?.quantity || 0,
+      rawCalories: caloriesSamples,
+      hrvValues,
+    });
     const stressLevel = calculateStressLevelFromHRV(hrvValues);
 
     return {
@@ -291,7 +296,7 @@ async function fetchAllData() {
       sleepPerformance: Math.min(100, (totalSleep / 8) * 100),
       sleepConsistency,
       recoveryScore,
-      strainScore: strainScore,
+      strainScore,
       restingHeartRate: restingHR?.quantity || 0,
       steps: stepsStat?.sumQuantity?.quantity || 0,
       caloriesBurned: totalCaloriesBurned,
@@ -313,9 +318,155 @@ async function fetchAllData() {
   }
 }
 
-const calculateStrainScore = (activeCalories: number): number => {
+//////////////////////////////////////
+// Enhanced Strain Score Calculation
+// Uses heart rate zones, duration, and activity intensity
+//////////////////////////////////////
+
+interface StrainCalculationData {
+  activeCalories: number;
+  restingHeartRate: number;
+  rawCalories: readonly HKQuantitySample<HKQuantityTypeIdentifier.activeEnergyBurned>[];
+  hrvValues: number[];
+}
+
+// Activity type multipliers (estimated from calories/time ratio)
+const ACTIVITY_MULTIPLIERS = {
+  LOW_INTENSITY: 0.8, // < 100 cal/hour
+  MODERATE: 1.0, // 100-300 cal/hour
+  HIGH_INTENSITY: 1.3, // 300-600 cal/hour
+  VERY_HIGH: 1.6, // > 600 cal/hour
+};
+
+const calculateStrainScore = (data: StrainCalculationData): number => {
+  const { activeCalories, restingHeartRate, rawCalories, hrvValues } = data;
+
+  // Fallback to simple calculation if insufficient data
+  if (!rawCalories || rawCalories.length === 0 || !restingHeartRate) {
+    return calculateSimpleStrainScore(activeCalories);
+  }
+
+  let totalStrain = 0;
+  const maxHeartRate = estimateMaxHeartRate(restingHeartRate);
+  const heartRateReserve = maxHeartRate - restingHeartRate;
+
+  // Calculate strain for each activity session
+  rawCalories.forEach((session, index) => {
+    const durationHours =
+      (new Date(session.endDate).getTime() -
+        new Date(session.startDate).getTime()) /
+      (1000 * 60 * 60);
+
+    if (durationHours > 0) {
+      const caloriesPerHour = session.quantity / durationHours;
+      const activityMultiplier = getActivityMultiplier(caloriesPerHour);
+
+      // Estimate heart rate intensity based on calories and duration
+      const estimatedIntensity = estimateIntensityFromCalories(
+        caloriesPerHour,
+        durationHours
+      );
+
+      // Calculate TRIMP-like score
+      const sessionStrain = calculateSessionStrain(
+        durationHours,
+        estimatedIntensity,
+        activityMultiplier,
+        heartRateReserve
+      );
+
+      totalStrain += sessionStrain;
+    }
+  });
+
+  // Apply individual fitness level adjustment based on HRV
+  const fitnessAdjustment = calculateFitnessAdjustment(hrvValues);
+  totalStrain *= fitnessAdjustment;
+
+  // Normalize to 0-100 scale
+  // Typical daily strain ranges: 0-20 (rest), 20-40 (light), 40-60 (moderate), 60-80 (high), 80-100 (very high)
+  const normalizedStrain = Math.min(100, totalStrain * 15); // Multiply by 15 for better scaling
+
+  console.log("📈 Final strain calculation:", {
+    totalStrain: totalStrain.toFixed(2),
+    fitnessAdjustment: fitnessAdjustment.toFixed(2),
+    normalizedStrain: normalizedStrain.toFixed(1),
+  });
+
+  return parseFloat(normalizedStrain.toFixed(1));
+};
+
+// Fallback simple calculation
+const calculateSimpleStrainScore = (activeCalories: number): number => {
   const strain = (activeCalories / 1000) * 100;
   return Math.min(100, parseFloat(strain.toFixed(1)));
+};
+
+// Estimate max heart rate using improved formula
+const estimateMaxHeartRate = (restingHR: number): number => {
+  // Using Tanaka formula: 208 - (0.7 × age)
+  // Since we don't have age, estimate from resting HR
+  // Typical range: fit person (40-60 bpm) vs average (60-80 bpm)
+  const estimatedAge =
+    restingHR < 50 ? 25 : restingHR < 60 ? 35 : restingHR < 70 ? 45 : 55;
+  return Math.round(208 - 0.7 * estimatedAge);
+};
+
+// Get activity multiplier based on calorie burn rate
+const getActivityMultiplier = (caloriesPerHour: number): number => {
+  if (caloriesPerHour < 100) return ACTIVITY_MULTIPLIERS.LOW_INTENSITY;
+  if (caloriesPerHour < 300) return ACTIVITY_MULTIPLIERS.MODERATE;
+  if (caloriesPerHour < 600) return ACTIVITY_MULTIPLIERS.HIGH_INTENSITY;
+  return ACTIVITY_MULTIPLIERS.VERY_HIGH;
+};
+
+// Estimate intensity from calories and duration
+const estimateIntensityFromCalories = (
+  caloriesPerHour: number,
+  durationHours: number
+): number => {
+  // Base intensity on calorie burn rate
+  let baseIntensity = Math.min(0.9, caloriesPerHour / 800); // Max 800 cal/hour = 90% intensity
+
+  // Adjust for duration (longer sessions tend to be lower intensity)
+  if (durationHours > 2) baseIntensity *= 0.8;
+  else if (durationHours > 1) baseIntensity *= 0.9;
+  else if (durationHours < 0.5) baseIntensity *= 1.1; // Short, intense sessions
+
+  return Math.max(0.5, Math.min(0.95, baseIntensity)); // Keep within reasonable bounds
+};
+
+// Calculate strain for individual session using TRIMP-like formula
+const calculateSessionStrain = (
+  durationHours: number,
+  intensity: number,
+  activityMultiplier: number,
+  heartRateReserve: number
+): number => {
+  // Modified TRIMP calculation
+  const durationMinutes = durationHours * 60;
+  const intensityFactor = Math.exp(1.92 * intensity); // Exponential weighting for higher intensities
+
+  const sessionStrain =
+    durationMinutes * intensity * intensityFactor * activityMultiplier * 0.01;
+
+  return sessionStrain;
+};
+
+// Adjust strain based on individual fitness level (using HRV as proxy)
+const calculateFitnessAdjustment = (hrvValues: number[]): number => {
+  if (hrvValues.length === 0) return 1.0;
+
+  const avgHRV =
+    hrvValues.reduce((sum, val) => sum + val, 0) / hrvValues.length;
+
+  // Higher HRV typically indicates better fitness/recovery
+  // Adjust strain perception: fitter individuals handle strain better
+  if (avgHRV > 45) return 0.85; // Very fit
+  if (avgHRV > 35) return 0.9; // Fit
+  if (avgHRV > 25) return 1.0; // Average
+  if (avgHRV > 15) return 1.1; // Below average
+  return 1.2; // Poor fitness
 };
 
 const calculateStressLevelFromHRV = (hrvData: number[]): number => {
@@ -586,7 +737,12 @@ function generateFakeHealthData(): HealthData {
     sleepPerformance: Math.min(100, (totalSleep / 8) * 100),
     sleepConsistency: calculateSleepConsistency(bedTimes),
     recoveryScore: calculateRecoveryScore(fakeHRV),
-    strainScore: calculateStrainScore(totalCaloriesBurned),
+    strainScore: calculateStrainScore({
+      activeCalories: totalCaloriesBurned,
+      restingHeartRate: 55 + Math.random() * 25, // 55-80 bpm
+      rawCalories: fakeCalories,
+      hrvValues: fakeHRV,
+    }),
     restingHeartRate: 55 + Math.random() * 25, // 55-80 bpm
     steps: Math.floor(6000 + Math.random() * 8000), // 6,000-14,000 steps
     caloriesBurned: totalCaloriesBurned,

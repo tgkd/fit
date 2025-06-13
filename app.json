@@ -43,7 +43,8 @@
           "NSHealthUpdateUsageDescription": "This app uses HealthKit to write your health data for fitness tracking",
           "background": false
         }
-      ]
+      ],
+      "expo-localization"
     ],
     "experiments": {
       "typedRoutes": true
