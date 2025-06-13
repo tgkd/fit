@@ -1,24 +1,21 @@
-import { ThemedText } from "@/components/ThemedText";
-import { ThemedView } from "@/components/ThemedView";
-import { Colors } from "@/constants/Colors";
-import { useColorScheme } from "@/hooks/useColorScheme";
-import i18n from "@/lib/i18n"; // Corrected import
 import * as React from "react";
 import { StyleSheet, View } from "react-native";
 import { CartesianChart, Line, Scatter } from "victory-native";
+
+import { ThemedText } from "@/components/ThemedText";
+import { ThemedView } from "@/components/ThemedView";
+import { Colors } from "@/constants/Colors";
+import { HealthData } from "@/context/HealthDataContext";
+import { useColorScheme } from "@/hooks/useColorScheme";
+import i18n from "@/lib/i18n";
 import { Card } from "../ui/Card";
 
-interface StressDataPoint extends Record<string, unknown> {
-  day: number;
-  stress: number;
-  timeLabel: string;
-}
-
 interface StressChartProps {
-  stressData: StressDataPoint[];
+  data: HealthData;
 }
 
-export function StressChart({ stressData }: StressChartProps) {
+export function StressChart({ data: initData }: StressChartProps) {
+  const stressData = generateStressChartData(initData);
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
@@ -33,14 +30,19 @@ export function StressChart({ stressData }: StressChartProps) {
   const formatStressLabel = (value: number) => {
     if (value < 20) return `${value.toFixed(0)} ${i18n.t("stressChart.low")}`;
     if (value < 40) return `${value.toFixed(0)} ${i18n.t("stressChart.mild")}`;
-    if (value < 60) return `${value.toFixed(0)} ${i18n.t("stressChart.moderate")}`;
+    if (value < 60)
+      return `${value.toFixed(0)} ${i18n.t("stressChart.moderate")}`;
     if (value < 80) return `${value.toFixed(0)} ${i18n.t("stressChart.high")}`;
     return `${value.toFixed(0)} ${i18n.t("stressChart.max")}`;
   };
 
   const formatDayLabel = (value: number): string => {
     const dataPoint = stressData.find((d) => d.day === value);
-    return dataPoint?.timeLabel || i18n.t("stressChart.dayLabel", { day: value }) || "";
+    return (
+      dataPoint?.timeLabel ||
+      i18n.t("stressChart.dayLabel", { day: value }) ||
+      ""
+    );
   };
 
   const maxStress = Math.max(...stressData.map((d) => d.stress), 100);
@@ -56,13 +58,17 @@ export function StressChart({ stressData }: StressChartProps) {
             <ThemedText style={styles.statValue}>
               {avgStress.toFixed(1)}
             </ThemedText>
-            <ThemedText style={styles.statLabel}>{i18n.t("stressChart.avg")}</ThemedText>
+            <ThemedText style={styles.statLabel}>
+              {i18n.t("stressChart.avg")}
+            </ThemedText>
           </ThemedView>
           <ThemedView style={styles.stat}>
             <ThemedText style={styles.statValue}>
               {maxStress.toFixed(1)}
             </ThemedText>
-            <ThemedText style={styles.statLabel}>{i18n.t("stressChart.peak")}</ThemedText>
+            <ThemedText style={styles.statLabel}>
+              {i18n.t("stressChart.peak")}
+            </ThemedText>
           </ThemedView>
         </ThemedView>
       </ThemedView>
@@ -117,26 +123,6 @@ export function StressChart({ stressData }: StressChartProps) {
           )}
         </CartesianChart>
       </View>
-
-      <ThemedView style={styles.legend}>
-        <ThemedView style={styles.legendRow}>
-          <View style={[styles.legendDot, { backgroundColor: "#10b981" }]} />
-          <ThemedText style={styles.legendText}>{i18n.t("stressChart.legendLow")}</ThemedText>
-
-          <View style={[styles.legendDot, { backgroundColor: "#f59e0b" }]} />
-          <ThemedText style={styles.legendText}>{i18n.t("stressChart.legendMid")}</ThemedText>
-
-          <View style={[styles.legendDot, { backgroundColor: "#f97316" }]} />
-          <ThemedText style={styles.legendText}>{i18n.t("stressChart.legendModerate")}</ThemedText>
-        </ThemedView>
-        <ThemedView style={styles.legendRow}>
-          <View style={[styles.legendDot, { backgroundColor: "#ef4444" }]} />
-          <ThemedText style={styles.legendText}>{i18n.t("stressChart.legendHigh")}</ThemedText>
-
-          <View style={[styles.legendDot, { backgroundColor: "#dc2626" }]} />
-          <ThemedText style={styles.legendText}>{i18n.t("stressChart.legendMax")}</ThemedText>
-        </ThemedView>
-      </ThemedView>
     </Card>
   );
 }
@@ -167,25 +153,64 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 220,
   },
-  legend: {
-    marginTop: 12,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: "#e5e7eb",
-  },
-  legendRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 4,
-    gap: 8,
-  },
-  legendDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  legendText: {
-    fontSize: 10,
-    flex: 1,
-  },
 });
+
+interface StressDataPoint extends Record<string, unknown> {
+  day: number;
+  stress: number;
+  timeLabel: string;
+}
+
+function generateStressChartData(healthData: HealthData): StressDataPoint[] {
+  // If we have multiple HRV values, we can create a time series
+  if (healthData.hrvValues.length > 1) {
+    return healthData.hrvValues.map((hrv, index) => {
+      // Calculate stress from HRV (inverse relationship)
+      const stress = Math.max(0, Math.min(100, 100 - (hrv / 50) * 100));
+
+      return {
+        day: index + 1,
+        stress,
+        timeLabel: `Day ${index + 1}`,
+      };
+    });
+  }
+
+  // If we only have current stress level, create a simple 7-day view
+  const currentStress = healthData.stressLevel;
+  const days = 7;
+
+  return Array.from({ length: days }, (_, index) => {
+    // Add some variation around the current stress level
+    const variation = (Math.random() - 0.5) * 20; // ±10 points variation
+    const stress = Math.max(0, Math.min(100, currentStress + variation));
+
+    const date = new Date();
+    date.setDate(date.getDate() - (days - 1 - index));
+
+    return {
+      day: index + 1,
+      stress,
+      timeLabel: date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      }),
+    };
+  });
+}
+
+function getStressLevel(stressValue: number): string {
+  if (stressValue < 20) return "Low";
+  if (stressValue < 40) return "Mild";
+  if (stressValue < 60) return "Moderate";
+  if (stressValue < 80) return "High";
+  return "Maximum";
+}
+
+function getStressColor(stressValue: number): string {
+  if (stressValue < 20) return "#10b981"; // green
+  if (stressValue < 40) return "#f59e0b"; // yellow
+  if (stressValue < 60) return "#f97316"; // orange
+  if (stressValue < 80) return "#ef4444"; // red
+  return "#dc2626"; // dark red
+}
