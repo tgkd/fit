@@ -97,15 +97,19 @@ export default function HomeScreen() {
           <ThemedText>{i18n.t("home.trainingStrain")}</ThemedText>
         </Card>
 
-        <Card>
-          <ThemedText type="subtitle">{i18n.t("home.bloodOxygen")}</ThemedText>
-          <ThemedText type="title">
-            {i18n.t("home.bloodOxygenValue", {
-              value: data.bloodOxygen.toFixed(1),
-            })}
-          </ThemedText>
-          <ThemedText>{i18n.t("home.spo2")}</ThemedText>
-        </Card>
+        {data.bloodOxygen?.value ? (
+          <Card>
+            <ThemedText type="subtitle">
+              {i18n.t("home.bloodOxygen")}
+            </ThemedText>
+            <ThemedText type="title">
+              {i18n.t("home.bloodOxygenValue", {
+                value: data.bloodOxygen.value.toFixed(1),
+              })}
+            </ThemedText>
+            <ThemedText>{i18n.t("home.spo2")}</ThemedText>
+          </Card>
+        ) : null}
 
         <Card>
           <ThemedText type="subtitle">{i18n.t("home.stress")}</ThemedText>
@@ -116,18 +120,6 @@ export default function HomeScreen() {
           </ThemedText>
           <ThemedText>{i18n.t("home.stressLevel")}</ThemedText>
         </Card>
-
-        {data.hrvValues.length > 0 && (
-          <Card>
-            <ThemedText type="subtitle">{i18n.t("home.hrv")}</ThemedText>
-            <ThemedText type="title">
-              {i18n.t("home.hrvValue", {
-                value: data.hrvValues[data.hrvValues.length - 1].toFixed(1),
-              })}
-            </ThemedText>
-            <ThemedText>{i18n.t("home.hrvLabel")}</ThemedText>
-          </Card>
-        )}
       </ScrollView>
     </SafeAreaView>
   );

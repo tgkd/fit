@@ -1,8 +1,10 @@
 import {
+  getDateOfBirth,
   getMostRecentQuantitySample,
   HKCategorySample,
   HKCategoryTypeIdentifier,
   HKCategoryValueSleepAnalysis,
+  HKCharacteristicTypeIdentifier,
   HKQuantitySample,
   HKQuantityTypeIdentifier,
   HKStatisticsOptions,
@@ -17,20 +19,42 @@ import {
   requestAuthorization,
   saveQuantitySample,
   UnitOfEnergy,
-  UnitOfVolume
+  UnitOfVolume,
 } from "@kingstinct/react-native-healthkit";
 import React, { createContext, ReactNode, useEffect, useState } from "react";
 import { Platform } from "react-native";
 
-interface ActivitySample {
-  start: Date;
-  end: Date;
-  mets: number;
-  energyBurned: number;
-}
+const SLEEP_PERFORMANCE_GOAL_HOURS = 8;
+const SLEEP_CONSISTENCY_MAX_STD_DEV_HOURS = 2.5;
+const STRAIN_NORMALIZATION_FACTOR = 12; // Adjusts the final strain score to a 0-100 scale
 
+const ACTIVITY_MULTIPLIERS = {
+  LOW_INTENSITY: 0.9, // < 4 METs
+  MODERATE_INTENSITY: 1.1, // 4-7 METs
+  HIGH_INTENSITY: 1.4, // > 7 METs
+};
+
+const ACTUAL_SLEEP_VALUES = [
+  HKCategoryValueSleepAnalysis.asleepUnspecified,
+  HKCategoryValueSleepAnalysis.asleepDeep,
+  HKCategoryValueSleepAnalysis.asleepCore,
+  HKCategoryValueSleepAnalysis.asleepREM,
+];
 export interface HealthData {
+  // Core Data
   sleep: readonly HKCategorySample<HKCategoryTypeIdentifier.sleepAnalysis>[];
+  restingHeartRate: number | null;
+  steps: number;
+  caloriesBurned: number;
+  rawCalories: readonly HKQuantitySample<HKQuantityTypeIdentifier.activeEnergyBurned>[];
+  bloodOxygen: { value: number; date: Date | null } | null;
+  hrv7DayAvg: number;
+  hrvMostRecent: number;
+  hrvValues: number[];
+  age: number | null;
+  weightInKg: number | null;
+
+  // Primary Calculated Metrics
   sleepHours: number;
   sleepPerformance: number;
   sleepConsistency: number;
@@ -40,19 +64,26 @@ export interface HealthData {
   steps: number;
   caloriesBurned: number; // This is total for the day
   rawCalories: readonly HKQuantitySample<HKQuantityTypeIdentifier.activeEnergyBurned>[];
-  workouts: readonly HKWorkout[];
   bloodOxygen: number;
   stressLevel: number;
-  hrvValues: number[];
-  // Secondary calculated metrics
   sleepEfficiency: number;
-  trainingLoad: number;
-  dailySleepDurations: number[];
-  sleepStressCorrelation: number;
+
+  // Secondary / For Charting
+  dailySleepDurations: { date: string; duration: number }[];
 }
 
 const defaultData: HealthData = {
   sleep: [],
+  restingHeartRate: null,
+  steps: 0,
+  caloriesBurned: 0,
+  rawCalories: [],
+  bloodOxygen: null,
+  hrv7DayAvg: 0,
+  hrvMostRecent: 0,
+  hrvValues: [],
+  age: null,
+  weightInKg: null,
   sleepHours: 0,
   sleepPerformance: 0,
   sleepConsistency: 0,
@@ -62,15 +93,10 @@ const defaultData: HealthData = {
   steps: 0,
   caloriesBurned: 0,
   rawCalories: [],
-  workouts: [],
   bloodOxygen: 0,
   stressLevel: 0,
-  hrvValues: [],
-  // Secondary calculated metrics
   sleepEfficiency: 0,
-  trainingLoad: 0,
   dailySleepDurations: [],
-  sleepStressCorrelation: 0,
 };
 
 // Write data interfaces
@@ -98,11 +124,9 @@ export interface WriteHealthDataOptions {
 export const HealthDataContext = createContext<{
   data: HealthData;
   refresh: () => Promise<void>;
-  writeHealthData: (options: WriteHealthDataOptions) => Promise<void>;
 }>({
   data: defaultData,
   refresh: async () => {},
-  writeHealthData: async () => {},
 });
 
 // Define permissions needed for reading
@@ -114,7 +138,6 @@ const readPermissions = [
   HKQuantityTypeIdentifier.activeEnergyBurned,
   HKQuantityTypeIdentifier.oxygenSaturation,
   HKQuantityTypeIdentifier.heartRateVariabilitySDNN,
-  HKWorkoutTypeIdentifier,
 ];
 
 // Define permissions needed for writing
@@ -129,7 +152,8 @@ const writePermissions = [
   HKQuantityTypeIdentifier.bodyMass,
   HKQuantityTypeIdentifier.height,
   HKQuantityTypeIdentifier.bodyFatPercentage,
-  HKQuantityTypeIdentifier.dietaryWater,
+  HKQuantityTypeIdentifier.activeEnergyBurned,
+  HKCharacteristicTypeIdentifier.dateOfBirth,
 ];
 
 const USE_FAKE_DATA = false;
@@ -140,8 +164,9 @@ const initializeHealthKit = async () => {
   if (isHealthKitAvailable && !healthKitInitialized) {
     try {
       const isAvailable = await isHealthDataAvailable();
+
       if (isAvailable) {
-        await requestAuthorization(readPermissions, writePermissions);
+        await requestAuthorization(readPermissions, []);
         healthKitInitialized = true;
       }
     } catch (error) {
@@ -175,25 +200,23 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
     initData();
   }, []);
 
-  const writeHealthData = async (options: WriteHealthDataOptions) => {
-    try {
-      if (USE_FAKE_DATA || !isHealthKitAvailable) {
-        console.log("Fake data mode - would write:", options);
-        return;
-      }
+  // const writeHealthData = async (options: WriteHealthDataOptions) => {
+  //   try {
+  //     if (USE_FAKE_DATA || !isHealthKitAvailable) {
+  //       console.log("Fake data mode - would write:", options);
+  //       return;
+  //     }
 
-      await writeToAppleHealth(options);
-      await initData();
-    } catch (error) {
-      console.error("Error writing health data", error);
-      throw error;
-    }
-  };
+  //     await writeToAppleHealth(options);
+  //     await initData();
+  //   } catch (error) {
+  //     console.error("Error writing health data", error);
+  //     throw error;
+  //   }
+  // };
 
   return (
-    <HealthDataContext.Provider
-      value={{ data, refresh: initData, writeHealthData }}
-    >
+    <HealthDataContext.Provider value={{ data, refresh: initData }}>
       {children}
     </HealthDataContext.Provider>
   );
@@ -205,8 +228,6 @@ const ACTUAL_SLEEP_VALUES = [
   HKCategoryValueSleepAnalysis.asleepDeep,
   HKCategoryValueSleepAnalysis.asleepCore,
   HKCategoryValueSleepAnalysis.asleepREM,
-  HKCategoryValueSleepAnalysis.awake,
-  HKCategoryValueSleepAnalysis.inBed,
 ];
 
 async function fetchBaseData() {
@@ -215,9 +236,7 @@ async function fetchBaseData() {
   }
 
   try {
-    const data = await fetchAllData();
-    const secondaryMetrics = calculateSecondary(data);
-    return { ...data, ...secondaryMetrics };
+    return await fetchAllData();
   } catch (error) {
     console.error("Error fetching HealthKit data", error);
     throw error;
@@ -233,17 +252,6 @@ async function fetchAllData() {
       HKCategoryTypeIdentifier.sleepAnalysis,
       { from: sevenDaysAgo, to: today }
     );
-
-    const totalSleep = sleepSamples
-      .filter((s) => ACTUAL_SLEEP_VALUES.includes(s.value))
-      .reduce(
-        (sum: number, s) =>
-          sum +
-          (new Date(s.endDate).getTime() - new Date(s.startDate).getTime()) /
-            1000 /
-            3600,
-        0
-      );
 
     const stepsToday = new Date();
     stepsToday.setHours(0, 0, 0, 0);
@@ -280,6 +288,17 @@ async function fetchAllData() {
       HKQuantityTypeIdentifier.heartRateVariabilitySDNN,
       { from: sevenDaysAgo, to: today }
     );
+    const dob = await getDateOfBirth();
+    const weightSample = await getMostRecentQuantitySample(
+      HKQuantityTypeIdentifier.bodyMass,
+      "kg"
+    );
+
+    const restingHRSample = await getMostRecentQuantitySample(
+      HKQuantityTypeIdentifier.restingHeartRate,
+      "count/min"
+    );
+
     const hrvValues = hrvSamples.map((s) => s.quantity);
 
     // Fetch workouts from the last 30 days
@@ -290,26 +309,53 @@ async function fetchAllData() {
       ascending: false, // Most recent first
     });
 
-    const sleepSamplesForConsistency = sleepSamples
-      .filter((s) => s.value === HKCategoryValueSleepAnalysis.inBed)
-      .map((s) => new Date(s.startDate));
+    // --- DATA PROCESSING & PRIMARY CALCULATIONS ---
+    const age = dob ? today.getFullYear() - dob.getFullYear() : null;
+    const weightInKg = weightSample?.quantity ?? null;
 
-    const sleepConsistency = calculateSleepConsistency(
-      sleepSamplesForConsistency
+    const { totalSleep, dailySleepDurations } = processSleepData(sleepSamples);
+    const sleepEfficiency = calculateSleepEfficiency(sleepSamples);
+    const sleepConsistency = calculateSleepConsistency(sleepSamples);
+    const { hrv7DayAvg, hrvMostRecent } = processHrv(hrvValues);
+
+    const recoveryScore = calculateRecoveryScore(hrvMostRecent, hrv7DayAvg);
+
+    const caloriesBurned = caloriesSamples.reduce(
+      (sum, record) => sum + record.quantity,
+      0
     );
-    const recoveryScore = calculateRecoveryScore(hrvValues);
+
     const strainScore = calculateStrainScore({
-      activeCalories: totalCaloriesBurned,
-      restingHeartRate: restingHR?.quantity || 0,
       rawCalories: caloriesSamples,
-      hrvValues,
+      age: age,
+      weightInKg: weightInKg,
     });
-    const stressLevel = calculateStressLevelFromHRV(hrvValues);
+
+    const restingHeartRate = restingHRSample?.quantity ?? null;
+    const stressLevel = calculateStressLevel(restingHeartRate, hrv7DayAvg);
 
     return {
+      // Core Data
       sleep: sleepSamples,
-      sleepHours: parseFloat(totalSleep.toFixed(2)),
-      sleepPerformance: Math.min(100, (totalSleep / 8) * 100),
+      restingHeartRate,
+      steps: stepsStat?.sumQuantity?.quantity || 0,
+      caloriesBurned,
+      rawCalories: caloriesSamples,
+      bloodOxygen: spo2Sample
+        ? { value: spo2Sample.quantity, date: new Date(spo2Sample.endDate) }
+        : null,
+      hrv7DayAvg,
+      hrvMostRecent,
+      hrvValues,
+      age,
+      weightInKg,
+
+      // Calculated Metrics
+      sleepHours: parseFloat(totalSleep.toFixed(1)),
+      sleepPerformance: Math.min(
+        100,
+        (totalSleep / SLEEP_PERFORMANCE_GOAL_HOURS) * 100
+      ),
       sleepConsistency,
       recoveryScore,
       strainScore,
@@ -317,15 +363,10 @@ async function fetchAllData() {
       steps: stepsStat?.sumQuantity?.quantity || 0,
       caloriesBurned: totalCaloriesBurned,
       rawCalories: caloriesSamples,
-      workouts: workoutSamples,
       bloodOxygen: spo2Sample?.quantity || 0,
       stressLevel,
-      hrvValues,
-      // Secondary metrics will be calculated separately
-      sleepEfficiency: 0,
-      trainingLoad: 0,
-      dailySleepDurations: [],
-      sleepStressCorrelation: 0,
+      sleepEfficiency,
+      dailySleepDurations,
     } as HealthData;
   } catch (fetchError) {
     console.error("HealthKit data fetch error", fetchError);
@@ -340,313 +381,221 @@ async function fetchAllData() {
 // Uses heart rate zones, duration, and activity intensity
 //////////////////////////////////////
 
-interface StrainCalculationData {
-  activeCalories: number;
-  restingHeartRate: number;
-  rawCalories: readonly HKQuantitySample<HKQuantityTypeIdentifier.activeEnergyBurned>[];
-  hrvValues: number[];
+// --- DETAILED CALCULATION FUNCTIONS ---
+
+/**
+ * RECOVERY SCORE (Improved): Compares the most recent HRV to the 7-day baseline.
+ * A score > 50 means today's HRV is better than average, indicating good recovery.
+ * A score < 50 suggests poorer recovery than average.
+ */
+function calculateRecoveryScore(
+  mostRecentHrv: number,
+  hrv7DayAvg: number
+): number {
+  if (!mostRecentHrv || !hrv7DayAvg) return 0;
+
+  // The ratio gives a direct comparison to the recent norm.
+  const recoveryRatio = mostRecentHrv / hrv7DayAvg;
+
+  // Map the ratio to a 0-100 score. We'll map a ratio of 1.0 (equal to avg) to 50%.
+  // Let's say a ratio of 1.5 (50% above avg) is a "perfect" score of 100.
+  // And a ratio of 0.5 (50% below avg) is a "poor" score of 0.
+  const score = 50 + (recoveryRatio - 1) * 100;
+
+  return Math.max(0, Math.min(100, parseFloat(score.toFixed(1))));
 }
 
-// Activity type multipliers (estimated from calories/time ratio)
-const ACTIVITY_MULTIPLIERS = {
-  LOW_INTENSITY: 0.8, // < 100 cal/hour
-  MODERATE: 1.0, // 100-300 cal/hour
-  HIGH_INTENSITY: 1.3, // 300-600 cal/hour
-  VERY_HIGH: 1.6, // > 600 cal/hour
-};
+/**
+ * STRAIN SCORE (Improved): A simplified but more robust TRIMP-like model.
+ * It uses age and weight for more accurate METs and Max HR estimation.
+ */
+interface StrainData {
+  rawCalories: readonly HKQuantitySample<HKQuantityTypeIdentifier.activeEnergyBurned>[];
+  age: number | null;
+  weightInKg: number | null;
+}
+function calculateStrainScore(data: StrainData): number {
+  const { rawCalories, age, weightInKg } = data;
 
-const calculateStrainScore = (data: StrainCalculationData): number => {
-  const { activeCalories, restingHeartRate, rawCalories, hrvValues } = data;
-
-  // Fallback to simple calculation if insufficient data
-  if (!rawCalories || rawCalories.length === 0 || !restingHeartRate) {
-    return calculateSimpleStrainScore(activeCalories);
+  // We need weight and age for a meaningful calculation.
+  if (!rawCalories || rawCalories.length === 0 || !age || !weightInKg) {
+    return 0;
   }
 
-  let totalStrain = 0;
-  const maxHeartRate = estimateMaxHeartRate(restingHeartRate);
-  const heartRateReserve = maxHeartRate - restingHeartRate;
+  // Tanaka formula for Max HR is more accurate than age-based estimations from RHR.
+  const maxHeartRate = 208 - 0.7 * age;
 
-  // Calculate strain for each activity session
-  rawCalories.forEach((session, index) => {
+  let totalStrain = 0;
+  rawCalories.forEach((session) => {
     const durationHours =
       (new Date(session.endDate).getTime() -
         new Date(session.startDate).getTime()) /
       (1000 * 60 * 60);
+    if (durationHours <= 0) return;
 
-    if (durationHours > 0) {
-      const caloriesPerHour = session.quantity / durationHours;
-      const activityMultiplier = getActivityMultiplier(caloriesPerHour);
+    // Estimate METs from calories, duration, and body weight.
+    // Formula: METs = (calories / (weight_kg * duration_hr))
+    const estimatedMets = session.quantity / (weightInKg * durationHours);
 
-      // Estimate heart rate intensity based on calories and duration
-      const estimatedIntensity = estimateIntensityFromCalories(
-        caloriesPerHour,
-        durationHours
-      );
+    // Estimate average heart rate as a percentage of Max HR, based on METs.
+    // This is a rough approximation. 1 MET (rest) is ~RHR. Max METs approaches Max HR.
+    // A simple linear mapping: assume 12 METs is ~90% of Max HR.
+    const intensityPercent = Math.min(0.95, (estimatedMets / 12) * 0.9);
+    const estimatedAvgHr = intensityPercent * maxHeartRate;
 
-      // Calculate TRIMP-like score
-      const sessionStrain = calculateSessionStrain(
-        durationHours,
-        estimatedIntensity,
-        activityMultiplier,
-        heartRateReserve
-      );
+    // Use a multiplier based on intensity zone (derived from METs)
+    const activityMultiplier =
+      estimatedMets < 4
+        ? ACTIVITY_MULTIPLIERS.LOW_INTENSITY
+        : estimatedMets < 7
+        ? ACTIVITY_MULTIPLIERS.MODERATE_INTENSITY
+        : ACTIVITY_MULTIPLIERS.HIGH_INTENSITY;
 
-      totalStrain += sessionStrain;
-    }
+    // Simplified TRIMP: duration_in_minutes * intensity_factor * multiplier
+    const sessionStrain =
+      durationHours * 60 * intensityPercent * activityMultiplier;
+    totalStrain += sessionStrain;
   });
 
-  // Apply individual fitness level adjustment based on HRV
-  const fitnessAdjustment = calculateFitnessAdjustment(hrvValues);
-  totalStrain *= fitnessAdjustment;
-
-  // Normalize to 0-100 scale
-  // Typical daily strain ranges: 0-20 (rest), 20-40 (light), 40-60 (moderate), 60-80 (high), 80-100 (very high)
-  const normalizedStrain = Math.min(100, totalStrain * 15); // Multiply by 15 for better scaling
-
-  console.log("📈 Final strain calculation:", {
-    totalStrain: totalStrain.toFixed(2),
-    fitnessAdjustment: fitnessAdjustment.toFixed(2),
-    normalizedStrain: normalizedStrain.toFixed(1),
-  });
+  // Normalize to a user-friendly 0-100 scale.
+  const normalizedStrain = Math.min(
+    100,
+    totalStrain / STRAIN_NORMALIZATION_FACTOR
+  );
 
   return parseFloat(normalizedStrain.toFixed(1));
-};
+}
 
-// Fallback simple calculation
-const calculateSimpleStrainScore = (activeCalories: number): number => {
-  const strain = (activeCalories / 1000) * 100;
-  return Math.min(100, parseFloat(strain.toFixed(1)));
-};
-
-// Estimate max heart rate using improved formula
-const estimateMaxHeartRate = (restingHR: number): number => {
-  // Using Tanaka formula: 208 - (0.7 × age)
-  // Since we don't have age, estimate from resting HR
-  // Typical range: fit person (40-60 bpm) vs average (60-80 bpm)
-  const estimatedAge =
-    restingHR < 50 ? 25 : restingHR < 60 ? 35 : restingHR < 70 ? 45 : 55;
-  return Math.round(208 - 0.7 * estimatedAge);
-};
-
-// Get activity multiplier based on calorie burn rate
-const getActivityMultiplier = (caloriesPerHour: number): number => {
-  if (caloriesPerHour < 100) return ACTIVITY_MULTIPLIERS.LOW_INTENSITY;
-  if (caloriesPerHour < 300) return ACTIVITY_MULTIPLIERS.MODERATE;
-  if (caloriesPerHour < 600) return ACTIVITY_MULTIPLIERS.HIGH_INTENSITY;
-  return ACTIVITY_MULTIPLIERS.VERY_HIGH;
-};
-
-// Estimate intensity from calories and duration
-const estimateIntensityFromCalories = (
-  caloriesPerHour: number,
-  durationHours: number
-): number => {
-  // Base intensity on calorie burn rate
-  let baseIntensity = Math.min(0.9, caloriesPerHour / 800); // Max 800 cal/hour = 90% intensity
-
-  // Adjust for duration (longer sessions tend to be lower intensity)
-  if (durationHours > 2) baseIntensity *= 0.8;
-  else if (durationHours > 1) baseIntensity *= 0.9;
-  else if (durationHours < 0.5) baseIntensity *= 1.1; // Short, intense sessions
-
-  return Math.max(0.5, Math.min(0.95, baseIntensity)); // Keep within reasonable bounds
-};
-
-// Calculate strain for individual session using TRIMP-like formula
-const calculateSessionStrain = (
-  durationHours: number,
-  intensity: number,
-  activityMultiplier: number,
-  heartRateReserve: number
-): number => {
-  // Modified TRIMP calculation
-  const durationMinutes = durationHours * 60;
-  const intensityFactor = Math.exp(1.92 * intensity); // Exponential weighting for higher intensities
-
-  const sessionStrain =
-    durationMinutes * intensity * intensityFactor * activityMultiplier * 0.01;
-
-  return sessionStrain;
-};
-
-// Adjust strain based on individual fitness level (using HRV as proxy)
-const calculateFitnessAdjustment = (hrvValues: number[]): number => {
-  if (hrvValues.length === 0) return 1.0;
-
-  const avgHRV =
-    hrvValues.reduce((sum, val) => sum + val, 0) / hrvValues.length;
-
-  // Higher HRV typically indicates better fitness/recovery
-  // Adjust strain perception: fitter individuals handle strain better
-  if (avgHRV > 45) return 0.85; // Very fit
-  if (avgHRV > 35) return 0.9; // Fit
-  if (avgHRV > 25) return 1.0; // Average
-  if (avgHRV > 15) return 1.1; // Below average
-  return 1.2; // Poor fitness
-};
-
-const calculateStressLevelFromHRV = (hrvData: number[]): number => {
-  if (hrvData.length === 0) return 0;
-  const recovery = calculateRecoveryScore(hrvData);
-  return parseFloat((100 - recovery).toFixed(1));
-};
-
-//////////////////////////////////////
-// 1. Sleep Efficiency
-// total asleep time ÷ time in bed × 100
-//////////////////////////////////////
-function calculateSleepEfficiency(
-  rawSleepSamples: readonly HKCategorySample<HKCategoryTypeIdentifier.sleepAnalysis>[]
+/**
+ * STRESS LEVEL (Improved): Uses the RHR to HRV ratio.
+ * A higher RHR and lower HRV can indicate higher physiological stress (sympathetic dominance).
+ * This score is independent of the Recovery Score.
+ */
+function calculateStressLevel(
+  restingHeartRate: number | null,
+  hrv: number | null
 ): number {
-  let totalInBedMs = 0;
-  let totalAsleepMs = 0;
+  if (!restingHeartRate || !hrv || hrv === 0) return 0;
 
-  for (const s of rawSleepSamples) {
-    const durationMs =
-      new Date(s.endDate).getTime() - new Date(s.startDate).getTime();
-    if (s.value === HKCategoryValueSleepAnalysis.inBed) {
-      totalInBedMs += durationMs;
-    } else if (ACTUAL_SLEEP_VALUES.includes(s.value)) {
-      totalAsleepMs += durationMs;
-    }
-  }
+  // A higher ratio suggests more stress. Normalize this to a 0-100 scale.
+  // A typical RHR/HRV ratio for healthy adults might be 1.0-2.0. A ratio > 2.5 could indicate high stress.
+  const ratio = restingHeartRate / hrv;
+
+  // Let's map a ratio of 0.5 to 0 (very low stress) and 3.0 to 100 (high stress).
+  const stressScore = ((ratio - 0.5) / (3.0 - 0.5)) * 100;
+
+  return Math.max(0, Math.min(100, parseFloat(stressScore.toFixed(1))));
+}
+
+/**
+ * SLEEP EFFICIENCY: Total time asleep / total time in bed.
+ */
+function calculateSleepEfficiency(
+  sleepSamples: readonly HKCategorySample<HKCategoryTypeIdentifier.sleepAnalysis>[]
+): number {
+  const { totalInBedMs, totalAsleepMs } = sleepSamples.reduce(
+    (acc, s) => {
+      const durationMs =
+        new Date(s.endDate).getTime() - new Date(s.startDate).getTime();
+      if (s.value === HKCategoryValueSleepAnalysis.inBed) {
+        acc.totalInBedMs += durationMs;
+      } else if (ACTUAL_SLEEP_VALUES.includes(s.value)) {
+        acc.totalAsleepMs += durationMs;
+      }
+      return acc;
+    },
+    { totalInBedMs: 0, totalAsleepMs: 0 }
+  );
 
   if (totalInBedMs === 0) return 0;
   const efficiency = (totalAsleepMs / totalInBedMs) * 100;
   return parseFloat(efficiency.toFixed(1));
 }
 
-//////////////////////////////////////
-// 2. Sleep Consistency
-// 100 − normalized SD of bedtimes across days
-//////////////////////////////////////
-function calculateSleepConsistency(bedTimes: Date[]): number {
-  if (bedTimes.length < 2) return 100; // Or 0, or handle as per preference for single/no data points
+/**
+ * SLEEP CONSISTENCY: Calculates the standard deviation of bedtimes over the last week.
+ */
+function calculateSleepConsistency(
+  sleepSamples: readonly HKCategorySample<HKCategoryTypeIdentifier.sleepAnalysis>[]
+): number {
+  const bedTimes = sleepSamples
+    .filter((s) => s.value === HKCategoryValueSleepAnalysis.inBed)
+    .map((s) => new Date(s.startDate));
 
-  const msSinceMidnight = bedTimes.map((d) => {
-    return d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds();
-  });
+  if (bedTimes.length < 2) return 100;
+
+  const msSinceMidnight = bedTimes.map(
+    (d) => d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds()
+  );
   const mean =
     msSinceMidnight.reduce((a, b) => a + b, 0) / msSinceMidnight.length;
   const variance =
     msSinceMidnight.reduce((sum, t) => sum + Math.pow(t - mean, 2), 0) /
     msSinceMidnight.length;
-  const sd = Math.sqrt(variance);
+  const sdSeconds = Math.sqrt(variance);
 
-  // assume a maximum tolerable SD of 3 hours (10 800 s) maps to consistency=0%
-  const maxSd = 3 * 3600;
-  const consistency = Math.max(0, 100 - (sd / maxSd) * 100);
+  // Normalize against a max standard deviation. A 2.5-hour deviation is poor.
+  const maxSdSeconds = SLEEP_CONSISTENCY_MAX_STD_DEV_HOURS * 3600;
+  const consistency = Math.max(0, 100 - (sdSeconds / maxSdSeconds) * 100);
   return parseFloat(consistency.toFixed(1));
 }
 
-//////////////////////////////////////
-// 3. Recovery Score (HRV normalization)
-// map HRV (SDNN) into 0–100 scale by observed min/max
-//////////////////////////////////////
-function calculateRecoveryScore(hrvValues: number[]): number {
-  if (hrvValues.length === 0) return 0;
-  const minHRV = Math.min(...hrvValues);
-  const maxHRV = Math.max(...hrvValues);
-  const latest = hrvValues[hrvValues.length - 1];
-  if (maxHRV === minHRV) return 100;
-  const score = ((latest - minHRV) / (maxHRV - minHRV)) * 100;
-  return parseFloat(score.toFixed(1));
-}
+// --- HELPER & PROCESSING FUNCTIONS ---
 
-//////////////////////////////////////
-// 4. Training Load (Strain)
-// sum of (METs × duration_hours) or simply energy burned
-//////////////////////////////////////
-function calculateTrainingLoad(activities: ActivitySample[]): number {
-  let totalEnergyBurned = 0;
-  activities.forEach((a) => {
-    totalEnergyBurned += a.energyBurned; // Summing up energyBurned directly
+function processSleepData(
+  sleepSamples: readonly HKCategorySample<HKCategoryTypeIdentifier.sleepAnalysis>[]
+) {
+  const sleepByDate: { [key: string]: number } = {};
+  let totalSleepMs = 0;
+
+  sleepSamples.forEach((sample) => {
+    if (ACTUAL_SLEEP_VALUES.includes(sample.value)) {
+      // Use the END date to attribute sleep to the day the user woke up.
+      const day = new Date(sample.endDate).toISOString().split("T")[0];
+      const durationMs =
+        new Date(sample.endDate).getTime() -
+        new Date(sample.startDate).getTime();
+
+      sleepByDate[day] = (sleepByDate[day] || 0) + durationMs;
+      totalSleepMs += durationMs;
+    }
   });
-  return parseFloat(totalEnergyBurned.toFixed(1));
+
+  const dailySleepDurations = Object.entries(sleepByDate).map(
+    ([date, durationMs]) => ({
+      date,
+      duration: parseFloat((durationMs / (1000 * 3600)).toFixed(1)),
+    })
+  );
+
+  // Calculate total sleep for the most recent night.
+  const lastSleepDay = dailySleepDurations.sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+  )[0];
+  const totalSleep = lastSleepDay ? lastSleepDay.duration : 0;
+
+  return { totalSleep, dailySleepDurations };
 }
 
-//////////////////////////////////////
-// 6. Pearson Correlation
-// between two metrics, e.g., sleep vs. stress
-//////////////////////////////////////
-function pearsonCorrelation(x: number[], y: number[]): number {
-  const n = Math.min(x.length, y.length);
-  if (n === 0) return 0;
-
-  const meanX = x.slice(0, n).reduce((a, b) => a + b, 0) / n;
-  const meanY = y.slice(0, n).reduce((a, b) => a + b, 0) / n;
-
-  let num = 0,
-    denX = 0,
-    denY = 0;
-  for (let i = 0; i < n; i++) {
-    const dx = x[i] - meanX;
-    const dy = y[i] - meanY;
-    num += dx * dy;
-    denX += dx * dx;
-    denY += dy * dy;
+function processHrv(hrvValues: number[]) {
+  if (hrvValues.length === 0) {
+    return { hrv7DayAvg: 0, hrvMostRecent: 0 };
   }
-  const denom = Math.sqrt(denX * denY);
-  return denom === 0 ? 0 : parseFloat((num / denom).toFixed(3));
+  const hrv7DayAvg =
+    hrvValues.reduce((sum, val) => sum + val, 0) / hrvValues.length;
+  const hrvMostRecent = hrvValues[hrvValues.length - 1];
+  return { hrv7DayAvg, hrvMostRecent };
 }
 
-// Helper function to convert raw HealthData.rawCalories to ActivitySample[]
-function hdToActivitySamples(hd: HealthData): ActivitySample[] {
-  if (!hd.rawCalories) return [];
-  return hd.rawCalories.map((s) => ({
-    start: new Date(s.startDate),
-    end: new Date(s.endDate),
-    mets: 0, // METs are not provided by activeEnergyBurned, so set to 0 or a default
-    energyBurned: s.quantity,
-  }));
-}
+// --- FAKE DATA GENERATOR (For Development) ---
 
-interface SecondaryMetrics {
-  sleepEfficiency: number;
-  trainingLoad: number;
-  dailySleepDurations: number[];
-  sleepStressCorrelation: number;
-}
-
-function calculateSecondary(hd: HealthData): SecondaryMetrics {
-  const activities: ActivitySample[] = hdToActivitySamples(hd);
-
-  const dailySleepDurations: number[] = [];
-  if (hd.sleep.length > 0) {
-    const sleepByDate: { [key: string]: number } = {};
-    hd.sleep.forEach((sample) => {
-      if (ACTUAL_SLEEP_VALUES.includes(sample.value)) {
-        const day = new Date(sample.startDate).toISOString().split("T")[0];
-        const duration =
-          (new Date(sample.endDate).getTime() -
-            new Date(sample.startDate).getTime()) /
-          (1000 * 3600);
-        sleepByDate[day] = (sleepByDate[day] || 0) + duration;
-      }
-    });
-    dailySleepDurations.push(...Object.values(sleepByDate));
-  }
-
-  let sleepStressCorrelation = 0;
-  if (
-    dailySleepDurations.length > 0 &&
-    hd.hrvValues.length >= dailySleepDurations.length
-  ) {
-    // This is a simplification. A robust daily stress calculation would be needed.
-    const dailyStressApproximation = hd.hrvValues
-      .slice(0, dailySleepDurations.length)
-      .map((hrv) =>
-        parseFloat((100 - calculateRecoveryScore([hrv])).toFixed(1))
-      );
-
-    sleepStressCorrelation = pearsonCorrelation(
-      dailySleepDurations,
-      dailyStressApproximation
-    );
-  } else {
-    console.log("Sleep-Stress Correlation: Not enough data for correlation.");
-  }
+function generateFakeHealthData(): HealthData {
+  console.log("Generating fake data...");
+  const fakeAge = 30;
+  const fakeWeight = 75;
+  const fakeRHR = 60;
+  const fakeHrvValues = [40, 42, 48, 45, 43, 52, 50];
+  const { hrv7DayAvg, hrvMostRecent } = processHrv(fakeHrvValues);
 
   return {
     sleepEfficiency: calculateSleepEfficiency(hd.sleep),
@@ -764,7 +713,6 @@ function generateFakeHealthData(): HealthData {
     steps: Math.floor(6000 + Math.random() * 8000), // 6,000-14,000 steps
     caloriesBurned: totalCaloriesBurned,
     rawCalories: fakeCalories,
-    workouts: [],
     bloodOxygen: 95 + Math.random() * 4, // 95-99%
     stressLevel: calculateStressLevelFromHRV(fakeHRV),
     hrvValues: fakeHRV,
