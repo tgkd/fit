@@ -35,6 +35,14 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
+      ],
+      [
+        "@kingstinct/react-native-healthkit",
+        {
+          "NSHealthShareUsageDescription": "This app uses HealthKit to read your health data for fitness tracking",
+          "NSHealthUpdateUsageDescription": "This app uses HealthKit to write your health data for fitness tracking",
+          "background": false
+        }
       ]
     ],
     "experiments": {

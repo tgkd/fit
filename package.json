@@ -6,12 +6,13 @@
         "start": "expo start",
         "reset-project": "node ./scripts/reset-project.js",
         "android": "expo run:android",
-        "ios": "expo run:ios",
+        "ios": "npx expo run:ios --device",
         "web": "expo start --web",
         "lint": "expo lint"
     },
     "dependencies": {
         "@expo/vector-icons": "^14.1.0",
+        "@kingstinct/react-native-healthkit": "^8.7.1",
         "@react-navigation/bottom-tabs": "^7.3.10",
         "@react-navigation/elements": "^2.3.8",
         "@react-navigation/native": "^7.1.6",
@@ -34,7 +35,6 @@
         "react-dom": "19.0.0",
         "react-native": "0.79.3",
         "react-native-gesture-handler": "~2.24.0",
-        "react-native-health": "1.19.0",
         "react-native-reanimated": "~3.17.4",
         "react-native-safe-area-context": "5.4.0",
         "react-native-screens": "~4.11.1",
