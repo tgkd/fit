@@ -199,6 +199,8 @@ const ACTUAL_SLEEP_VALUES = [
   HKCategoryValueSleepAnalysis.asleepDeep,
   HKCategoryValueSleepAnalysis.asleepCore,
   HKCategoryValueSleepAnalysis.asleepREM,
+  HKCategoryValueSleepAnalysis.awake,
+  HKCategoryValueSleepAnalysis.inBed,
 ];
 
 async function fetchBaseData() {
