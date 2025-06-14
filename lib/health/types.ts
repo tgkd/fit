@@ -24,6 +24,42 @@ export interface WorkoutStats {
   rawCalories: readonly HKQuantitySample<HKQuantityTypeIdentifier.activeEnergyBurned>[];
 }
 
+export interface SleepMetrics {
+  hoursVsNeeded: number;
+  sleepConsistency: number;
+  sleepEfficiency: number;
+  highSleepStress: number;
+}
+
+export interface SleepStage {
+  type: 'awake' | 'light' | 'deep' | 'rem';
+  duration: number; // in minutes
+  percentage: number;
+  color: string;
+}
+
+export interface LastNightSleep {
+  totalSleepTime: string; // "7:12"
+  averageSleepTime: string; // "7:23"
+  timeInBed: string; // "7:54"
+  stages: {
+    awake: { percentage: number; duration: number; color: string };
+    light: { percentage: number; duration: number; color: string };
+    deep: { percentage: number; duration: number; color: string };
+    rem: { percentage: number; duration: number; color: string };
+  };
+  restorativeSleep: {
+    duration: string; // "3:22"
+    averageDuration: string; // "3:26"
+  };
+}
+
+export interface SleepPerformanceData {
+  overallScore: number; // 89% like in the image
+  lastNight: LastNightSleep;
+  recommendation: string;
+}
+
 export interface SleepStats {
   sleepHours: number;
   sleepPerformance: number;
@@ -31,6 +67,9 @@ export interface SleepStats {
   sleepEfficiency: number;
   dailySleepDurations: { date: string; duration: number }[];
   sleep: readonly HKCategorySample<HKCategoryTypeIdentifier.sleepAnalysis>[];
+  // New detailed sleep data
+  metrics: SleepMetrics;
+  lastNight: LastNightSleep;
 }
 
 export interface HeartStressStats {

@@ -1,155 +1,64 @@
-import { SleepStagesChart } from "@/components/charts/SleepStagesChart";
-import { SleepMetric } from "@/components/sleep/SleepMetric";
-import { ThemedText } from "@/components/ThemedText";
-import { Card } from "@/components/ui/Card";
-import { HealthDataContext } from "@/context/HealthDataContext";
-import { useColorScheme } from "@/hooks/useColorScheme";
-import i18n from "@/lib/i18n";
-import { HKCategorySample, HKCategoryValueSleepAnalysis } from "@kingstinct/react-native-healthkit";
-import { use } from "react";
+import React, { use } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { LastNightSleepDetails } from "@/components/charts/LastNightSleepDetails";
+import { SleepMetricsList } from "@/components/charts/SleepMetricsList";
+import { SleepPerformanceChart } from "@/components/charts/SleepPerformanceChart";
+import { ThemedText } from "@/components/ThemedText";
+import { Card } from "@/components/ui/Card";
+import { HealthDataContext } from "@/context/HealthDataContext";
+import { useThemeColor } from "@/hooks/useThemeColor";
+import i18n from "@/lib/i18n";
+
 export default function SleepScreen() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
   const { data } = use(HealthDataContext);
-
-  // Get sleep samples from 12:00 yesterday
-  const yesterdayNoon = new Date();
-  yesterdayNoon.setHours(12, 0, 0, 0);
-  yesterdayNoon.setDate(yesterdayNoon.getDate() - 1);
-
-  // Group sleep samples by source
-  const sleepBySource = data.sleep.reduce((acc, sample) => {
-    if (new Date(sample.startDate) >= yesterdayNoon) {
-      const source: string = sample.sourceRevision?.source?.name || i18n.t("sleep.unknownSource");
-      if (!acc[source]) {
-        acc[source] = [] as HKCategorySample[];
-      }
-      acc[source].push(sample);
-    }
-    return acc;
-  }, {} as Record<string, HKCategorySample[]>);
-
-  // Calculate durations for each source
-  const sourceDurations = Object.entries(sleepBySource).map(([source, samples]) => {
-    const stageDurations = {
-      deep: 0,
-      core: 0,
-      rem: 0,
-      unspecified: 0,
-      awake: 0,
-    };
-
-    samples.forEach(sample => {
-      const duration = (new Date(sample.endDate).getTime() - new Date(sample.startDate).getTime()) / (1000 * 60); // in minutes
-      switch (sample.value) {
-        case HKCategoryValueSleepAnalysis.asleepDeep:
-          stageDurations.deep += duration;
-          break;
-        case HKCategoryValueSleepAnalysis.asleepCore:
-          stageDurations.core += duration;
-          break;
-        case HKCategoryValueSleepAnalysis.asleepREM:
-          stageDurations.rem += duration;
-          break;
-        case HKCategoryValueSleepAnalysis.asleepUnspecified:
-          stageDurations.unspecified += duration;
-          break;
-        case HKCategoryValueSleepAnalysis.awake:
-          stageDurations.awake += duration;
-          break;
-      }
-    });
-
-    const totalDuration = Object.values(stageDurations).reduce((sum, duration) => sum + duration, 0);
-
-    return {
-      source,
-      stageDurations,
-      totalDuration,
-    };
-  });
-
-  // Sort sources by total duration (highest first)
-  sourceDurations.sort((a, b) => b.totalDuration - a.totalDuration);
-
-  const formatDuration = (minutes: number) => {
-    const hours = Math.floor(minutes / 60);
-    const mins = Math.round(minutes % 60);
-    return `${hours}h ${mins}m`;
-  };
+  const backgroundColor = useThemeColor({}, "background");
 
   return (
-    <ScrollView style={styles.container}>
-      <SafeAreaView style={{ flex: 1 }}>
-        {sourceDurations.map(({ source, stageDurations, totalDuration }) => (
-          <Card key={source} style={styles.sourceCard}>
-            <ThemedText type="subtitle">{source}</ThemedText>
-            <View style={styles.metricsRow}>
-              <SleepMetric
-                label={i18n.t("sleep.total")}
-                value={formatDuration(totalDuration)}
-              />
-              <SleepMetric
-                label={i18n.t("sleep.deep")}
-                value={formatDuration(stageDurations.deep)}
-              />
-              <SleepMetric
-                label={i18n.t("sleep.rem")}
-                value={formatDuration(stageDurations.rem)}
-              />
-              <SleepMetric
-                label={i18n.t("sleep.core")}
-                value={formatDuration(stageDurations.core)}
-              />
-            </View>
+    <SafeAreaView style={[styles.container, { backgroundColor }]}>
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.header}>
+          <ThemedText>{i18n.t("sleep.today")}</ThemedText>
+        </View>
+        <View style={styles.header}>
+          <SleepPerformanceChart
+            percentage={data.sleepPerformance}
+            size={220}
+          />
+        </View>
+        <Card>
+          <SleepMetricsList metrics={data.metrics} />
+          <ThemedText>{i18n.t("sleep.performanceMessage")}</ThemedText>
+        </Card>
 
-            <SleepStagesChart
-              stages={[
-                {
-                  name: i18n.t("sleep.chart.deep"),
-                  duration: stageDurations.deep,
-                  percentage: (stageDurations.deep / totalDuration) * 100,
-                },
-                {
-                  name: i18n.t("sleep.chart.core"),
-                  duration: stageDurations.core,
-                  percentage: (stageDurations.core / totalDuration) * 100,
-                },
-                {
-                  name: i18n.t("sleep.chart.rem"),
-                  duration: stageDurations.rem,
-                  percentage: (stageDurations.rem / totalDuration) * 100,
-                },
-                {
-                  name: i18n.t("sleep.chart.awake"),
-                  duration: stageDurations.awake,
-                  percentage: (stageDurations.awake / totalDuration) * 100,
-                },
-              ]}
-              totalDuration={totalDuration}
-            />
-          </Card>
-        ))}
-      </SafeAreaView>
-    </ScrollView>
+        <Card>
+          <LastNightSleepDetails lastNight={data.lastNight} />
+        </Card>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  scrollView: {
+    flex: 1,
     paddingHorizontal: 16,
   },
-  sourceCard: {
-    marginBottom: 16,
+  header: {
+    alignItems: "center",
+    paddingVertical: 20,
   },
-  metricsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 16,
-    marginBottom: 8,
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    letterSpacing: 1,
+    opacity: 0.8,
   },
 });

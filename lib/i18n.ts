@@ -10,6 +10,7 @@ const translations = {
       sleep: "Sleep",
       activity: "Activity",
       healthData: "Health Data",
+      settings: "Settings",
     },
     // HomeScreen (app/(tabs)/index.tsx)
     home: {
@@ -71,6 +72,38 @@ const translations = {
       avg: "Avg",
       peak: "Peak",
     },
+
+    // Sleep Screen
+    sleep: {
+      today: "TODAY",
+      performanceMessage:
+        "You're doing great with an optimal Sleep Performance, but Hours vs. Needed could use attention.",
+      learnMore: "LEARN MORE",
+      lastNightsSleep: "Last Night's Sleep",
+      todayVsPrior30Days: "Today vs. prior 30 days",
+      hoursOfSleep: "HOURS OF SLEEP",
+      typicalRange: "TYPICAL RANGE",
+      duration: "DURATION",
+      awake: "AWAKE",
+      light: "LIGHT",
+      deep: "SWS (DEEP)",
+      rem: "REM",
+      restorativeSleep: "RESTORATIVE SLEEP",
+      hoursVsNeeded: "HOURS VS. NEEDED",
+      sleepConsistency: "SLEEP CONSISTENCY",
+      sleepEfficiency: "SLEEP EFFICIENCY",
+      highSleepStress: "HIGH SLEEP STRESS",
+      sleepPerformance: "SLEEP PERFORMANCE",
+      sleep: "SLEEP",
+    },
+
+    // Settings Screen
+    settings: {
+      title: "Settings",
+      subtitle: "Configure your app preferences and account settings.",
+      healthDataTitle: "Health Data",
+      healthDataSubtitle: "Manage your health data sync and privacy settings.",
+    },
   },
   ja: {
     // HomeScreen (app/(tabs)/index.tsx)
@@ -128,6 +161,38 @@ const translations = {
       statsMax: "最大:",
       statsCurrent: "現在:",
       stress: "ストレス", // General term for stress
+    },
+
+    // Sleep Screen
+    sleep: {
+      today: "今日",
+      performanceMessage:
+        "睡眠パフォーマンスは最適ですが、必要時間との比較で改善の余地があります。",
+      learnMore: "詳細を学ぶ",
+      lastNightsSleep: "昨夜の睡眠",
+      todayVsPrior30Days: "今日 vs. 過去30日間",
+      hoursOfSleep: "睡眠時間",
+      typicalRange: "典型的な範囲",
+      duration: "持続時間",
+      awake: "覚醒",
+      light: "浅い睡眠",
+      deep: "深い睡眠",
+      rem: "レム睡眠",
+      restorativeSleep: "回復睡眠",
+      hoursVsNeeded: "必要時間との比較",
+      sleepConsistency: "睡眠の一貫性",
+      sleepEfficiency: "睡眠効率",
+      highSleepStress: "睡眠中のストレス",
+      sleepPerformance: "睡眠パフォーマンス",
+      sleep: "睡眠",
+    },
+
+    // Settings Screen
+    settings: {
+      title: "設定",
+      subtitle: "アプリの設定とアカウント設定を構成します。",
+      healthDataTitle: "健康データ",
+      healthDataSubtitle: "健康データの同期とプライバシー設定を管理します。",
     },
   },
 };
