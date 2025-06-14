@@ -90,7 +90,7 @@ export const fetchHeartStressStats = async (): Promise<HeartStressStats> => {
 };
 
 /**
- * Calculate recovery score using Whoop-style algorithm
+ * Calculate recovery score
  * Weighted average of HRV, Resting HR (inverse), Resp Rate (inverse),
  * Sleep Efficiency, Prior Strain (inverse)
  */
