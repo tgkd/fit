@@ -2,8 +2,10 @@ import { SleepStagesChart } from "@/components/charts/SleepStagesChart";
 import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/ui/Card";
 import { HealthDataContext } from "@/context/HealthDataContext";
-import { useColorScheme } from "@/hooks/useColorScheme";
-import { HKCategorySample, HKCategoryValueSleepAnalysis } from "@kingstinct/react-native-healthkit";
+import {
+  HKCategorySample,
+  HKCategoryValueSleepAnalysis,
+} from "@kingstinct/react-native-healthkit";
 import { use } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -19,7 +21,7 @@ export default function SleepScreen() {
   // Group sleep samples by source
   const sleepBySource = data.sleep.reduce((acc, sample) => {
     if (new Date(sample.startDate) >= yesterdayNoon) {
-      const source = sample.sourceRevision?.source?.name || 'Unknown';
+      const source = sample.sourceRevision?.source?.name || "Unknown";
       if (!acc[source]) {
         acc[source] = [] as HKCategorySample[];
       }
@@ -29,44 +31,52 @@ export default function SleepScreen() {
   }, {} as Record<string, HKCategorySample[]>);
 
   // Calculate durations for each source
-  const sourceDurations = Object.entries(sleepBySource).map(([source, samples]) => {
-    const stageDurations = {
-      deep: 0,
-      core: 0,
-      rem: 0,
-      unspecified: 0,
-      awake: 0,
-    };
+  const sourceDurations = Object.entries(sleepBySource).map(
+    ([source, samples]) => {
+      const stageDurations = {
+        deep: 0,
+        core: 0,
+        rem: 0,
+        unspecified: 0,
+        awake: 0,
+      };
 
-    samples.forEach(sample => {
-      const duration = (new Date(sample.endDate).getTime() - new Date(sample.startDate).getTime()) / (1000 * 60); // in minutes
-      switch (sample.value) {
-        case HKCategoryValueSleepAnalysis.asleepDeep:
-          stageDurations.deep += duration;
-          break;
-        case HKCategoryValueSleepAnalysis.asleepCore:
-          stageDurations.core += duration;
-          break;
-        case HKCategoryValueSleepAnalysis.asleepREM:
-          stageDurations.rem += duration;
-          break;
-        case HKCategoryValueSleepAnalysis.asleepUnspecified:
-          stageDurations.unspecified += duration;
-          break;
-        case HKCategoryValueSleepAnalysis.awake:
-          stageDurations.awake += duration;
-          break;
-      }
-    });
+      samples.forEach((sample) => {
+        const duration =
+          (new Date(sample.endDate).getTime() -
+            new Date(sample.startDate).getTime()) /
+          (1000 * 60); // in minutes
+        switch (sample.value) {
+          case HKCategoryValueSleepAnalysis.asleepDeep:
+            stageDurations.deep += duration;
+            break;
+          case HKCategoryValueSleepAnalysis.asleepCore:
+            stageDurations.core += duration;
+            break;
+          case HKCategoryValueSleepAnalysis.asleepREM:
+            stageDurations.rem += duration;
+            break;
+          case HKCategoryValueSleepAnalysis.asleepUnspecified:
+            stageDurations.unspecified += duration;
+            break;
+          case HKCategoryValueSleepAnalysis.awake:
+            stageDurations.awake += duration;
+            break;
+        }
+      });
 
-    const totalDuration = Object.values(stageDurations).reduce((sum, duration) => sum + duration, 0);
+      const totalDuration = Object.values(stageDurations).reduce(
+        (sum, duration) => sum + duration,
+        0
+      );
 
-    return {
-      source,
-      stageDurations,
-      totalDuration,
-    };
-  });
+      return {
+        source,
+        stageDurations,
+        totalDuration,
+      };
+    }
+  );
 
   // Sort sources by total duration (highest first)
   sourceDurations.sort((a, b) => b.totalDuration - a.totalDuration);
@@ -81,7 +91,7 @@ export default function SleepScreen() {
     <ScrollView style={styles.container}>
       <SafeAreaView style={{ flex: 1 }}>
         {sourceDurations.map(({ source, stageDurations, totalDuration }) => (
-          <Card key={source} style={styles.sourceCard}>
+          <Card key={source}>
             <ThemedText type="subtitle">{source}</ThemedText>
             <View style={styles.sleepSummary}>
               <View style={styles.sleepMetric}>
