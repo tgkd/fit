@@ -10,7 +10,7 @@ export type ThemedTextProps = TextProps & {
   selectable?: boolean;
   uiTextView?: boolean;
   textAlign?: "auto" | "left" | "right" | "center" | "justify";
-  size?: "lg" | "md" | "sm" | "xs" | "xxs";
+  size?: "xxl" | "xl" | "lg" | "md" | "sm" | "xs" | "xxs";
   type?:
     | "default"
     | "title"
@@ -67,6 +67,10 @@ export function ThemedText({
         return styles.xs;
       case "xxs":
         return styles.xxs;
+      case "xl":
+        return styles.xl;
+      case "xxl":
+        return styles.xxl;
       default:
         return styles.default;
     }
@@ -117,6 +121,14 @@ const styles = StyleSheet.create({
   link: {
     fontSize: 17,
     lineHeight: 22,
+  },
+  xl: {
+    fontSize: 20,
+    lineHeight: 25,
+  },
+  xxl: {
+    fontSize: 24,
+    lineHeight: 30,
   },
   md: {
     fontSize: 15,

@@ -11,6 +11,10 @@ export default function SettingsScreen() {
           <ThemedText type="title">Settings</ThemedText>
           <ThemedText>Configure your app preferences</ThemedText>
         </Card>
+        <Card>
+          <ThemedText type="title">Health Data</ThemedText>
+          <ThemedText>Manage your health data permissions in Health app</ThemedText>
+        </Card>
       </ScrollView>
     </SafeAreaView>
   );
