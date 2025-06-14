@@ -8,8 +8,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 interface WorkoutData {
   id: string;
-  name: string;
-  type: string;
+  type: HKWorkoutActivityType;
   duration: number; // in minutes
   date: Date;
   calories: number;
@@ -23,28 +22,12 @@ export default function WorkoutsScreen() {
     if (!data.workouts || data.workouts.length === 0) {
       return [];
     }
-
-        return data.workouts.map((workout, index) => {
+    return data.workouts.map((workout, index) => {
       const duration = (new Date(workout.endDate).getTime() - new Date(workout.startDate).getTime()) / (1000 * 60); // minutes
-
-      // Get workout type name from HealthKit and convert to string
-      let workoutTypeName = String(workout.workoutActivityType || "Unknown");
-
-      // Clean up the workout type name (remove HKWorkoutActivityType prefix if present)
-      if (workoutTypeName.startsWith('HKWorkoutActivityType')) {
-        workoutTypeName = workoutTypeName.replace('HKWorkoutActivityType', '');
-      }
-
-      // Convert camelCase to readable format
-      workoutTypeName = workoutTypeName.replace(/([A-Z])/g, ' $1').trim();
-
-      // Capitalize first letter
-      workoutTypeName = workoutTypeName.charAt(0).toUpperCase() + workoutTypeName.slice(1);
 
       return {
         id: workout.uuid || `workout-${index}`,
-        name: workoutTypeName,
-        type: HKWorkoutActivityType[workoutTypeName],
+        type: workout.workoutActivityType,
         duration: Math.round(duration),
         date: new Date(workout.startDate),
         calories: Math.round(workout.totalEnergyBurned?.quantity || 0),
@@ -82,20 +65,41 @@ export default function WorkoutsScreen() {
     return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
   };
 
-  const getWorkoutTypeColor = (type: string) => {
-    // Color based on workout type
-    if (type.toLowerCase().includes('running') || type.toLowerCase().includes('cycling')) {
-      return "#FF3B30"; // Red for cardio
-    } else if (type.toLowerCase().includes('strength') || type.toLowerCase().includes('weight')) {
-      return "#FF9500"; // Orange for strength
-    } else if (type.toLowerCase().includes('yoga') || type.toLowerCase().includes('flexibility')) {
-      return "#34C759"; // Green for flexibility
-    } else if (type.toLowerCase().includes('swimming') || type.toLowerCase().includes('water')) {
-      return "#007AFF"; // Blue for water sports
-    } else if (type.toLowerCase().includes('tennis')) {
-      return "#FFCC00"; // Yellow-green for tennis
+  const getWorkoutTypeColor = (type: HKWorkoutActivityType) => {
+    if (type == HKWorkoutActivityType.running || type == HKWorkoutActivityType.cycling) {
+      return "#FF6B8A";
+    } else if (type == HKWorkoutActivityType.functionalStrengthTraining) {
+      return "#FFB347";
+    } else if (type == HKWorkoutActivityType.yoga) {
+      return "#98D8C8";
+    } else if (type == HKWorkoutActivityType.swimming) {
+      return "#87CEEB";
+    } else if (type == HKWorkoutActivityType.tennis) {
+      return "#b5e48c";
+    } else if (type == HKWorkoutActivityType.soccer) {
+      return "#B19CD9";
     } else {
-      return "#8E8E93"; // Gray for other
+      return "#C8A2C8";
+    }
+  };
+
+  const getWorkoutTypeIcon = (type: HKWorkoutActivityType) => {
+    if (type == HKWorkoutActivityType.running) {
+      return "🏃";
+    } else if (type == HKWorkoutActivityType.cycling) {
+      return "🚴";
+    } else if (type == HKWorkoutActivityType.functionalStrengthTraining) {
+      return "💪";
+    } else if (type == HKWorkoutActivityType.yoga) {
+      return "🧘";
+    } else if (type == HKWorkoutActivityType.swimming) {
+      return "🏊";
+    } else if (type == HKWorkoutActivityType.tennis) {
+      return "🎾";
+    } else if (type == HKWorkoutActivityType.soccer) {
+      return "⚽";
+    } else {
+      return "🏅";
     }
   };
 
@@ -140,24 +144,29 @@ export default function WorkoutsScreen() {
               {lastWeekWorkouts.map((workout) => (
                 <View key={workout.id} style={styles.workoutItem}>
                   <View style={styles.workoutHeader}>
-                    <ThemedText type="defaultSemiBold">{workout.name}</ThemedText>
-                    <ThemedText style={styles.workoutDate}>
+                    <ThemedText size="xl">{getWorkoutTypeIcon(workout.type)}</ThemedText>
+                    <ThemedText size="sm" style={styles.workoutDate}>
                       {formatDate(workout.date)}
                     </ThemedText>
                   </View>
                   <View style={styles.workoutDetails}>
                     <View style={[
                       styles.workoutTag,
-                      { backgroundColor: `${getWorkoutTypeColor(workout.type)}20` }
+                      {
+                        backgroundColor: `${getWorkoutTypeColor(workout.type)}`, // Slightly more opaque background
+                      }
                     ]}>
-                      <ThemedText style={[
+                      <ThemedText size="sm" style={[
                         styles.workoutTagText,
-                        { color: getWorkoutTypeColor(workout.type) }
+                        {
+                          color: '#FFFFFF', // White text for better contrast
+                          fontWeight: '600', // Semi-bold for better readability
+                        }
                       ]}>
-                        {workout.type}
+                        {HKWorkoutActivityType[workout.type]}
                       </ThemedText>
                     </View>
-                    <ThemedText style={styles.workoutMeta}>
+                    <ThemedText size="sm" style={styles.workoutMeta}>
                       {formatDuration(workout.duration)}
                       {workout.calories > 0 && ` • ${workout.calories} cal`}
                     </ThemedText>
@@ -226,7 +235,6 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   summaryLabel: {
-    fontSize: 12,
     opacity: 0.7,
   },
   workoutsList: {
@@ -245,7 +253,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   workoutDate: {
-    fontSize: 12,
     opacity: 0.7,
   },
   workoutDetails: {
@@ -259,11 +266,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   workoutTagText: {
-    fontSize: 12,
     fontWeight: "500",
   },
   workoutMeta: {
-    fontSize: 12,
     opacity: 0.7,
   },
   emptyText: {
