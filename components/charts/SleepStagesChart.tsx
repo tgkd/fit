@@ -33,12 +33,6 @@ export function SleepStagesChart({ stages, totalDuration }: SleepStagesChartProp
     background: isDark ? Colors.dark.background : Colors.light.background,
   };
 
-  const formatDuration = (minutes: number) => {
-    const hours = Math.floor(minutes / 60);
-    const mins = Math.round(minutes % 60);
-    return `${hours}h ${mins}m`;
-  };
-
   // Transform data for Victory Native
   const data = stages.map((stage, index) => ({
     stage: stage.name + " " + Math.round(stage.percentage) + "%",
@@ -55,7 +49,7 @@ export function SleepStagesChart({ stages, totalDuration }: SleepStagesChartProp
           xKey="stage"
           yKeys={["percentage"]}
           domain={{ y: [0, 100] }}
-          domainPadding={{ left: 50, right: 50, top: 5,  }}
+          domainPadding={{ left: 50, right: 50, top: 5 }}
           axisOptions={{
             font,
             formatYLabel: (value: number) => `${value}%`,
