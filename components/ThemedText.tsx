@@ -17,7 +17,8 @@ export type ThemedTextProps = TextProps & {
     | "defaultSemiBold"
     | "subtitle"
     | "link"
-    | "secondary";
+    | "secondary"
+    | "monospace";
 };
 
 export function ThemedText({
@@ -31,6 +32,27 @@ export function ThemedText({
   size,
   ...rest
 }: ThemedTextProps) {
+  const fontFamily = useMemo(() => {
+    switch (type) {
+      case "default":
+        return "Hikasami-Regular";
+      case "title":
+        return "Hikasami-Bold";
+      case "defaultSemiBold":
+        return "Hikasami-SemiBold";
+      case "subtitle":
+        return "Hikasami-SemiBold";
+      case "link":
+        return "Hikasami-Medium";
+      case "secondary":
+        return "Hikasami-Regular";
+      case "monospace":
+        return "Disket-Mono-Regular";
+      default:
+        return "Hikasami-Regular";
+    }
+  }, [type]);
+
   const colorType = useMemo(() => {
     switch (type) {
       case "secondary":
@@ -79,12 +101,13 @@ export function ThemedText({
   return (
     <Text
       style={[
-        { color },
+        { color, fontFamily },
         type === "default" ? styles.default : undefined,
         type === "title" ? styles.title : undefined,
         type === "defaultSemiBold" ? styles.defaultSemiBold : undefined,
         type === "subtitle" ? styles.subtitle : undefined,
         type === "link" ? [styles.link, { color: linkColor }] : undefined,
+        type === "monospace" ? styles.monospace : undefined,
         textAlign ? { textAlign } : undefined,
         size ? sizeStyle : undefined,
         style,
@@ -121,6 +144,11 @@ const styles = StyleSheet.create({
   link: {
     fontSize: 17,
     lineHeight: 22,
+  },
+  monospace: {
+    fontSize: 15,
+    lineHeight: 20,
+    letterSpacing: 0.5,
   },
   xl: {
     fontSize: 20,

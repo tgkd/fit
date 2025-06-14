@@ -37,7 +37,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="sleep"
         options={{
-          title: "Sleep",
+          title: i18n.t("tabs.sleep"),
           tabBarIcon: ({ color }) => (
             <IconSymbol size={28} name="bed.double.fill" color={color} />
           ),
@@ -46,7 +46,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="workouts"
         options={{
-          title: "Workouts",
+          title: i18n.t("tabs.activity"),
           tabBarIcon: ({ color }) => (
             <IconSymbol size={28} name="figure.run" color={color} />
           ),
@@ -55,7 +55,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="settings"
         options={{
-          title: "Settings",
+          title: i18n.t("settings.title"),
           tabBarIcon: ({ color }) => (
             <IconSymbol size={28} name="gear" color={color} />
           ),

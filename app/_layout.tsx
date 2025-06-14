@@ -16,7 +16,12 @@ import "@/lib/i18n"; // Initialize i18n
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const [loaded] = useFonts({
-    SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
+    "Hikasami-Regular": require("../assets/fonts/Hikasami-Regular.ttf"),
+    "Hikasami-Medium": require("../assets/fonts/Hikasami-Medium.ttf"),
+    "Hikasami-SemiBold": require("../assets/fonts/Hikasami-SemiBold.ttf"),
+    "Hikasami-Bold": require("../assets/fonts/Hikasami-Bold.ttf"),
+    "Disket-Mono-Regular": require("../assets/fonts/Disket-Mono-Regular.ttf"),
+    "Disket-Mono-Bold": require("../assets/fonts/Disket-Mono-Bold.ttf"),
   });
 
   if (!loaded) {

@@ -1,6 +1,7 @@
 import { ThemedText } from "@/components/ThemedText";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
+import i18n from "@/lib/i18n";
 import { LinearGradient, useFont, vec } from "@shopify/react-native-skia";
 import * as React from "react";
 import { StyleSheet, View } from "react-native";
@@ -21,7 +22,7 @@ interface SleepStagesChartProps {
 export function SleepStagesChart({ stages, totalDuration }: SleepStagesChartProps) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
-  const font = useFont(require('@/assets/fonts/SpaceMono-Regular.ttf'), 12);
+  const font = useFont(require('@/assets/fonts/Disket-Mono-Regular.ttf'), 12);
 
   const chartColors: Record<string, string> = {
     deep: Colors.charts.sleep,
@@ -42,7 +43,7 @@ export function SleepStagesChart({ stages, totalDuration }: SleepStagesChartProp
 
   return (
     <>
-      <ThemedText type="subtitle">Sleep Stages Distribution</ThemedText>
+      <ThemedText type="subtitle">{i18n.t("sleep.sleepStagesDistribution")}</ThemedText>
       <View style={styles.chartContainer}>
         <CartesianChart
           data={data}
