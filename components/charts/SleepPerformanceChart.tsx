@@ -1,4 +1,5 @@
 import { useThemeColor } from "@/hooks/useThemeColor";
+import i18n from "@/lib/i18n";
 import React from "react";
 import { StyleSheet, View } from "react-native";
 import Svg, { Circle } from "react-native-svg";
@@ -62,10 +63,10 @@ export function SleepPerformanceChart({
           {Math.round(percentage)}%
         </ThemedText>
         <ThemedText style={[styles.labelText, { color: textColor }]}>
-          SLEEP
+          {i18n.t("sleep.sleep")}
         </ThemedText>
         <ThemedText style={[styles.labelText, { color: textColor }]}>
-          PERFORMANCE
+          {i18n.t("sleep.sleepPerformance")}
         </ThemedText>
 
         <View

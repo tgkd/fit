@@ -1,8 +1,9 @@
-import { useThemeColor } from '@/hooks/useThemeColor';
-import { SleepMetrics } from '@/lib/health/types';
-import React from 'react';
-import { StyleSheet, View } from 'react-native';
-import { ThemedText } from '../ThemedText';
+import { useThemeColor } from "@/hooks/useThemeColor";
+import { SleepMetrics } from "@/lib/health/types";
+import i18n from "@/lib/i18n";
+import React from "react";
+import { StyleSheet, View } from "react-native";
+import { ThemedText } from "../ThemedText";
 
 interface MetricRowProps {
   icon: string;
@@ -11,13 +12,13 @@ interface MetricRowProps {
 }
 
 function MetricRow({ icon, label, percentage }: MetricRowProps) {
-  const textColor = useThemeColor({}, 'text');
+  const textColor = useThemeColor({}, "text");
 
   // Color based on performance
   const getMetricColor = (perf: number) => {
-    if (perf >= 80) return '#00E676'; // Green - Optimal
-    if (perf >= 60) return '#FFEB3B'; // Yellow - Sufficient
-    return '#FF9800'; // Orange - Poor
+    if (perf >= 80) return "#00E676";
+    if (perf >= 60) return "#FFEB3B";
+    return "#FF9800";
   };
 
   const metricColor = getMetricColor(percentage);
@@ -38,8 +39,8 @@ function MetricRow({ icon, label, percentage }: MetricRowProps) {
               styles.progressFill,
               {
                 backgroundColor: metricColor,
-                width: `${Math.min(percentage, 100)}%`
-              }
+                width: `${Math.min(percentage, 100)}%`,
+              },
             ]}
           />
         </View>
@@ -60,22 +61,22 @@ export function SleepMetricsList({ metrics }: SleepMetricsListProps) {
     <View style={styles.container}>
       <MetricRow
         icon="🕐"
-        label="HOURS VS. NEEDED"
+        label={i18n.t("sleep.hoursVsNeeded")}
         percentage={metrics.hoursVsNeeded}
       />
       <MetricRow
         icon="🌙"
-        label="SLEEP CONSISTENCY"
+        label={i18n.t("sleep.sleepConsistency")}
         percentage={metrics.sleepConsistency}
       />
       <MetricRow
         icon="📊"
-        label="SLEEP EFFICIENCY"
+        label={i18n.t("sleep.sleepEfficiency")}
         percentage={metrics.sleepEfficiency}
       />
       <MetricRow
         icon="💤"
-        label="HIGH SLEEP STRESS"
+        label={i18n.t("sleep.highSleepStress")}
         percentage={metrics.highSleepStress}
       />
     </View>
@@ -87,16 +88,16 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   metricRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#333333',
+    borderBottomColor: "#333333",
   },
   metricInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     flex: 1,
   },
   metricIcon: {
@@ -105,37 +106,37 @@ const styles = StyleSheet.create({
   },
   metricLabel: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: "500",
     letterSpacing: 0.5,
   },
   metricValue: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     flex: 1,
-    justifyContent: 'flex-end',
+    justifyContent: "flex-end",
   },
   progressBar: {
     width: 80,
     height: 4,
     marginRight: 12,
-    position: 'relative',
+    position: "relative",
   },
   progressTrack: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-    backgroundColor: '#333333',
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+    backgroundColor: "#333333",
     borderRadius: 2,
   },
   progressFill: {
-    position: 'absolute',
-    height: '100%',
+    position: "absolute",
+    height: "100%",
     borderRadius: 2,
   },
   percentageText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     minWidth: 40,
-    textAlign: 'right',
+    textAlign: "right",
   },
 });

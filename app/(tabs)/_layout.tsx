@@ -55,7 +55,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="settings"
         options={{
-          title: i18n.t("settings.title"),
+          title: i18n.t("tabs.settings"),
           tabBarIcon: ({ color }) => (
             <IconSymbol size={28} name="gear" color={color} />
           ),

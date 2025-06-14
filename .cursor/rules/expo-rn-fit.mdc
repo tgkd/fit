@@ -1,12 +1,43 @@
 ---
-description:
+description: >
+  Configuration for code generation in an Expo-based React Native project,
+  with strict guidelines on dependencies, styling, internationalization,
+  charting, and health-data integration.
 globs:
-alwaysApply: true
+  alwaysApply: true
 ---
-Project uses Expo framework.
+## Framework
+- Project uses **Expo**.
 
-Use current packages from package json if possible. Ask if you need to add other packages.
+## Dependencies
+- Prefer existing packages from **package.json**.
+- If you need a new package, ask before adding.
 
-Don't provide fontSize into styles. Use ThemedText for all texts. Text itself should be created with internationalization. If you need a string - create it in i18n.ts and then use it in code.
+## Styling
+- **Do not** hard-code `fontSize` in your styles.
+- Always render text via `<ThemedText>`.
 
-For charts use victory-native. For examples on victory native use victory-native-xl repository.
+## Internationalization
+- Every string must come from the i18n layer.
+- Define new keys in **i18n.ts**, then reference them in your components.
+
+## Charts
+- Use **victory-native** for all charting.
+- See examples in the [victory-native-xl repo](https://github.com/FormidableLabs/victory-native-xl/tree/main/example).
+
+## Health Data
+- Data provider: **Apple Health**.
+- Adhere to the schema in
+  `react-native-healthkit/src/native-types.ts`
+  ([native-types.ts](https://github.com/kingstinct/react-native-healthkit/blob/master/src/native-types.ts)).
+
+## Compilation & Linting
+- To verify code compiles and adheres to style rules, run:
+  ```bash
+  yarn run lint
+```
+
+## Response Formatting
+- **Never** insert progress comments (e.g., “Loading…”, “Processing…”).
+- **Never** include trivial or obvious comments (e.g., `// Color based on performance`).
+- Provide **only** high-level explanations of functions; omit internal or step-by-step logs.
