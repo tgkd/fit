@@ -1,0 +1,12 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+Project uses Expo framework.
+
+Use current packages from package json if possible. Ask if you need to add other packages.
+
+Don't provide fontSize into styles. Use ThemedText for all texts. Text itself should be created with internationalization. If you need a string - create it in i18n.ts and then use it in code.
+
+For charts use victory-native. For examples on victory native use victory-native-xl repository.
