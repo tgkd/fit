@@ -46,6 +46,8 @@ export const fetchGeneralStats = async (): Promise<GeneralStats> => {
 
 /**
  * Calculate move (active calories) - Apple Ring calculation
+ * Note: Uses HealthKit's activeEnergyBurned which already excludes basal calories
+ * This matches Apple's Move ring exactly
  */
 export const calculateMove = (activeEnergyKcal: number): number => {
   return parseFloat(activeEnergyKcal.toFixed(0));

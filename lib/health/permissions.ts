@@ -1,10 +1,10 @@
 import {
-  HKCategoryTypeIdentifier,
-  HKCharacteristicTypeIdentifier,
-  HKQuantityTypeIdentifier,
-  HKWorkoutTypeIdentifier,
-  isHealthDataAvailable,
-  requestAuthorization,
+    HKCategoryTypeIdentifier,
+    HKCharacteristicTypeIdentifier,
+    HKQuantityTypeIdentifier,
+    HKWorkoutTypeIdentifier,
+    isHealthDataAvailable,
+    requestAuthorization,
 } from "@kingstinct/react-native-healthkit";
 import { Platform } from "react-native";
 
@@ -26,6 +26,10 @@ export const readPermissions = [
   HKQuantityTypeIdentifier.vo2Max,
   HKQuantityTypeIdentifier.workoutEffortScore,
   HKWorkoutTypeIdentifier,
+  // Add new permissions for Apple Ring data
+  HKQuantityTypeIdentifier.appleExerciseTime,
+  HKQuantityTypeIdentifier.appleStandTime,
+  HKCategoryTypeIdentifier.appleStandHour,
 ];
 
 export const isHealthKitAvailable = Platform.OS === "ios";
