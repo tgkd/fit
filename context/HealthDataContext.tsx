@@ -7,14 +7,17 @@ import {
   HKQuantityTypeIdentifier,
   HKStatisticsOptions,
   HKUnits,
+  HKWorkout,
+  HKWorkoutTypeIdentifier,
   isHealthDataAvailable,
   queryCategorySamples,
   queryQuantitySamples,
   queryStatisticsForQuantity,
+  queryWorkoutSamples,
   requestAuthorization,
   saveQuantitySample,
   UnitOfEnergy,
-  UnitOfVolume,
+  UnitOfVolume
 } from "@kingstinct/react-native-healthkit";
 import React, { createContext, ReactNode, useEffect, useState } from "react";
 import { Platform } from "react-native";
@@ -37,6 +40,7 @@ export interface HealthData {
   steps: number;
   caloriesBurned: number; // This is total for the day
   rawCalories: readonly HKQuantitySample<HKQuantityTypeIdentifier.activeEnergyBurned>[];
+  workouts: readonly HKWorkout[];
   bloodOxygen: number;
   stressLevel: number;
   hrvValues: number[];
@@ -58,6 +62,7 @@ const defaultData: HealthData = {
   steps: 0,
   caloriesBurned: 0,
   rawCalories: [],
+  workouts: [],
   bloodOxygen: 0,
   stressLevel: 0,
   hrvValues: [],
@@ -109,6 +114,7 @@ const readPermissions = [
   HKQuantityTypeIdentifier.activeEnergyBurned,
   HKQuantityTypeIdentifier.oxygenSaturation,
   HKQuantityTypeIdentifier.heartRateVariabilitySDNN,
+  HKWorkoutTypeIdentifier,
 ];
 
 // Define permissions needed for writing
@@ -276,6 +282,14 @@ async function fetchAllData() {
     );
     const hrvValues = hrvSamples.map((s) => s.quantity);
 
+    // Fetch workouts from the last 30 days
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const workoutSamples = await queryWorkoutSamples({
+      from: thirtyDaysAgo,
+      to: today,
+      ascending: false, // Most recent first
+    });
+
     const sleepSamplesForConsistency = sleepSamples
       .filter((s) => s.value === HKCategoryValueSleepAnalysis.inBed)
       .map((s) => new Date(s.startDate));
@@ -303,6 +317,7 @@ async function fetchAllData() {
       steps: stepsStat?.sumQuantity?.quantity || 0,
       caloriesBurned: totalCaloriesBurned,
       rawCalories: caloriesSamples,
+      workouts: workoutSamples,
       bloodOxygen: spo2Sample?.quantity || 0,
       stressLevel,
       hrvValues,
@@ -749,6 +764,7 @@ function generateFakeHealthData(): HealthData {
     steps: Math.floor(6000 + Math.random() * 8000), // 6,000-14,000 steps
     caloriesBurned: totalCaloriesBurned,
     rawCalories: fakeCalories,
+    workouts: [],
     bloodOxygen: 95 + Math.random() * 4, // 95-99%
     stressLevel: calculateStressLevelFromHRV(fakeHRV),
     hrvValues: fakeHRV,
