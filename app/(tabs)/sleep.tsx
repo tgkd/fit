@@ -14,7 +14,6 @@ import i18n from "@/lib/i18n";
 export default function SleepScreen() {
   const { data } = use(HealthDataContext);
   const backgroundColor = useThemeColor({}, "background");
-  const textColor = useThemeColor({}, "text");
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]}>

@@ -309,3 +309,10 @@ export const calculateLastNightSleep = (
     },
   };
 };
+
+
+export const getPerformanceColor = (perf: number) => {
+  if (perf >= 80) return "#00E676";
+  if (perf >= 60) return "#FFEB3B";
+  return "#FF9800";
+};

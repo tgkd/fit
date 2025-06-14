@@ -1,8 +1,10 @@
-import { useThemeColor } from "@/hooks/useThemeColor";
-import { SleepMetrics } from "@/lib/health/types";
-import i18n from "@/lib/i18n";
 import React from "react";
 import { StyleSheet, View } from "react-native";
+
+import { Colors } from "@/constants/Colors";
+import { getPerformanceColor } from "@/lib/health";
+import { SleepMetrics } from "@/lib/health/types";
+import i18n from "@/lib/i18n";
 import { ThemedText } from "../ThemedText";
 
 interface MetricRowProps {
@@ -12,22 +14,15 @@ interface MetricRowProps {
 }
 
 function MetricRow({ icon, label, percentage }: MetricRowProps) {
-  const textColor = useThemeColor({}, "text");
-
-  // Color based on performance
-  const getMetricColor = (perf: number) => {
-    if (perf >= 80) return "#00E676";
-    if (perf >= 60) return "#FFEB3B";
-    return "#FF9800";
-  };
-
-  const metricColor = getMetricColor(percentage);
+  const metricColor = getPerformanceColor(percentage);
 
   return (
     <View style={styles.metricRow}>
       <View style={styles.metricInfo}>
-        <ThemedText style={styles.metricIcon}>{icon}</ThemedText>
-        <ThemedText style={[styles.metricLabel, { color: textColor }]}>
+        <ThemedText size="md" style={styles.metricIcon}>
+          {icon}
+        </ThemedText>
+        <ThemedText type="defaultSemiBold" size="sm" style={styles.metricLabel}>
           {label}
         </ThemedText>
       </View>
@@ -44,7 +39,11 @@ function MetricRow({ icon, label, percentage }: MetricRowProps) {
             ]}
           />
         </View>
-        <ThemedText style={[styles.percentageText, { color: textColor }]}>
+        <ThemedText
+          type="defaultSemiBold"
+          size="md"
+          style={styles.percentageText}
+        >
           {Math.round(percentage)}%
         </ThemedText>
       </View>
@@ -101,12 +100,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   metricIcon: {
-    fontSize: 16,
     marginRight: 12,
   },
   metricLabel: {
-    fontSize: 14,
-    fontWeight: "500",
     letterSpacing: 0.5,
   },
   metricValue: {
@@ -125,7 +121,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: "100%",
     height: "100%",
-    backgroundColor: "#333333",
+    backgroundColor: Colors.charts.chartBackground,
     borderRadius: 2,
   },
   progressFill: {
@@ -134,8 +130,6 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   percentageText: {
-    fontSize: 16,
-    fontWeight: "600",
     minWidth: 40,
     textAlign: "right",
   },

@@ -1,4 +1,4 @@
-import { useThemeColor } from "@/hooks/useThemeColor";
+import { Colors } from "@/constants/Colors";
 import { LastNightSleep } from "@/lib/health/types";
 import i18n from "@/lib/i18n";
 import React from "react";
@@ -20,8 +20,6 @@ function SleepStageRow({
   color,
   isTypicalRange = false,
 }: SleepStageRowProps) {
-  const textColor = useThemeColor({}, "text");
-
   const formatDuration = (minutes: number): string => {
     const hours = Math.floor(minutes / 60);
     const mins = Math.round(minutes % 60);
@@ -32,10 +30,10 @@ function SleepStageRow({
     <View style={styles.stageRow}>
       <View style={styles.stageInfo}>
         <View style={[styles.colorIndicator, { backgroundColor: color }]} />
-        <ThemedText style={[styles.stageName, { color: textColor }]}>
+        <ThemedText type="defaultSemiBold" size="sm" style={styles.stageName}>
           {name}
         </ThemedText>
-        <ThemedText style={[styles.stagePercentage, { color: textColor }]}>
+        <ThemedText type="defaultSemiBold" size="sm" style={styles.stagePercentage}>
           {percentage}%
         </ThemedText>
       </View>
@@ -54,7 +52,7 @@ function SleepStageRow({
           {isTypicalRange && <View style={styles.typicalRangeIndicator} />}
         </View>
 
-        <ThemedText style={[styles.durationText, { color: textColor }]}>
+        <ThemedText type="defaultSemiBold" size="sm" style={styles.durationText}>
           {formatDuration(duration)}
         </ThemedText>
       </View>
@@ -69,53 +67,41 @@ interface LastNightSleepDetailsProps {
 export function LastNightSleepDetails({
   lastNight,
 }: LastNightSleepDetailsProps) {
-  const textColor = useThemeColor({}, "text");
-  const subtextColor = useThemeColor({}, "tabIconDefault");
-
   return (
     <>
       <View style={styles.header}>
-        <ThemedText style={[styles.headerTitle, { color: textColor }]}>
+        <ThemedText type="subtitle" size="md">
           {i18n.t("sleep.lastNightsSleep")}
         </ThemedText>
-        <ThemedText style={[styles.headerSubtitle, { color: subtextColor }]}>
+        <ThemedText type="secondary" size="sm">
           {i18n.t("sleep.todayVsPrior30Days")}
         </ThemedText>
       </View>
 
       <View style={styles.sleepTimeContainer}>
-        <ThemedText style={[styles.sleepTimeLabel, { color: subtextColor }]}>
+        <ThemedText type="secondary" size="xxs" style={styles.sleepTimeLabel}>
           {i18n.t("sleep.hoursOfSleep")}
         </ThemedText>
         <View style={styles.sleepTimeRow}>
-          <ThemedText style={[styles.sleepTimeMain, { color: textColor }]}>
+          <ThemedText type="title" size="xxl" style={styles.sleepTimeMain}>
             {lastNight.totalSleepTime}
           </ThemedText>
-          <ThemedText
-            style={[styles.sleepTimeAverage, { color: subtextColor }]}
-          >
+          <ThemedText type="secondary" size="md">
             {lastNight.averageSleepTime}
           </ThemedText>
         </View>
       </View>
 
-      {/* TODO: Add sleep timeline chart here */}
-      <View style={styles.chartPlaceholder}>
-        <ThemedText style={[styles.chartText, { color: subtextColor }]}>
-          Sleep Timeline Chart (To be implemented)
-        </ThemedText>
-      </View>
-
       <View style={styles.rangeHeader}>
         <View style={styles.rangeInfo}>
-          <ThemedText style={[styles.rangeIcon, { color: subtextColor }]}>
+          <ThemedText type="secondary" size="sm">
             📊
           </ThemedText>
-          <ThemedText style={[styles.rangeLabel, { color: subtextColor }]}>
+          <ThemedText type="secondary" size="xxs" style={styles.rangeLabel}>
             {i18n.t("sleep.typicalRange")}
           </ThemedText>
         </View>
-        <ThemedText style={[styles.durationLabel, { color: subtextColor }]}>
+        <ThemedText type="secondary" size="xxs" style={styles.durationLabel}>
           {i18n.t("sleep.duration")} {lastNight.timeInBed}
         </ThemedText>
       </View>
@@ -150,25 +136,6 @@ export function LastNightSleepDetails({
           isTypicalRange
         />
       </View>
-
-      <View style={styles.restorativeContainer}>
-        <View
-          style={[styles.restorativeIndicator, { backgroundColor: "#9C27B0" }]}
-        />
-        <ThemedText style={[styles.restorativeLabel, { color: textColor }]}>
-          {i18n.t("sleep.restorativeSleep")}
-        </ThemedText>
-        <View style={styles.restorativeTime}>
-          <ThemedText style={[styles.restorativeMain, { color: textColor }]}>
-            {lastNight.restorativeSleep.duration}
-          </ThemedText>
-          <ThemedText
-            style={[styles.restorativeAverage, { color: subtextColor }]}
-          >
-            {lastNight.restorativeSleep.averageDuration}
-          </ThemedText>
-        </View>
-      </View>
     </>
   );
 }
@@ -177,19 +144,10 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: 24,
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 4,
-  },
-  headerSubtitle: {
-    fontSize: 14,
-  },
   sleepTimeContainer: {
     marginBottom: 24,
   },
   sleepTimeLabel: {
-    fontSize: 12,
     fontWeight: "600",
     letterSpacing: 1,
     marginBottom: 8,
@@ -199,23 +157,7 @@ const styles = StyleSheet.create({
     alignItems: "baseline",
   },
   sleepTimeMain: {
-    fontSize: 36,
-    fontWeight: "bold",
     marginRight: 8,
-  },
-  sleepTimeAverage: {
-    fontSize: 18,
-  },
-  chartPlaceholder: {
-    height: 120,
-    backgroundColor: "#1a1a1a",
-    borderRadius: 8,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 24,
-  },
-  chartText: {
-    fontSize: 14,
   },
   rangeHeader: {
     flexDirection: "row",
@@ -227,17 +169,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
-  rangeIcon: {
-    fontSize: 14,
-    marginRight: 8,
-  },
   rangeLabel: {
-    fontSize: 12,
     fontWeight: "600",
     letterSpacing: 1,
+    marginLeft: 8,
   },
   durationLabel: {
-    fontSize: 12,
     fontWeight: "600",
     letterSpacing: 1,
   },
@@ -259,13 +196,9 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   stageName: {
-    fontSize: 14,
-    fontWeight: "500",
     flex: 1,
   },
   stagePercentage: {
-    fontSize: 14,
-    fontWeight: "600",
     minWidth: 40,
     textAlign: "right",
   },
@@ -276,7 +209,7 @@ const styles = StyleSheet.create({
   progressBar: {
     flex: 1,
     height: 8,
-    backgroundColor: "#333333",
+    backgroundColor: Colors.charts.chartBackground,
     borderRadius: 4,
     marginRight: 12,
     position: "relative",
@@ -295,39 +228,7 @@ const styles = StyleSheet.create({
     borderRadius: 1,
   },
   durationText: {
-    fontSize: 14,
-    fontWeight: "600",
     minWidth: 40,
     textAlign: "right",
-  },
-  restorativeContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: "#333333",
-  },
-  restorativeIndicator: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 12,
-  },
-  restorativeLabel: {
-    fontSize: 14,
-    fontWeight: "500",
-    flex: 1,
-  },
-  restorativeTime: {
-    flexDirection: "row",
-    alignItems: "baseline",
-  },
-  restorativeMain: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginRight: 4,
-  },
-  restorativeAverage: {
-    fontSize: 14,
   },
 });

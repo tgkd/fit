@@ -1,9 +1,10 @@
-import { useThemeColor } from "@/hooks/useThemeColor";
-import i18n from "@/lib/i18n";
 import React from "react";
 import { StyleSheet, View } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 
+import { Colors } from "@/constants/Colors";
+import { getPerformanceColor } from "@/lib/health";
+import i18n from "@/lib/i18n";
 import { ThemedText } from "../ThemedText";
 
 interface SleepPerformanceChartProps {
@@ -17,19 +18,10 @@ export function SleepPerformanceChart({
   size = 200,
   strokeWidth = 8,
 }: SleepPerformanceChartProps) {
-  const textColor = useThemeColor({}, "text");
-
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const strokeDasharray = circumference;
   const strokeDashoffset = circumference - (percentage / 100) * circumference;
-
-  // Color based on performance
-  const getPerformanceColor = (perf: number) => {
-    if (perf >= 80) return "#00E676"; // Green - Optimal
-    if (perf >= 60) return "#FFEB3B"; // Yellow - Sufficient
-    return "#FF9800"; // Orange - Poor
-  };
 
   const performanceColor = getPerformanceColor(percentage);
 
@@ -41,7 +33,7 @@ export function SleepPerformanceChart({
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="#333333"
+          stroke={Colors.charts.chartBackground}
           strokeWidth={strokeWidth}
         />
         <Circle
@@ -59,15 +51,9 @@ export function SleepPerformanceChart({
       </Svg>
 
       <View style={styles.textContainer}>
-        <ThemedText style={[styles.percentageText, { color: textColor }]}>
-          {Math.round(percentage)}%
-        </ThemedText>
-        <ThemedText style={[styles.labelText, { color: textColor }]}>
-          {i18n.t("sleep.sleep")}
-        </ThemedText>
-        <ThemedText style={[styles.labelText, { color: textColor }]}>
-          {i18n.t("sleep.sleepPerformance")}
-        </ThemedText>
+        <ThemedText size="lg">{Math.round(percentage)}%</ThemedText>
+        <ThemedText size="sm">{i18n.t("sleep.sleep")}</ThemedText>
+        <ThemedText size="sm">{i18n.t("sleep.sleepPerformance")}</ThemedText>
 
         <View
           style={[styles.indicator, { backgroundColor: performanceColor }]}
@@ -89,23 +75,6 @@ const styles = StyleSheet.create({
   textContainer: {
     alignItems: "center",
     justifyContent: "center",
-  },
-  brandText: {
-    fontSize: 14,
-    fontWeight: "600",
-    letterSpacing: 2,
-    marginBottom: 4,
-  },
-  percentageText: {
-    fontSize: 48,
-    fontWeight: "bold",
-    marginBottom: 4,
-  },
-  labelText: {
-    fontSize: 12,
-    fontWeight: "600",
-    letterSpacing: 1,
-    lineHeight: 14,
   },
   indicator: {
     width: 20,
