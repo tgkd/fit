@@ -55,7 +55,7 @@ export function SleepStagesChart({ stages, totalDuration }: SleepStagesChartProp
           xKey="stage"
           yKeys={["percentage"]}
           domain={{ y: [0, 100] }}
-          domainPadding={{ left: 0, right: 0, top: 5,  }}
+          domainPadding={{ left: 50, right: 50, top: 5,  }}
           axisOptions={{
             font,
             formatYLabel: (value: number) => `${value}%`,
