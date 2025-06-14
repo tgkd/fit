@@ -52,6 +52,32 @@ const translations = {
         "Your health data is synced automatically from your device or Health Connect compatible apps.",
     },
 
+    // Sleep Screen (app/(tabs)/sleep.tsx)
+    sleep: {
+      chart: {
+        total: "Total",
+        deep: "Deep",
+        rem: "REM",
+        core: "Core",
+        awake: "Awake",
+      },
+      total: "Total Sleep",
+      deep: "Deep Sleep",
+      rem: "REM Sleep",
+      core: "Core Sleep",
+      awakeTime: "Awake Time",
+      sleepStagesDistribution: "Sleep Stages Distribution",
+      unknownSource: "Unknown",
+    },
+
+    // Settings Screen (app/(tabs)/settings.tsx)
+    settings: {
+      title: "Settings",
+      subtitle: "Configure your app preferences",
+      healthDataTitle: "Health Data",
+      healthDataSubtitle: "Manage your health data permissions in Health app",
+    },
+
     // StressChart.tsx
     stressChart: {
       // Added nesting
@@ -105,6 +131,100 @@ const translations = {
       healthDataSubtitle: "Manage your health data sync and privacy settings.",
     },
   },
+  ru: {
+    tabs: {
+      home: "Главная",
+      stress: "Стресс",
+      sleep: "Сон",
+      activity: "Активность",
+      healthData: "Здоровье",
+    },
+    // HomeScreen (app/(tabs)/index.tsx)
+    home: {
+      screenTitle: "Сегодняшняя панель",
+      dailyStressTrends: "Ежедневные тенденции стресса",
+      noStressData: "Данные о стрессе недоступны.",
+      loadingHealthData: "Загрузка данных о здоровье...",
+      strain: "Нагрузка",
+      recovery: "Восстановление",
+      sleep: "Сон",
+      hrv: "ВСР",
+      readiness: "Готовность",
+      currentScore: "Текущий балл",
+      avgLast7Days: "Среднее за 7 дней",
+      lastNight: "Прошлая ночь",
+      sleepHours: "{{hours}} ч",
+      performance: "Производительность: {{performance}}",
+      consistency: "Постоянство: {{consistency}}",
+      heartRate: "Пульс",
+      restingHeartRateValue: "{{value}} уд/мин",
+      restingHeartRate: "В покое",
+      activity: "Активность",
+      stepsToday: "Шагов сегодня",
+      caloriesBurned: "{{calories}} ккал сожжено",
+      recoveryScore: "{{score}}",
+      recoveryScoreLabel: "Балл восстановления",
+      strainScore: "{{score}}",
+      trainingStrain: "Тренировочная нагрузка",
+      bloodOxygen: "Кислород в крови",
+      bloodOxygenValue: "{{value}}%",
+      spo2: "SpO2",
+      stress: "Стресс",
+      stressLevelValue: "{{value}}",
+      stressLevel: "Текущий уровень",
+      hrvValue: "{{value}} мс",
+      hrvLabel: "ВСР",
+      healthData: "Синхронизация данных о здоровье",
+      healthDataSync:
+        "Ваши данные о здоровье автоматически синхронизируются с вашего устройства или совместимых приложений Health Connect.",
+    },
+
+    // Sleep Screen (app/(tabs)/sleep.tsx)
+    sleep: {
+      chart: {
+        total: "Всего",
+        deep: "Глубокий",
+        rem: "БДГ",
+        core: "Основной",
+        awake: "Бодрствование",
+      },
+      total: "Общий сон",
+      deep: "Глубокий сон",
+      rem: "БДГ-сон",
+      core: "Основной сон",
+      awakeTime: "Время бодрствования",
+      sleepStagesDistribution: "Распределение фаз сна",
+      unknownSource: "Неизвестно",
+    },
+
+    // Settings Screen (app/(tabs)/settings.tsx)
+    settings: {
+      title: "Настройки",
+      subtitle: "Настройте параметры приложения",
+      healthDataTitle: "Данные о здоровье",
+      healthDataSubtitle: "Управляйте разрешениями для данных о здоровье в приложении Здоровье",
+    },
+
+    // StressChart.tsx
+    stressChart: {
+      title: "Уровни стресса",
+      levelYAxis: "Уровень стресса",
+      timeXAxis: "Время",
+      legendLow: "Низкий",
+      legendModerate: "Умеренный",
+      legendMid: "Средний",
+      legendHigh: "Высокий",
+      legendMax: "Максимальный",
+      legendVeryHigh: "Очень высокий",
+      statsAvg: "Среднее:",
+      statsMin: "Мин:",
+      statsMax: "Макс:",
+      statsCurrent: "Текущий:",
+      stress: "Стресс",
+      avg: "Среднее",
+      peak: "Пик",
+    },
+  },
   ja: {
     // HomeScreen (app/(tabs)/index.tsx)
     home: {
@@ -144,6 +264,32 @@ const translations = {
       healthData: "健康データの同期",
       healthDataSync:
         "健康データは、お使いのデバイスまたはHealth Connect対応アプリから自動的に同期されます。",
+    },
+
+    // Sleep Screen (app/(tabs)/sleep.tsx)
+    sleep: {
+      chart: {
+        total: "総睡眠時間",
+        deep: "深い睡眠",
+        rem: "REM睡眠",
+        core: "コア睡眠",
+        awake: "覚醒時間",
+      },
+      total: "総睡眠時間",
+      deep: "深い睡眠",
+      rem: "REM睡眠",
+      core: "コア睡眠",
+      awakeTime: "覚醒時間",
+      sleepStagesDistribution: "睡眠段階の分布",
+      unknownSource: "不明",
+    },
+
+    // Settings Screen (app/(tabs)/settings.tsx)
+    settings: {
+      title: "設定",
+      subtitle: "アプリの設定を構成する",
+      healthDataTitle: "健康データ",
+      healthDataSubtitle: "ヘルスアプリで健康データの権限を管理する",
     },
 
     // StressChart.tsx
