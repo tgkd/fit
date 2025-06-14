@@ -5,7 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/components/ThemedText";
 import { CircularProgressChart } from "@/components/charts/CircularProgressChart";
-import { StressChart } from "@/components/charts/StressChart";
+import { StressMonitorCard } from "@/components/charts/StressMonitorCard";
 import { Card } from "@/components/ui/Card";
 import { Colors } from "@/constants/Colors";
 import { HealthDataContext } from "@/context/HealthDataContext";
@@ -37,7 +37,12 @@ export default function HomeScreen() {
           />
         </Card>
 
-        <StressChart data={data} />
+        <StressMonitorCard
+          healthData={data}
+          onPress={() => {
+            console.log("Navigate to stress details");
+          }}
+        />
 
         <Card>
           <ThemedText type="subtitle">{i18n.t("home.sleep")}</ThemedText>
@@ -72,7 +77,7 @@ export default function HomeScreen() {
           <ThemedText>{i18n.t("home.stepsToday")}</ThemedText>
           <ThemedText>
             {i18n.t("home.caloriesBurned", {
-              calories: Math.round(data.caloriesBurned),
+              calories: Math.round(data.moveKcal),
             })}
           </ThemedText>
         </Card>
