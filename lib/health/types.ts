@@ -1,8 +1,8 @@
 import {
-    HKCategorySample,
-    HKCategoryTypeIdentifier,
-    HKQuantitySample,
-    HKQuantityTypeIdentifier,
+  HKCategorySample,
+  HKCategoryTypeIdentifier,
+  HKQuantitySample,
+  HKQuantityTypeIdentifier,
 } from "@kingstinct/react-native-healthkit";
 
 // Shared interfaces for all health modules
@@ -22,6 +22,7 @@ export interface WorkoutStats {
   standHours: number;
   moveKcal: number;
   rawCalories: readonly HKQuantitySample<HKQuantityTypeIdentifier.activeEnergyBurned>[];
+  workouts: readonly any[]; // Using any[] for now since the exact type from queryWorkoutSamples is not exported
 }
 
 export interface SleepStats {

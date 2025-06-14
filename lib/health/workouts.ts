@@ -1,9 +1,9 @@
 import {
-    HKQuantityTypeIdentifier,
-    HKStatisticsOptions,
-    queryQuantitySamples,
-    queryStatisticsForQuantity,
-    queryWorkoutSamples,
+  HKQuantityTypeIdentifier,
+  HKStatisticsOptions,
+  queryQuantitySamples,
+  queryStatisticsForQuantity,
+  queryWorkoutSamples,
 } from "@kingstinct/react-native-healthkit";
 import { ActivitySample, WorkoutStats } from "./types";
 import { getCurrentDateRanges, getDurationHours, getDurationMinutes } from "./utils";
@@ -21,9 +21,13 @@ export const ACTIVITY_MULTIPLIERS = {
  * - Stand hours (estimated from steps)
  * - Move calories (active energy burned)
  * - Raw calorie samples
+ * - Raw workout samples (last 30 days for workouts screen)
  */
 export const fetchWorkoutStats = async (): Promise<WorkoutStats> => {
   const { now, startOfToday, oneDayAgo } = getCurrentDateRanges();
+
+  // Get workouts from last 30 days for the workouts screen
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
   // Get active calories for today
   const caloriesSamples = await queryQuantitySamples(
@@ -36,10 +40,10 @@ export const fetchWorkoutStats = async (): Promise<WorkoutStats> => {
     0
   );
 
-  // Get workouts for exercise minutes calculation
-  const workouts = await queryWorkoutSamples({ from: oneDayAgo, to: now });
+  // Get workouts for exercise minutes calculation (last 24h)
+  const recentWorkouts = await queryWorkoutSamples({ from: oneDayAgo, to: now });
   const exerciseMins = calculateExerciseMins(
-    workouts.map((w) => ({
+    recentWorkouts.map((w) => ({
       start: new Date(w.startDate),
       end: new Date(w.endDate),
       // Simplified METs estimation - most workouts are at least moderate intensity
@@ -54,6 +58,9 @@ export const fetchWorkoutStats = async (): Promise<WorkoutStats> => {
           : 4, // Default to moderate intensity
     }))
   );
+
+  // Get all workouts from last 30 days for the workouts screen
+  const allWorkouts = await queryWorkoutSamples({ from: thirtyDaysAgo, to: now });
 
   // Estimate stand hours from steps (simplified approach)
   const stepsStat = await queryStatisticsForQuantity(
@@ -70,6 +77,7 @@ export const fetchWorkoutStats = async (): Promise<WorkoutStats> => {
     standHours,
     moveKcal,
     rawCalories: caloriesSamples,
+    workouts: allWorkouts,
   };
 };
 

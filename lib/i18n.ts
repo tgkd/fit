@@ -77,6 +77,37 @@ const translations = {
       healthDataSubtitle: "Manage your health data permissions in Health app",
     },
 
+    // Workouts Screen (app/(tabs)/workouts.tsx)
+    workouts: {
+      title: "Workouts",
+      subtitle: "Track and manage your workouts from HealthKit",
+      thisMonth: "This Month",
+      last7Days: "Last 7 Days",
+      allTime: "All Time",
+      workoutsCount: "Workouts",
+      totalTime: "Total Time",
+      calories: "Calories",
+      totalWorkouts: "Total Workouts",
+      avgCalories: "Avg Calories",
+      noWorkoutData: "No workout data available from HealthKit. Start a workout on your Apple Watch or iPhone to see data here.",
+      noWorkoutsLast7Days: "No workouts in the last 7 days",
+      // Workout Details Screen
+      quickStats: "Quick Stats",
+      duration: "Duration",
+      details: "Details",
+      startTime: "Start Time",
+      workoutType: "Workout Type",
+      totalDuration: "Total Duration",
+      caloriesBurned: "Calories Burned",
+      additionalInfo: "Additional Info",
+      workoutRecorded: "Workout recorded on",
+      avgCaloriesPerMinute: "Avg calories per minute",
+    },
+
+    common: {
+      back: "Back",
+    },
+
     // StressChart.tsx
     stressChart: {
       // Added nesting
@@ -172,6 +203,37 @@ const translations = {
       healthDataSubtitle: "Управляйте разрешениями для данных о здоровье в приложении Здоровье",
     },
 
+    // Workouts Screen (app/(tabs)/workouts.tsx)
+    workouts: {
+      title: "Тренировки",
+      subtitle: "Отслеживайте и управляйте своими тренировками из HealthKit",
+      thisMonth: "Этот месяц",
+      last7Days: "Прошедшие 7 дней",
+      allTime: "За все время",
+      workoutsCount: "Тренировок",
+      totalTime: "Общее время",
+      calories: "Калории",
+      totalWorkouts: "Всего тренировок",
+      avgCalories: "ср. калорий",
+      noWorkoutData: "Данных о тренировках нет в HealthKit. Начните тренировку на вашем Apple Watch или iPhone, чтобы увидеть данные здесь.",
+      noWorkoutsLast7Days: "Тренировок не было за последние 7 дней",
+      // Workout Details Screen
+      quickStats: "Быстрая статистика",
+      duration: "Продолжительность",
+      details: "Детали",
+      startTime: "Время начала",
+      workoutType: "Тип тренировки",
+      totalDuration: "Общая продолжительность",
+      caloriesBurned: "Сожжено калорий",
+      additionalInfo: "Дополнительная информация",
+      workoutRecorded: "Тренировка записана",
+      avgCaloriesPerMinute: "Среднее калорий в минуту",
+    },
+
+    common: {
+      back: "Назад",
+    },
+
     // StressChart.tsx
     stressChart: {
       title: "Уровни стресса",
@@ -257,6 +319,37 @@ const translations = {
       subtitle: "アプリの設定を構成する",
       healthDataTitle: "健康データ",
       healthDataSubtitle: "ヘルスアプリで健康データの権限を管理する",
+    },
+
+    // Workouts Screen (app/(tabs)/workouts.tsx)
+    workouts: {
+      title: "トレーニング",
+      subtitle: "HealthKitからトレーニングを追跡および管理する",
+      thisMonth: "この月",
+      last7Days: "過去7日間",
+      allTime: "全期間",
+      workoutsCount: "トレーニング",
+      totalTime: "総時間",
+      calories: "カロリー",
+      totalWorkouts: "総トレーニング",
+      avgCalories: "平均カロリー",
+      noWorkoutData: "HealthKitからのトレーニングデータがありません。Apple WatchまたはiPhoneでトレーニングを開始してここにデータを表示します。",
+      noWorkoutsLast7Days: "過去7日間にトレーニングはありません",
+      // Workout Details Screen
+      quickStats: "クイック統計",
+      duration: "継続時間",
+      details: "詳細",
+      startTime: "開始時間",
+      workoutType: "トレーニングタイプ",
+      totalDuration: "総継続時間",
+      caloriesBurned: "消費カロリー",
+      additionalInfo: "追加情報",
+      workoutRecorded: "トレーニング記録日",
+      avgCaloriesPerMinute: "1分あたりの平均カロリー",
+    },
+
+    common: {
+      back: "戻る",
     },
 
     // StressChart.tsx

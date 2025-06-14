@@ -1,11 +1,11 @@
 import React, { createContext, ReactNode, useEffect, useState } from "react";
 
 import {
-  calculateRecoveryScore,
-  getAllHealthStats,
-  isHealthKitAvailable,
-  HealthData as ModularHealthData,
-  WriteHealthDataOptions as ModularWriteHealthDataOptions,
+    calculateRecoveryScore,
+    getAllHealthStats,
+    isHealthKitAvailable,
+    HealthData as ModularHealthData,
+    WriteHealthDataOptions as ModularWriteHealthDataOptions,
 } from "@/lib/health";
 
 // Use the modular HealthData interface
@@ -23,6 +23,7 @@ const defaultData: HealthData = {
   standHours: 0,
   moveKcal: 0,
   rawCalories: [],
+  workouts: [],
 
   // SleepStats
   sleepHours: 0,
@@ -102,6 +103,7 @@ function generateFakeHealthData(): HealthData {
     standHours: 10,
     moveKcal: 500,
     rawCalories: [],
+    workouts: [],
 
     // SleepStats
     sleepHours: 7.5,
