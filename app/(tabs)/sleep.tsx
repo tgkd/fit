@@ -1,18 +1,14 @@
 import { SleepStagesChart } from "@/components/charts/SleepStagesChart";
-import { SleepMetric } from "@/components/sleep/SleepMetric";
 import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/ui/Card";
 import { HealthDataContext } from "@/context/HealthDataContext";
 import { useColorScheme } from "@/hooks/useColorScheme";
-import i18n from "@/lib/i18n";
 import { HKCategorySample, HKCategoryValueSleepAnalysis } from "@kingstinct/react-native-healthkit";
 import { use } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function SleepScreen() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
   const { data } = use(HealthDataContext);
 
   // Get sleep samples from 12:00 yesterday
@@ -23,7 +19,7 @@ export default function SleepScreen() {
   // Group sleep samples by source
   const sleepBySource = data.sleep.reduce((acc, sample) => {
     if (new Date(sample.startDate) >= yesterdayNoon) {
-      const source: string = sample.sourceRevision?.source?.name || i18n.t("sleep.unknownSource");
+      const source = sample.sourceRevision?.source?.name || 'Unknown';
       if (!acc[source]) {
         acc[source] = [] as HKCategorySample[];
       }
@@ -87,44 +83,52 @@ export default function SleepScreen() {
         {sourceDurations.map(({ source, stageDurations, totalDuration }) => (
           <Card key={source} style={styles.sourceCard}>
             <ThemedText type="subtitle">{source}</ThemedText>
-            <View style={styles.metricsRow}>
-              <SleepMetric
-                label={i18n.t("sleep.total")}
-                value={formatDuration(totalDuration)}
-              />
-              <SleepMetric
-                label={i18n.t("sleep.deep")}
-                value={formatDuration(stageDurations.deep)}
-              />
-              <SleepMetric
-                label={i18n.t("sleep.rem")}
-                value={formatDuration(stageDurations.rem)}
-              />
-              <SleepMetric
-                label={i18n.t("sleep.core")}
-                value={formatDuration(stageDurations.core)}
-              />
+            <View style={styles.sleepSummary}>
+              <View style={styles.sleepMetric}>
+                <ThemedText style={styles.metricValue}>
+                  {formatDuration(totalDuration)}
+                </ThemedText>
+                <ThemedText style={styles.metricLabel}>Total Sleep</ThemedText>
+              </View>
+              <View style={styles.sleepMetric}>
+                <ThemedText style={styles.metricValue}>
+                  {formatDuration(stageDurations.core)}
+                </ThemedText>
+                <ThemedText style={styles.metricLabel}>Core</ThemedText>
+              </View>
+              <View style={styles.sleepMetric}>
+                <ThemedText style={styles.metricValue}>
+                  {formatDuration(stageDurations.rem)}
+                </ThemedText>
+                <ThemedText style={styles.metricLabel}>REM Sleep</ThemedText>
+              </View>
+              <View style={styles.sleepMetric}>
+                <ThemedText style={styles.metricValue}>
+                  {formatDuration(stageDurations.deep)}
+                </ThemedText>
+                <ThemedText style={styles.metricLabel}>Deep Sleep</ThemedText>
+              </View>
             </View>
 
             <SleepStagesChart
               stages={[
                 {
-                  name: i18n.t("sleep.chart.deep"),
-                  duration: stageDurations.deep,
-                  percentage: (stageDurations.deep / totalDuration) * 100,
-                },
-                {
-                  name: i18n.t("sleep.chart.core"),
+                  name: "Core",
                   duration: stageDurations.core,
                   percentage: (stageDurations.core / totalDuration) * 100,
                 },
                 {
-                  name: i18n.t("sleep.chart.rem"),
+                  name: "REM",
                   duration: stageDurations.rem,
                   percentage: (stageDurations.rem / totalDuration) * 100,
                 },
                 {
-                  name: i18n.t("sleep.chart.awake"),
+                  name: "Deep",
+                  duration: stageDurations.deep,
+                  percentage: (stageDurations.deep / totalDuration) * 100,
+                },
+                {
+                  name: "Awake",
                   duration: stageDurations.awake,
                   percentage: (stageDurations.awake / totalDuration) * 100,
                 },
@@ -141,15 +145,44 @@ export default function SleepScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#1a1a1a",
+  },
+  scrollView: {
+    flex: 1,
     paddingHorizontal: 16,
   },
-  sourceCard: {
-    marginBottom: 16,
+  header: {
+    alignItems: "center",
+    paddingVertical: 20,
   },
-  metricsRow: {
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    letterSpacing: 1,
+    opacity: 0.8,
+  },
+  performanceCard: {
+    marginBottom: 16,
+    paddingVertical: 24,
+  },
+  performanceContainer: {
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  sleepSummary: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginTop: 16,
-    marginBottom: 8,
+  },
+  sleepMetric: {
+    alignItems: "center",
+  },
+  metricValue: {
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  metricLabel: {
+    fontSize: 12,
+    marginTop: 4,
   },
 });
