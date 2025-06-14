@@ -13,14 +13,11 @@ import {
   queryCategorySamples,
   queryQuantitySamples,
   queryStatisticsForQuantity,
-  queryWorkoutSamples,
-  requestAuthorization
+  requestAuthorization,
 } from "@kingstinct/react-native-healthkit";
 import React, { createContext, ReactNode, useEffect, useState } from "react";
-import { Platform } from "react-native";
 
 import {
-  ACTUAL_SLEEP_VALUES,
   calculateRecoveryScore,
   getUserStats,
   SLEEP_CONSISTENCY_MAX_STD_DEV_HOURS,
@@ -47,11 +44,6 @@ export interface HealthData {
   sleepConsistency: number;
   recoveryScore: number;
   strainScore: number;
-  restingHeartRate: number;
-  steps: number;
-  caloriesBurned: number; // This is total for the day
-  rawCalories: readonly HKQuantitySample<HKQuantityTypeIdentifier.activeEnergyBurned>[];
-  bloodOxygen: number;
   stressLevel: number;
   sleepEfficiency: number;
 
@@ -60,20 +52,30 @@ export interface HealthData {
 }
 
 const defaultData: HealthData = {
-  sleep: [],
-  restingHeartRate: null,
-  steps: 0,
-  caloriesBurned: 0,
-  rawCalories: [],
-  bloodOxygen: null,
-  hrv7DayAvg: 0,
-  hrvMostRecent: 0,
-  hrvValues: [],
+  // GeneralStats
   age: null,
   weightInKg: null,
+  steps: 0,
+
+  // WorkoutStats
+  exerciseMins: 0,
+  standHours: 0,
+  moveKcal: 0,
+  rawCalories: [],
+
+  // SleepStats
   sleepHours: 0,
   sleepPerformance: 0,
   sleepConsistency: 0,
+  sleepEfficiency: 0,
+  dailySleepDurations: [],
+  sleep: [],
+
+  // HeartStressStats
+  restingHeartRate: null,
+  hrv7DayAvg: 0,
+  hrvMostRecent: 0,
+  hrvValues: [],
   recoveryScore: 0,
   strainScore: 0,
   restingHeartRate: 0,
@@ -82,31 +84,8 @@ const defaultData: HealthData = {
   rawCalories: [],
   bloodOxygen: 0,
   stressLevel: 0,
-  sleepEfficiency: 0,
-  dailySleepDurations: [],
+  bloodOxygen: null,
 };
-
-// Write data interfaces
-export interface WriteHealthDataOptions {
-  steps?: number;
-  weight?: number; // in kg
-  height?: number; // in cm
-  heartRate?: number; // bpm
-  bodyFatPercentage?: number; // percentage
-  activeEnergyBurned?: number; // calories
-  waterIntake?: number; // ml
-  mindfulSession?: {
-    duration: number; // minutes
-    startDate?: Date;
-  };
-  workout?: {
-    type: string;
-    duration: number; // minutes
-    energyBurned?: number; // calories
-    distance?: number; // meters
-    startDate?: Date;
-  };
-}
 
 export const HealthDataContext = createContext<{
   data: HealthData;
@@ -124,17 +103,6 @@ const readPermissions = [
   HKQuantityTypeIdentifier.activeEnergyBurned,
   HKQuantityTypeIdentifier.oxygenSaturation,
   HKQuantityTypeIdentifier.heartRateVariabilitySDNN,
-];
-
-// Define permissions needed for writing
-const writePermissions = [
-  HKQuantityTypeIdentifier.heartRate,
-  HKCategoryTypeIdentifier.sleepAnalysis,
-  HKQuantityTypeIdentifier.restingHeartRate,
-  HKQuantityTypeIdentifier.stepCount,
-  HKQuantityTypeIdentifier.activeEnergyBurned,
-  HKQuantityTypeIdentifier.oxygenSaturation,
-  HKQuantityTypeIdentifier.heartRateVariabilitySDNN,
   HKQuantityTypeIdentifier.bodyMass,
   HKQuantityTypeIdentifier.height,
   HKQuantityTypeIdentifier.bodyFatPercentage,
@@ -143,25 +111,6 @@ const writePermissions = [
 ];
 
 const USE_FAKE_DATA = false;
-const isHealthKitAvailable = Platform.OS === "ios";
-let healthKitInitialized = false;
-
-const initializeHealthKit = async () => {
-  if (isHealthKitAvailable && !healthKitInitialized) {
-    try {
-      const isAvailable = await isHealthDataAvailable();
-
-      if (isAvailable) {
-        await requestAuthorization(readPermissions, []);
-        healthKitInitialized = true;
-      }
-    } catch (error) {
-      console.log("[ERROR] Cannot grant HealthKit permissions!", error);
-    }
-  } else {
-    console.log("HealthKit not available or already initialized");
-  }
-};
 
 export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
   const [data, setData] = useState<HealthData>(defaultData);
@@ -172,11 +121,10 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
       setData(generateFakeHealthData());
     } else {
       try {
-        await initializeHealthKit();
-        const fetchedData = await fetchBaseData();
+        const fetchedData = await getAllHealthStats();
         setData(fetchedData);
       } catch (error) {
-        console.error("fetchBaseData failed:", error);
+        console.error("getAllHealthStats failed:", error);
         setData(generateFakeHealthData());
       }
     }
@@ -186,35 +134,12 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
     initData();
   }, []);
 
-  // const writeHealthData = async (options: WriteHealthDataOptions) => {
-  //   try {
-  //     if (USE_FAKE_DATA || !isHealthKitAvailable) {
-  //       console.log("Fake data mode - would write:", options);
-  //       return;
-  //     }
-
-  //     await writeToAppleHealth(options);
-  //     await initData();
-  //   } catch (error) {
-  //     console.error("Error writing health data", error);
-  //     throw error;
-  //   }
-  // };
-
   return (
     <HealthDataContext.Provider value={{ data, refresh: initData }}>
       {children}
     </HealthDataContext.Provider>
   );
 };
-
-// Helper array for actual sleep values
-const ACTUAL_SLEEP_VALUES = [
-  HKCategoryValueSleepAnalysis.asleepUnspecified,
-  HKCategoryValueSleepAnalysis.asleepDeep,
-  HKCategoryValueSleepAnalysis.asleepCore,
-  HKCategoryValueSleepAnalysis.asleepREM,
-];
 
 async function fetchBaseData() {
   if (!isHealthKitAvailable) {
@@ -277,14 +202,6 @@ async function fetchAllData() {
 
     const hrvValues = hrvSamples.map((s) => s.quantity);
 
-    // Fetch workouts from the last 30 days
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const workoutSamples = await queryWorkoutSamples({
-      from: thirtyDaysAgo,
-      to: today,
-      ascending: false, // Most recent first
-    });
-
     // --- USE getUserStats FOR PRIMARY CALCULATIONS ---
     const userStats = await getUserStats();
 
@@ -323,8 +240,8 @@ async function fetchAllData() {
         (totalSleep / SLEEP_PERFORMANCE_GOAL_HOURS) * 100
       ),
       sleepConsistency,
-      recoveryScore,
-      strainScore,
+      recoveryScore: userStats.recoveryScore,
+      strainScore: userStats.strainScore,
       stressLevel,
       sleepEfficiency,
       dailySleepDurations,
@@ -471,25 +388,34 @@ function generateFakeHealthData(): HealthData {
   const fakeWeight = 75;
   const fakeRHR = 60;
   const fakeHrvValues = [40, 42, 48, 45, 43, 52, 50];
-  const { hrv7DayAvg, hrvMostRecent } = processHrv(fakeHrvValues);
 
   return {
-    ...defaultData,
+    // GeneralStats
     age: fakeAge,
     weightInKg: fakeWeight,
-    restingHeartRate: fakeRHR,
-    hrv7DayAvg,
-    hrvMostRecent,
-    hrvValues: fakeHrvValues,
+    steps: 8500,
+
+    // WorkoutStats
+    exerciseMins: 45,
+    standHours: 10,
+    moveKcal: 500,
+    rawCalories: [],
+
+    // SleepStats
     sleepHours: 7.5,
     sleepPerformance: 94,
     sleepConsistency: 85,
-    recoveryScore: calculateRecoveryScore(hrvMostRecent, hrv7DayAvg),
+    recoveryScore: calculateRecoveryScore(
+      fakeHrvValues,
+      fakeRHR,
+      15, // respiratory rate
+      92, // sleep efficiency
+      50  // prior strain
+    ),
     strainScore: 65, // Dummy value
     stressLevel: calculateStressLevel(fakeRHR, hrv7DayAvg),
     steps: 8500,
     caloriesBurned: 500,
     bloodOxygen: { value: 0.98, date: new Date() },
-    sleepEfficiency: 92,
   };
 }
