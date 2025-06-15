@@ -13,7 +13,9 @@ import { fetchWorkoutStats } from "./workouts";
 /**
  * Main health data aggregator function
  */
-export const getAllHealthStats = async (defaults?: any): Promise<HealthData> => {
+export const getAllHealthStats = async (
+  defaults?: any
+): Promise<HealthData> => {
   await initializeHealthKit();
 
   if (!isHealthKitAvailable) {
@@ -47,12 +49,11 @@ export const getAllHealthStats = async (defaults?: any): Promise<HealthData> => 
       defaults?.PRIOR_STRAIN ?? 50
     );
 
-    // Prepare display data for the StressMonitorCard
     const stressChartDisplayData: StressChartDisplayData =
       prepareStressChartDisplayData(
         heartStressStats.hrvValues,
         heartStressStats.restingHeartRate,
-        heartStressStats.stressLevel, // This is the 0-100 overall stress
+        heartStressStats.stressLevel,
         stressDetails,
         defaults
       );
@@ -64,7 +65,7 @@ export const getAllHealthStats = async (defaults?: any): Promise<HealthData> => 
       ...heartStressStats,
       recoveryScore: improvedRecoveryScore,
       stressDetails,
-      stressChartDisplayData, // Added
+      stressChartDisplayData,
     };
   } catch (error) {
     console.error("Error fetching health stats:", error);
