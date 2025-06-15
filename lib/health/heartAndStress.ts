@@ -1,4 +1,5 @@
 import { Colors } from "@/constants/Colors";
+import { bucketBy, mean } from "@/utils/dates";
 import {
   getMostRecentQuantitySample,
   HKQuantityTypeIdentifier,
@@ -130,8 +131,19 @@ export const fetchHeartStressStats = async (
   };
 };
 
+// Helper functions for dynamic range calculations
+const calculateDynamicHrvRange = (baselineHrv: number) => ({
+  min: Math.max(15, baselineHrv * 0.5),  // At least 15ms, or 50% of baseline
+  max: baselineHrv * 1.5                 // 150% of baseline
+});
+
+const calculateDynamicRhrRange = (baselineRhr: number) => ({
+  min: Math.max(30, baselineRhr * 0.7),  // At least 30bpm, or 70% of baseline
+  max: baselineRhr * 1.3                 // 130% of baseline
+});
+
 /**
- * Calculate recovery score
+ * Calculate recovery score with optional dynamic ranges
  * Weighted average of HRV, Resting HR (inverse), Resp Rate (inverse),
  * Sleep Efficiency, Prior Strain (inverse)
  */
@@ -140,15 +152,27 @@ export const calculateRecoveryScore = (
   restingHR: number, // bpm
   respRate: number, // breaths/min
   sleepEff: number, // %
-  priorStrain: number // 0–100
+  priorStrain: number, // 0–100
+  usePersonalizedRanges: boolean = false,
+  baselineHrv?: number,
+  baselineRhr?: number
 ): number => {
   if (hrv.length === 0) return 0;
 
   const latestHRV = hrv[hrv.length - 1] || hrv[0] || 0;
 
-  // Use absolute population-based normalization for HRV
-  const normHRV = normalize(latestHRV, HRV_RANGE.min, HRV_RANGE.max);
-  const normRHR = 100 - normalize(restingHR, RHR_RANGE.min, RHR_RANGE.max); // lower HR better
+  // Use personalized ranges if available and requested, otherwise use population ranges
+  const hrvRange = usePersonalizedRanges && baselineHrv
+    ? calculateDynamicHrvRange(baselineHrv)
+    : HRV_RANGE;
+
+  const rhrRange = usePersonalizedRanges && baselineRhr
+    ? calculateDynamicRhrRange(baselineRhr)
+    : RHR_RANGE;
+
+  // Normalize values using appropriate ranges
+  const normHRV = normalize(latestHRV, hrvRange.min, hrvRange.max);
+  const normRHR = 100 - normalize(restingHR, rhrRange.min, rhrRange.max); // lower HR better
   const normResp =
     100 - normalize(respRate, RESP_RATE_RANGE.min, RESP_RATE_RANGE.max); // lower RR better
   const normSleep = Math.max(0, Math.min(100, sleepEff)); // ensure 0-100 range
@@ -228,13 +252,13 @@ export const calculateStressLevel = (
 
 /**
  * Process HRV values to get 7-day average and most recent
+ * Updated to use mean utility function for consistency
  */
 export const processHrv = (hrvValues: number[]) => {
   if (hrvValues.length === 0) {
     return { hrv7DayAvg: 0, hrvMostRecent: 0 };
   }
-  const hrv7DayAvg =
-    hrvValues.reduce((sum, val) => sum + val, 0) / hrvValues.length;
+  const hrv7DayAvg = mean(hrvValues);
   const hrvMostRecent = hrvValues[hrvValues.length - 1];
   return { hrv7DayAvg, hrvMostRecent };
 };
@@ -246,6 +270,7 @@ export const processHrv = (hrvValues: number[]) => {
 
 /**
  * Build 14-day average HRV baseline using daily samples
+ * Optimized to use bucketBy for efficient grouping
  */
 export const getBaselineHRV = async (): Promise<number> => {
   const now = new Date();
@@ -259,30 +284,23 @@ export const getBaselineHRV = async (): Promise<number> => {
 
   if (hrvSamples.length === 0) return 0;
 
-  // Group by day and calculate daily averages
-  const dailyAverages = new Map<string, number[]>();
+  // Group by day using bucketBy for efficient processing
+  const dailyGroups = bucketBy(hrvSamples, "day");
 
-  hrvSamples.forEach((sample) => {
-    const dayKey = new Date(sample.startDate).toDateString();
-    if (!dailyAverages.has(dayKey)) {
-      dailyAverages.set(dayKey, []);
-    }
-    dailyAverages.get(dayKey)!.push(sample.quantity);
-  });
-
-  // Calculate average of daily averages
-  const dayAverages = Array.from(dailyAverages.values()).map(
-    (dayValues) =>
-      dayValues.reduce((sum, val) => sum + val, 0) / dayValues.length
+  // Calculate daily averages
+  const dailyAverages = Object.values(dailyGroups).map(daySamples =>
+    mean(daySamples.map(s => s.quantity))
   );
 
-  return dayAverages.length > 0
-    ? dayAverages.reduce((sum, avg) => sum + avg, 0) / dayAverages.length
+  // Return average of daily averages
+  return dailyAverages.length > 0
+    ? mean(dailyAverages)
     : 0;
 };
 
 /**
  * Build 14-day average resting heart rate baseline
+ * Optimized to use bulk querying and bucketBy
  */
 export const getBaselineRHR = async (
   defaultRHR?: number
@@ -290,101 +308,108 @@ export const getBaselineRHR = async (
   const now = new Date();
   const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 3600 * 1000);
 
-  // Get daily resting heart rate statistics
-  const dailyRHR: number[] = [];
-
-  // Since we don't have queryStatisticsCollectionForQuantity, we'll query day by day
-  for (let i = 0; i < 14; i++) {
-    const dayStart = new Date(fourteenDaysAgo.getTime() + i * 24 * 3600 * 1000);
-    const dayEnd = new Date(dayStart.getTime() + 24 * 3600 * 1000);
-
-    try {
-      const stats = await queryStatisticsForQuantity(
-        HKQuantityTypeIdentifier.restingHeartRate,
-        [HKStatisticsOptions.discreteAverage],
-        dayStart,
-        dayEnd
-      );
-
-      if (stats?.averageQuantity?.quantity) {
-        dailyRHR.push(stats.averageQuantity.quantity);
-      }
-    } catch {
-      // Skip days with no data
-      continue;
+  // Fetch all resting HR samples at once instead of day by day
+  const rhrSamples = await queryQuantitySamples(
+    HKQuantityTypeIdentifier.restingHeartRate,
+    {
+      from: fourteenDaysAgo,
+      to: now,
+      unit: "count/min"
     }
-  }
+  );
 
-  return dailyRHR.length > 0
-    ? dailyRHR.reduce((sum, rhr) => sum + rhr, 0) / dailyRHR.length
+  if (rhrSamples.length === 0) return (defaultRHR ?? 60);
+
+  // Group by day using bucketBy
+  const dailyGroups = bucketBy(rhrSamples, "day");
+
+  // Calculate daily averages
+  const dailyAverages = Object.values(dailyGroups).map(daySamples =>
+    mean(daySamples.map(s => s.quantity))
+  );
+
+  // Return average of daily averages
+  return dailyAverages.length > 0
+    ? mean(dailyAverages)
     : (defaultRHR ?? 60);
 };
 
 /**
  * Sample hourly average HR & HRV for the current day
+ * Updated to use bucketBy for more efficient data processing
  */
 export const getHourlyHRandHRV = async (): Promise<HourlyHeartData[]> => {
   const now = new Date();
   const startOfToday = new Date(now);
   startOfToday.setHours(0, 0, 0, 0);
 
-  const hourlyData: HourlyHeartData[] = [];
-  const currentHour = now.getHours();
+  // Query all heart rate samples for today at once
+  const hrSamples = await queryQuantitySamples(
+    HKQuantityTypeIdentifier.heartRate,
+    {
+      from: startOfToday,
+      to: now,
+      unit: "count/min",
+    }
+  );
 
-  // Query hour by hour since we don't have queryStatisticsCollectionForQuantity
-  for (let hour = 0; hour <= currentHour; hour++) {
+  // Query all HRV samples for today at once
+  const hrvSamples = await queryQuantitySamples(
+    HKQuantityTypeIdentifier.heartRateVariabilitySDNN,
+    {
+      from: startOfToday,
+      to: now,
+    }
+  );
+
+  // Group samples by hour
+  const hrByHour = bucketBy(hrSamples, "hour");
+  const hrvByHour = bucketBy(hrvSamples, "hour");
+
+  // Create hourly data points by merging HR and HRV data
+  const hourlyData: HourlyHeartData[] = [];
+
+  // Process all hours with heart rate data
+  Object.entries(hrByHour).forEach(([hourKey, hrArr]) => {
+    if (hrArr.length === 0) return;
+
+    // Calculate average HR for this hour
+    const hrValues = hrArr.map(s => s.quantity);
+    const avgHR = mean(hrValues);
+
+    // Find matching HRV data for this hour
+    const hrvArr = hrvByHour[hourKey] || [];
+    const hrvValues = hrvArr.map(s => s.quantity);
+    const avgHRV = hrvValues.length > 0 ? mean(hrvValues) : 0;
+
+    // Create hour start date from the hour key (format is "HH:00")
+    const hour = parseInt(hourKey.split(':')[0], 10);
     const hourStart = new Date(startOfToday);
     hourStart.setHours(hour);
-    const hourEnd = new Date(hourStart);
-    hourEnd.setHours(hour + 1);
 
-    try {
-      // Get heart rate stats for this hour
-      const hrStats = await queryStatisticsForQuantity(
-        HKQuantityTypeIdentifier.heartRate,
-        [HKStatisticsOptions.discreteAverage],
-        hourStart,
-        hourEnd
-      );
+    hourlyData.push({
+      hourStart,
+      hr: roundTo(avgHR, 1),
+      hrv: roundTo(avgHRV, 1),
+    });
+  });
 
-      // Get HRV stats for this hour
-      const hrvStats = await queryStatisticsForQuantity(
-        HKQuantityTypeIdentifier.heartRateVariabilitySDNN,
-        [HKStatisticsOptions.discreteAverage],
-        hourStart,
-        hourEnd
-      );
-
-      const hr = hrStats?.averageQuantity?.quantity ?? 0;
-      const hrv = hrvStats?.averageQuantity?.quantity ?? 0;
-
-      if (hr > 0) {
-        // Only include hours with heart rate data
-        hourlyData.push({
-          hourStart,
-          hr,
-          hrv,
-        });
-      }
-    } catch {
-      // Skip hours with no data
-      continue;
-    }
-  }
-
-  return hourlyData;
+  // Sort by hour
+  return hourlyData.sort((a, b) => a.hourStart.getTime() - b.hourStart.getTime());
 };
 
 /**
  * Compute stress level for a single moment using baseline comparison
  * Returns a value between 0-3 where:
  * 0 = no stress, 1 = low stress, 2 = moderate stress, 3 = high stress
+ * Includes time-of-day adjustments for more accurate stress assessment
  */
 export const computeStressMoment = (
   currentHR: number,
   currentHRV: number,
   baselineRHR: number,
-  baselineHRV: number
+  baselineHRV: number,
+  hourOfDay?: number
 ): number => {
   // HRV stress: how far below baseline (0 = no drop, 1 = 100% drop)
   const hrvStress =
@@ -398,8 +423,33 @@ export const computeStressMoment = (
       : 0;
 
   // Average and scale to 0–3
-  const raw = ((hrvStress + hrStress) / 2) * 3;
+  let raw = ((hrvStress + hrStress) / 2) * 3;
+
+  // Apply time-of-day adjustments if hour is provided
+  if (hourOfDay !== undefined) {
+    raw = adjustForTimeOfDay(raw, hourOfDay);
+  }
+
   return parseFloat(Math.max(0, Math.min(3, raw)).toFixed(2));
+};
+
+/**
+ * Adjust stress values based on time of day context
+ */
+const adjustForTimeOfDay = (stressValue: number, hourOfDay: number): number => {
+  // HR naturally higher during day, lower at night
+  // Apply small adjustment factors based on time of day
+  if (hourOfDay >= 22 || hourOfDay < 6) {
+    // Late night/early morning: higher HR is more significant
+    return stressValue * 1.2;
+  } else if (hourOfDay >= 14 && hourOfDay < 16) {
+    // Post-lunch dip: higher HR is less significant
+    return stressValue * 0.9;
+  } else if (hourOfDay >= 6 && hourOfDay < 9) {
+    // Morning: HR naturally higher, less significant
+    return stressValue * 0.95;
+  }
+  return stressValue;
 };
 
 /**
@@ -428,10 +478,16 @@ export const calculateStressMetrics = async (defaults?: any): Promise<StressMetr
   const sleepIntervals: TimeInterval[] = [];
   const workoutIntervals: TimeInterval[] = [];
 
-  // Calculate hourly stress levels
+  // Calculate hourly stress levels with time-of-day context
   const hourlyStress = hourlyData.map((h) => ({
     hourStart: h.hourStart,
-    stress: computeStressMoment(h.hr, h.hrv, baselineRHR, baselineHRV),
+    stress: computeStressMoment(
+      h.hr,
+      h.hrv,
+      baselineRHR,
+      baselineHRV,
+      h.hourStart.getHours()
+    ),
   }));
 
   // Aggregate stress metrics

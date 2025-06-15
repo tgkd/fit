@@ -64,3 +64,8 @@ export async function fetchDailyHeartMetrics(
     };
   });
 }
+
+/*
+OUTPUT EXAMPLE:
+Heart Metrics: [{"avgBpm": 109.7, "date": "11:00", "maxBpm": 123, "minBpm": 86, "restingBpm": 115, "timeInZone": [0, 0, 0, 0, 0]}, {"avgBpm": 108.5, "date": "10:00", "maxBpm": 126, "minBpm": 71, "restingBpm": 116, "timeInZone": [0, 0, 0, 0, 0]}, {"avgBpm": 107.2, "date": "08:00", "maxBpm": 126, "minBpm": 86, "restingBpm": 105, "timeInZone": [0, 0, 0, 0, 0]}, {"avgBpm": 109, "date": "07:00", "maxBpm": 119, "minBpm": 97, "restingBpm": 114, "timeInZone": [0, 0, 0, 0, 0]}]
+*/
