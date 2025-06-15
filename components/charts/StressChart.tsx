@@ -7,6 +7,7 @@ import { ThemedView } from "@/components/ThemedView";
 import { Colors } from "@/constants/Colors";
 import { HealthData } from "@/context/HealthDataContext";
 import { useColorScheme } from "@/hooks/useColorScheme";
+import { formatDateForChart, formatNumber } from "@/lib/formatters";
 import i18n from "@/lib/i18n";
 import { Card } from "../ui/Card";
 
@@ -28,12 +29,13 @@ export function StressChart({ data: initData }: StressChartProps) {
   };
 
   const formatStressLabel = (value: number) => {
-    if (value < 20) return `${value.toFixed(0)} ${i18n.t("stressChart.low")}`;
-    if (value < 40) return `${value.toFixed(0)} ${i18n.t("stressChart.mild")}`;
+    const formattedValue = formatNumber(value, 0);
+    if (value < 20) return `${formattedValue} ${i18n.t("stressChart.low")}`;
+    if (value < 40) return `${formattedValue} ${i18n.t("stressChart.mild")}`;
     if (value < 60)
-      return `${value.toFixed(0)} ${i18n.t("stressChart.moderate")}`;
-    if (value < 80) return `${value.toFixed(0)} ${i18n.t("stressChart.high")}`;
-    return `${value.toFixed(0)} ${i18n.t("stressChart.max")}`;
+      return `${formattedValue} ${i18n.t("stressChart.moderate")}`;
+    if (value < 80) return `${formattedValue} ${i18n.t("stressChart.high")}`;
+    return `${formattedValue} ${i18n.t("stressChart.max")}`;
   };
 
   const formatDayLabel = (value: number): string => {
@@ -56,7 +58,7 @@ export function StressChart({ data: initData }: StressChartProps) {
         <ThemedView style={styles.statsRow}>
           <ThemedView style={styles.stat}>
             <ThemedText style={styles.statValue}>
-              {avgStress.toFixed(1)}
+              {formatNumber(avgStress, 1)}
             </ThemedText>
             <ThemedText style={styles.statLabel}>
               {i18n.t("stressChart.avg")}
@@ -64,7 +66,7 @@ export function StressChart({ data: initData }: StressChartProps) {
           </ThemedView>
           <ThemedView style={styles.stat}>
             <ThemedText style={styles.statValue}>
-              {maxStress.toFixed(1)}
+              {formatNumber(maxStress, 1)}
             </ThemedText>
             <ThemedText style={styles.statLabel}>
               {i18n.t("stressChart.peak")}
@@ -191,10 +193,7 @@ function generateStressChartData(healthData: HealthData): StressDataPoint[] {
     return {
       day: index + 1,
       stress,
-      timeLabel: date.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-      }),
+      timeLabel: formatDateForChart(date),
     };
   });
 }

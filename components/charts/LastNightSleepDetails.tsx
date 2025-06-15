@@ -1,8 +1,10 @@
-import { Colors } from "@/constants/Colors";
-import { LastNightSleep } from "@/lib/health/types";
-import i18n from "@/lib/i18n";
 import React from "react";
 import { StyleSheet, View } from "react-native";
+
+import { Colors } from "@/constants/Colors";
+import { formatDurationHHMM } from "@/lib/formatters";
+import { LastNightSleep } from "@/lib/health/types";
+import i18n from "@/lib/i18n";
 import { ThemedText } from "../ThemedText";
 
 interface SleepStageRowProps {
@@ -19,12 +21,6 @@ function SleepStageRow({
   duration,
   color,
 }: SleepStageRowProps) {
-  const formatDuration = (minutes: number): string => {
-    const hours = Math.floor(minutes / 60);
-    const mins = Math.round(minutes % 60);
-    return `${hours}:${mins.toString().padStart(2, "0")}`;
-  };
-
   return (
     <View>
       <View style={styles.stageInfo}>
@@ -59,7 +55,7 @@ function SleepStageRow({
           size="sm"
           style={styles.durationText}
         >
-          {formatDuration(duration)}
+          {formatDurationHHMM(duration)}
         </ThemedText>
       </View>
     </View>
