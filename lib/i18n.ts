@@ -422,32 +422,6 @@ const translations = {
         "健康データは、お使いのデバイスまたはHealth Connect対応アプリから自動的に同期されます。",
     },
 
-    // Sleep Screen (app/(tabs)/sleep.tsx)
-    sleep: {
-      chart: {
-        total: "総睡眠時間",
-        deep: "深い睡眠",
-        rem: "REM睡眠",
-        core: "コア睡眠",
-        awake: "覚醒時間",
-      },
-      total: "総睡眠時間",
-      deep: "深い睡眠",
-      rem: "REM睡眠",
-      core: "コア睡眠",
-      awakeTime: "覚醒時間",
-      sleepStagesDistribution: "睡眠段階の分布",
-      unknownSource: "不明",
-    },
-
-    // Settings Screen (app/(tabs)/settings.tsx)
-    settings: {
-      title: "設定",
-      subtitle: "アプリの設定を構成する",
-      healthDataTitle: "健康データ",
-      healthDataSubtitle: "ヘルスアプリで健康データの権限を管理する",
-    },
-
     // Workouts Screen (app/(tabs)/workouts.tsx)
     workouts: {
       title: "トレーニング",
