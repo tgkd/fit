@@ -1,12 +1,13 @@
 import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/ui/Card";
+import { ThemedScrollView } from "@/components/ui/ThemedScrollView";
 import { WorkoutData, WorkoutList } from "@/components/workouts";
 import { HealthDataContext } from "@/context/HealthDataContext";
 import { formatDurationHHMM } from "@/lib/formatters";
 import i18n from "@/lib/i18n";
 import { EnergyUnit, HKWorkout, LengthUnit } from "@kingstinct/react-native-healthkit";
 import { useContext } from "react";
-import { SafeAreaView, ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 export default function WorkoutsScreen() {
   const { data } = useContext(HealthDataContext);
@@ -61,8 +62,7 @@ export default function WorkoutsScreen() {
   ];
 
   return (
-    <ScrollView style={styles.scroll}>
-      <SafeAreaView>
+    <ThemedScrollView>
         <View style={styles.container}>
           {/* This Month Stats */}
           <Card>
@@ -86,8 +86,7 @@ export default function WorkoutsScreen() {
           {/* Last 7 Days Workouts List */}
           <WorkoutList workouts={last7DaysWorkouts} allWorkouts={allWorkouts} />
         </View>
-      </SafeAreaView>
-    </ScrollView>
+    </ThemedScrollView>
   );
 }
 

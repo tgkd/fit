@@ -1,37 +1,65 @@
 import { HKWorkoutActivityType } from "@kingstinct/react-native-healthkit";
-import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
-import React, { useEffect } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useLocalSearchParams, useNavigation } from "expo-router";
+import React, { useEffect, useMemo, useState } from "react";
+import { StyleSheet, View } from "react-native";
 
 import { ThemedText } from "@/components/ThemedText";
+import { ThemedScrollView } from "@/components/ui/ThemedScrollView";
 import { getWorkoutTypeIcon, WorkoutDetailsChart } from "@/components/workouts";
 import { formatFullDate, formatTime } from "@/lib/formatters";
+import { fetchWorkoutHeartRateData, WorkoutHeartRateData } from "@/lib/health/workouts";
 import { getWorkoutConfig, localizedWorkoutName, WorkoutData } from "@/lib/workouts/config";
 
 export default function WorkoutDetailsScreen() {
-  const router = useRouter();
   const navigation = useNavigation();
   const params = useLocalSearchParams();
+  const [heartRateData, setHeartRateData] = useState<WorkoutHeartRateData | null>(null);
 
-  // Parse workout data from params with mock additional data
+  // Memoize date calculations to prevent unnecessary re-renders
+  const { workoutDate, workoutEndDate, workoutDuration } = useMemo(() => {
+    const date = new Date(params.date as string);
+    const duration = parseInt(params.duration as string);
+    const endDate = new Date(date.getTime() + (duration * 60 * 1000));
+
+    return {
+      workoutDate: date,
+      workoutEndDate: endDate,
+      workoutDuration: duration,
+    };
+  }, [params.date, params.duration]);
+
+  // Parse workout data from params
   const workout: WorkoutData = {
     id: params.id as string,
     type: parseInt(params.type as string) as HKWorkoutActivityType,
-    duration: parseInt(params.duration as string),
-    date: new Date(params.date as string),
+    duration: workoutDuration,
+    date: workoutDate,
     calories: parseInt(params.calories as string),
-    // Mock additional data - in real app, this would come from HealthKit
+    // Distance only for relevant activities
     distance: params.type === HKWorkoutActivityType.tennis.toString() ? undefined : 3.5,
-    averageHeartRate: 142,
-    maxHeartRate: 199,
-    minHeartRate: 139,
-    averagePace: 25.97, // 25:58 per km
+    // Heart rate data will be loaded from HealthKit
+    averageHeartRate: heartRateData?.averageHeartRate ?? undefined,
+    maxHeartRate: heartRateData?.maxHeartRate ?? undefined,
+    minHeartRate: heartRateData?.minHeartRate ?? undefined,
+    heartRateSamples: heartRateData?.heartRateSamples || [],
+    averagePace: 25.97, // 25:58 per km - TODO: calculate from HealthKit data
   };
 
+  // Fetch heart rate data from HealthKit
+  useEffect(() => {
+    const loadHeartRateData = async () => {
+      try {
+        const hrData = await fetchWorkoutHeartRateData(workoutDate, workoutEndDate);
+        setHeartRateData(hrData);
+      } catch (error) {
+        console.error("Failed to load heart rate data:", error);
+      }
+    };
+
+    loadHeartRateData();
+  }, [workoutDate, workoutEndDate]);
 
   const config = getWorkoutConfig(workout.type);
-  const workoutTypeName = HKWorkoutActivityType[workout.type];
 
   // Format date and time range
   const startDate = formatFullDate(workout.date);
@@ -52,8 +80,7 @@ export default function WorkoutDetailsScreen() {
   }, [navigation, navTitle]);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+    <ThemedScrollView>
         {/* Header Section */}
         <View style={styles.header}>
           <View style={styles.titleRow}>
@@ -109,22 +136,12 @@ export default function WorkoutDetailsScreen() {
             ))}
           </View>
         )}
-      </ScrollView>
-    </SafeAreaView>
+      </ThemedScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  scrollContent: {
-    padding: 20,
-  },
-  header: {
-    marginBottom: 40,
-  },
+  header: {},
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',

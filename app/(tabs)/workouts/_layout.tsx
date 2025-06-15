@@ -8,15 +8,11 @@ export default function WorkoutsLayout() {
         name="index"
         options={{
           title: i18n.t("workouts.title"),
-          headerShown: true,
+          headerShown: false,
         }}
       />
       <Stack.Screen
         name="[id]"
-        options={{
-          headerShown: true,
-          // Dynamic title will be set in the component
-        }}
       />
     </Stack>
   );

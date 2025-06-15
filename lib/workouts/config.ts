@@ -16,10 +16,14 @@ export interface WorkoutData {
   date: Date;
   calories: number;
   distance?: number; // in km
-  averageHeartRate?: number;
-  maxHeartRate?: number;
-  minHeartRate?: number;
+  averageHeartRate?: number | null;
+  maxHeartRate?: number | null;
+  minHeartRate?: number | null;
   averagePace?: number; // in minutes per km
+  heartRateSamples?: {
+    timestamp: Date;
+    value: number;
+  }[];
 }
 
 export interface WorkoutConfig {
@@ -33,7 +37,7 @@ const formatPace = (paceMinutesPerKm: number): string => {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 };
 
-const formatHeartRateRange = (min?: number, max?: number): string => {
+const formatHeartRateRange = (min?: number | null, max?: number | null): string => {
   if (min && max) {
     return `${Math.round(min)}-${Math.round(max)}`;
   }

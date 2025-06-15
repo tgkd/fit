@@ -18,8 +18,30 @@ export function WorkoutDetailsChart({ workout }: WorkoutDetailsChartProps) {
     zoneColor: string;
   } | null>(null);
 
-  // Generate mock heart rate data over workout duration
+  // Generate heart rate data from HealthKit samples or fallback to mock data
   const heartRateData = useMemo(() => {
+    // If we have real heart rate samples, use them
+    if (workout.heartRateSamples && workout.heartRateSamples.length > 0) {
+      const workoutStartTime = workout.date.getTime();
+
+      return workout.heartRateSamples.map(sample => {
+        // Convert timestamp to minutes from workout start
+        const timeMinutes = (sample.timestamp.getTime() - workoutStartTime) / (1000 * 60);
+        return {
+          x: Math.max(0, Math.min(workout.duration, timeMinutes)), // Clamp within workout duration
+          y: sample.value
+        };
+      }).filter(point => point.x >= 0 && point.x <= workout.duration) // Filter points within workout
+        .sort((a, b) => a.x - b.x); // Sort by time
+    }
+
+    // Fallback to mock data if no real samples or no heart rate stats available
+    if (!workout.averageHeartRate || !workout.minHeartRate || !workout.maxHeartRate) {
+      // If no heart rate data at all, return empty array
+      return [];
+    }
+
+    // Generate mock data as before
     const dataPoints = [];
     const durationMinutes = workout.duration;
     const numPoints = Math.min(durationMinutes, 60); // Max 60 points for performance
@@ -32,19 +54,19 @@ export function WorkoutDetailsChart({ workout }: WorkoutDetailsChartProps) {
 
       if (timeMinutes < durationMinutes * 0.1) {
         // Warm-up phase: gradual increase
-        heartRate = workout.minHeartRate! + (workout.averageHeartRate! - workout.minHeartRate!) * (timeMinutes / (durationMinutes * 0.1));
+        heartRate = workout.minHeartRate + (workout.averageHeartRate - workout.minHeartRate) * (timeMinutes / (durationMinutes * 0.1));
       } else if (timeMinutes > durationMinutes * 0.9) {
         // Cool-down phase: gradual decrease
         const cooldownProgress = (timeMinutes - durationMinutes * 0.9) / (durationMinutes * 0.1);
-        heartRate = workout.averageHeartRate! - (workout.averageHeartRate! - workout.minHeartRate!) * cooldownProgress;
+        heartRate = workout.averageHeartRate - (workout.averageHeartRate - workout.minHeartRate) * cooldownProgress;
       } else {
         // Main workout: fluctuate around average with occasional peaks
-        const baseRate = workout.averageHeartRate!;
+        const baseRate = workout.averageHeartRate;
         const variation = Math.sin(timeMinutes * 0.5) * 15 + Math.random() * 10 - 5;
         const peakChance = Math.random();
         if (peakChance < 0.05) {
           // 5% chance of peak near max
-          heartRate = Math.min(workout.maxHeartRate!, baseRate + 30 + variation);
+          heartRate = Math.min(workout.maxHeartRate, baseRate + 30 + variation);
         } else {
           heartRate = baseRate + variation;
         }
@@ -52,12 +74,12 @@ export function WorkoutDetailsChart({ workout }: WorkoutDetailsChartProps) {
 
       dataPoints.push({
         x: timeMinutes,
-        y: Math.round(Math.max(workout.minHeartRate! - 10, Math.min(workout.maxHeartRate! + 5, heartRate)))
+        y: Math.round(Math.max(workout.minHeartRate - 10, Math.min(workout.maxHeartRate + 5, heartRate)))
       });
     }
 
     return dataPoints;
-  }, [workout.duration, workout.minHeartRate, workout.averageHeartRate, workout.maxHeartRate]);
+  }, [workout.duration, workout.date, workout.heartRateSamples, workout.minHeartRate, workout.averageHeartRate, workout.maxHeartRate]);
 
   // Calculate heart rate zones based on max heart rate
   const heartRateZones = useMemo(() => {
@@ -73,6 +95,10 @@ export function WorkoutDetailsChart({ workout }: WorkoutDetailsChartProps) {
 
   // Calculate y-axis scale
   const heartRateRange = useMemo(() => {
+    if (heartRateData.length === 0) {
+      return { min: 60, max: 180 }; // Default range when no data
+    }
+
     const minValue = Math.min(...heartRateData.map(d => d.y));
     const maxValue = Math.max(...heartRateData.map(d => d.y));
     const padding = 20;
@@ -84,6 +110,10 @@ export function WorkoutDetailsChart({ workout }: WorkoutDetailsChartProps) {
 
   // Find min and max points for labeling
   const minMaxPoints = useMemo(() => {
+    if (heartRateData.length === 0) {
+      return { minPoint: { x: 0, y: 60 }, maxPoint: { x: 0, y: 180 } }; // Default values
+    }
+
     const minPoint = heartRateData.reduce((min, point) => point.y < min.y ? point : min);
     const maxPoint = heartRateData.reduce((max, point) => point.y > max.y ? point : max);
     return { minPoint, maxPoint };
@@ -142,155 +172,170 @@ export function WorkoutDetailsChart({ workout }: WorkoutDetailsChartProps) {
         Heart Rate Timeline
       </ThemedText>
 
-      <View style={styles.chartWithScale}>
-        {/* Y-axis labels */}
-        <View style={styles.yAxisLabels}>
-          {yAxisValues.map((value, index) => (
-            <ThemedText key={index} type="secondary" size="xs" style={styles.yAxisLabel}>
-              {value}
-            </ThemedText>
-          ))}
+      {heartRateData.length === 0 ? (
+        <View style={styles.noDataContainer}>
+          <ThemedText type="secondary" style={styles.noDataText}>
+            No heart rate data available for this workout
+          </ThemedText>
+          <ThemedText type="secondary" size="xs" style={styles.noDataSubtext}>
+            Make sure your Apple Watch was connected during the workout
+          </ThemedText>
         </View>
+      ) : (
+        <>
+          <View style={styles.chartWithScale}>
+            {/* Y-axis labels */}
+            <View style={styles.yAxisLabels}>
+              {yAxisValues.map((value, index) => (
+                <ThemedText key={index} type="secondary" size="xs" style={styles.yAxisLabel}>
+                  {value}
+                </ThemedText>
+              ))}
+            </View>
 
-        <View style={styles.chartContainer}>
-          {/* Zone Background Overlay */}
-          <View style={styles.zoneOverlay}>
-            {Object.values(heartRateZones).map((zone, index) => {
-              const zoneHeight = ((zone.max - zone.min) / (heartRateRange.max - heartRateRange.min)) * 100;
-              const zoneBottom = ((zone.min - heartRateRange.min) / (heartRateRange.max - heartRateRange.min)) * 100;
+            <View style={styles.chartContainer}>
+              {/* Zone Background Overlay */}
+              <View style={styles.zoneOverlay}>
+                {Object.values(heartRateZones).map((zone, index) => {
+                  const zoneHeight = ((zone.max - zone.min) / (heartRateRange.max - heartRateRange.min)) * 100;
+                  const zoneBottom = ((zone.min - heartRateRange.min) / (heartRateRange.max - heartRateRange.min)) * 100;
 
-              return (
+                  return (
+                    <View
+                      key={`zone-bg-${index}`}
+                      style={[
+                        styles.zoneBackground,
+                        {
+                          backgroundColor: zone.color,
+                          height: `${zoneHeight}%`,
+                          bottom: `${zoneBottom}%`,
+                        }
+                      ]}
+                    />
+                  );
+                })}
+              </View>
+
+              <CartesianChart
+                data={heartRateData}
+                xKey="x"
+                yKeys={["y"]}
+                domainPadding={{ left: 10, right: 10, top: 10, bottom: 10 }}
+                domain={{ y: [heartRateRange.min, heartRateRange.max] }}
+                chartPressState={state}
+              >
+                {({ points }) => (
+                  <Line
+                    points={points.y}
+                    color="#FF6B6B"
+                    strokeWidth={3}
+                    animate={{ type: "timing", duration: 1000 }}
+                  />
+                )}
+              </CartesianChart>
+
+              {/* Interactive Tooltip */}
+              {touchInfo && (
                 <View
-                  key={`zone-bg-${index}`}
                   style={[
-                    styles.zoneBackground,
+                    styles.tooltip,
                     {
-                      backgroundColor: zone.color,
-                      height: `${zoneHeight}%`,
-                      bottom: `${zoneBottom}%`,
+                      left: `${Math.min(Math.max((touchInfo.minute / workout.duration) * 100 - 15, 5), 70)}%`,
+                      top: 20,
                     }
                   ]}
-                />
-              );
-            })}
-          </View>
+                >
+                  <ThemedText type="defaultSemiBold" size="sm" style={styles.tooltipTitle}>
+                    {formatMinutes(touchInfo.minute)}
+                  </ThemedText>
+                  <ThemedText size="sm" style={styles.tooltipHeartRate}>
+                    {touchInfo.heartRate} bpm
+                  </ThemedText>
+                  <View style={styles.tooltipZone}>
+                    <View
+                      style={[
+                        styles.tooltipZoneColor,
+                        { backgroundColor: touchInfo.zoneColor }
+                      ]}
+                    />
+                    <ThemedText size="xs" style={styles.tooltipZoneText}>
+                      {touchInfo.zone} Zone
+                    </ThemedText>
+                  </View>
+                </View>
+              )}
 
-          <CartesianChart
-            data={heartRateData}
-            xKey="x"
-            yKeys={["y"]}
-            domainPadding={{ left: 10, right: 10, top: 10, bottom: 10 }}
-            domain={{ y: [heartRateRange.min, heartRateRange.max] }}
-            chartPressState={state}
-          >
-            {({ points }) => (
-              <Line
-                points={points.y}
-                color="#FF6B6B"
-                strokeWidth={3}
-                animate={{ type: "timing", duration: 1000 }}
-              />
-            )}
-          </CartesianChart>
+              {/* Min/Max Value Labels Overlay */}
+              {heartRateData.length > 0 && (
+                <View style={styles.valueLabelsOverlay}>
+                  {/* Max value label */}
+                  <View
+                    style={[
+                      styles.valueLabel,
+                      styles.maxValueLabel,
+                      {
+                        left: `${(minMaxPoints.maxPoint.x / workout.duration) * 100}%`,
+                        bottom: `${((minMaxPoints.maxPoint.y - heartRateRange.min) / (heartRateRange.max - heartRateRange.min)) * 100 + 3}%`
+                      }
+                    ]}
+                  >
+                    <ThemedText type="defaultSemiBold" size="xs" style={styles.valueLabelText}>
+                      {minMaxPoints.maxPoint.y}
+                    </ThemedText>
+                  </View>
 
-          {/* Interactive Tooltip */}
-          {touchInfo && (
-            <View
-              style={[
-                styles.tooltip,
-                {
-                  left: `${Math.min(Math.max((touchInfo.minute / workout.duration) * 100 - 15, 5), 70)}%`,
-                  top: 20,
-                }
-              ]}
-            >
-              <ThemedText type="defaultSemiBold" size="sm" style={styles.tooltipTitle}>
-                {formatMinutes(touchInfo.minute)}
-              </ThemedText>
-              <ThemedText size="sm" style={styles.tooltipHeartRate}>
-                {touchInfo.heartRate} bpm
-              </ThemedText>
-              <View style={styles.tooltipZone}>
-                <View
-                  style={[
-                    styles.tooltipZoneColor,
-                    { backgroundColor: touchInfo.zoneColor }
-                  ]}
-                />
-                <ThemedText size="xs" style={styles.tooltipZoneText}>
-                  {touchInfo.zone} Zone
-                </ThemedText>
-              </View>
-            </View>
-          )}
-
-          {/* Min/Max Value Labels Overlay */}
-          <View style={styles.valueLabelsOverlay}>
-            {/* Max value label */}
-            <View
-              style={[
-                styles.valueLabel,
-                styles.maxValueLabel,
-                {
-                  left: `${(minMaxPoints.maxPoint.x / workout.duration) * 100}%`,
-                  bottom: `${((minMaxPoints.maxPoint.y - heartRateRange.min) / (heartRateRange.max - heartRateRange.min)) * 100 + 3}%`
-                }
-              ]}
-            >
-              <ThemedText type="defaultSemiBold" size="xs" style={styles.valueLabelText}>
-                {minMaxPoints.maxPoint.y}
-              </ThemedText>
-            </View>
-
-            {/* Min value label */}
-            <View
-              style={[
-                styles.valueLabel,
-                styles.minValueLabel,
-                {
-                  left: `${(minMaxPoints.minPoint.x / workout.duration) * 100}%`,
-                  bottom: `${((minMaxPoints.minPoint.y - heartRateRange.min) / (heartRateRange.max - heartRateRange.min)) * 100 - 12}%`
-                }
-              ]}
-            >
-              <ThemedText type="defaultSemiBold" size="xs" style={styles.valueLabelText}>
-                {minMaxPoints.minPoint.y}
-              </ThemedText>
+                  {/* Min value label */}
+                  <View
+                    style={[
+                      styles.valueLabel,
+                      styles.minValueLabel,
+                      {
+                        left: `${(minMaxPoints.minPoint.x / workout.duration) * 100}%`,
+                        bottom: `${((minMaxPoints.minPoint.y - heartRateRange.min) / (heartRateRange.max - heartRateRange.min)) * 100 - 12}%`
+                      }
+                    ]}
+                  >
+                    <ThemedText type="defaultSemiBold" size="xs" style={styles.valueLabelText}>
+                      {minMaxPoints.minPoint.y}
+                    </ThemedText>
+                  </View>
+                </View>
+              )}
             </View>
           </View>
-        </View>
-      </View>
 
-      <View style={styles.chartLabels}>
-        <ThemedText type="secondary" size="xs">
-          0 min
-        </ThemedText>
-        <ThemedText type="secondary" size="xs">
-          {Math.round(workout.duration)} min
-        </ThemedText>
-      </View>
+          <View style={styles.chartLabels}>
+            <ThemedText type="secondary" size="xs">
+              0 min
+            </ThemedText>
+            <ThemedText type="secondary" size="xs">
+              {Math.round(workout.duration)} min
+            </ThemedText>
+          </View>
 
-      {/* Heart Rate Zones Legend */}
-      <View style={styles.legend}>
-        <ThemedText type="defaultSemiBold" size="sm" style={styles.legendTitle}>
-          Heart Rate Zones
-        </ThemedText>
-        <View style={styles.legendGrid}>
-          {Object.entries(heartRateZones).map(([key, zone]) => (
-            <View key={key} style={styles.legendItem}>
-              <View style={[styles.legendColor, { backgroundColor: zone.color }]} />
-              <View style={styles.legendText}>
-                <ThemedText size="xs" style={styles.legendZoneName}>
-                  {zone.name}
-                </ThemedText>
-                <ThemedText type="secondary" size="xxs">
-                  {zone.min}-{zone.max} bpm
-                </ThemedText>
-              </View>
+          {/* Heart Rate Zones Legend */}
+          <View style={styles.legend}>
+            <ThemedText type="defaultSemiBold" size="sm" style={styles.legendTitle}>
+              Heart Rate Zones
+            </ThemedText>
+            <View style={styles.legendGrid}>
+              {Object.entries(heartRateZones).map(([key, zone]) => (
+                <View key={key} style={styles.legendItem}>
+                  <View style={[styles.legendColor, { backgroundColor: zone.color }]} />
+                  <View style={styles.legendText}>
+                    <ThemedText size="xs" style={styles.legendZoneName}>
+                      {zone.name}
+                    </ThemedText>
+                    <ThemedText type="secondary" size="xxs">
+                      {zone.min}-{zone.max} bpm
+                    </ThemedText>
+                  </View>
+                </View>
+              ))}
             </View>
-          ))}
-        </View>
-      </View>
+          </View>
+        </>
+      )}
     </View>
   );
 }
@@ -443,5 +488,16 @@ const styles = StyleSheet.create({
   },
   tooltipZoneText: {
     fontWeight: '500',
+  },
+  noDataContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noDataText: {
+    marginBottom: 16,
+  },
+  noDataSubtext: {
+    textAlign: 'center',
   },
 });

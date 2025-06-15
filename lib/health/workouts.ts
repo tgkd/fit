@@ -15,6 +15,28 @@ export const ACTIVITY_MULTIPLIERS = {
   HIGH_INTENSITY: 1.4, // > 7 METs
 };
 
+// Interface for raw workout data from HealthKit
+export interface HealthKitWorkout {
+  uuid: string;
+  workoutActivityType: number;
+  startDate: string;
+  endDate: string;
+  totalEnergyBurned?: {
+    quantity: number;
+  };
+}
+
+// Interface for heart rate data during a workout
+export interface WorkoutHeartRateData {
+  averageHeartRate: number | null;
+  maxHeartRate: number | null;
+  minHeartRate: number | null;
+  heartRateSamples: {
+    timestamp: Date;
+    value: number;
+  }[];
+}
+
 /**
  * Fetch workout and exercise statistics using Apple's native ring calculations
  * - Exercise minutes from HealthKit's appleExerciseTime
@@ -90,4 +112,72 @@ export const calculateExerciseMins = (activities: ActivitySample[]): number => {
  */
 export const calculateStandHours = (hourlyStepCounts: number[]): number => {
   return hourlyStepCounts.filter((count) => count >= 1).length;
+};
+
+/**
+ * Fetch heart rate data for a specific workout session
+ * @param startDate - Workout start date
+ * @param endDate - Workout end date
+ * @returns Heart rate statistics and samples for the workout period
+ */
+export const fetchWorkoutHeartRateData = async (
+  startDate: Date,
+  endDate: Date
+): Promise<WorkoutHeartRateData> => {
+  try {
+    // Add 5 minutes buffer before and after workout to catch related heart rate data
+    const startWithBuffer = new Date(startDate.getTime() - 5 * 60 * 1000);
+    const endWithBuffer = new Date(endDate.getTime() + 5 * 60 * 1000);
+
+    // Query heart rate samples during the workout period
+    const heartRateSamples = await queryQuantitySamples(
+      HKQuantityTypeIdentifier.heartRate,
+      {
+        from: startWithBuffer,
+        to: endWithBuffer,
+        unit: "count/min",
+        limit: 1000, // Limit to avoid performance issues
+      }
+    );
+
+    if (heartRateSamples.length === 0) {
+      return {
+        averageHeartRate: null,
+        maxHeartRate: null,
+        minHeartRate: null,
+        heartRateSamples: [],
+      };
+    }
+
+    // Extract heart rate values
+    const hrValues = heartRateSamples.map(sample => sample.quantity);
+
+    // Calculate statistics
+    const averageHeartRate = Math.round(
+      hrValues.reduce((sum, hr) => sum + hr, 0) / hrValues.length
+    );
+    const maxHeartRate = Math.max(...hrValues);
+    const minHeartRate = Math.min(...hrValues);
+
+    // Format samples for chart display
+    const formattedSamples = heartRateSamples.map(sample => ({
+      timestamp: new Date(sample.startDate),
+      value: sample.quantity,
+    }));
+
+    return {
+      averageHeartRate,
+      maxHeartRate,
+      minHeartRate,
+      heartRateSamples: formattedSamples,
+    };
+  } catch (error) {
+    console.error("Failed to fetch workout heart rate data:", error);
+    return {
+      averageHeartRate: null,
+      maxHeartRate: null,
+      minHeartRate: null,
+      heartRateSamples: [],
+    };
+  }
 };
