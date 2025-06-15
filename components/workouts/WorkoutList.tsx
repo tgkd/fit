@@ -13,7 +13,7 @@ interface WorkoutListProps {
 export function WorkoutList({ workouts, allWorkouts }: WorkoutListProps) {
   return (
     <Card>
-      <ThemedText type="subtitle">{i18n.t("workouts.last7Days")}</ThemedText>
+      <ThemedText type="title">{i18n.t("workouts.last7Days")}</ThemedText>
       {workouts.length > 0 ? (
         <View style={styles.workoutsList}>
           {workouts.map((workout) => (
@@ -35,7 +35,7 @@ export function WorkoutList({ workouts, allWorkouts }: WorkoutListProps) {
 const styles = StyleSheet.create({
   workoutsList: {
     marginTop: 16,
-    gap: 12,
+    gap: 16,
   },
   emptyText: {
     textAlign: "center",

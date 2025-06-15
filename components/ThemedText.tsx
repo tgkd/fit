@@ -17,6 +17,7 @@ export type ThemedTextProps = TextProps & {
     | "defaultSemiBold"
     | "subtitle"
     | "link"
+    | "footnote"
     | "secondary"
     | "monospace";
 };
@@ -34,22 +35,18 @@ export function ThemedText({
 }: ThemedTextProps) {
   const fontFamily = useMemo(() => {
     switch (type) {
-      case "default":
-        return "Hikasami-Regular";
       case "title":
-        return "Hikasami-Bold";
-      case "defaultSemiBold":
-        return "Hikasami-SemiBold";
-      case "subtitle":
-        return "Hikasami-SemiBold";
-      case "link":
-        return "Hikasami-Medium";
-      case "secondary":
-        return "Hikasami-Regular";
+        return "AlegreyaSC-Regular";
       case "monospace":
-        return "Disket-Mono-Regular";
+        return "BarlowCondensed-Regular";
+      case "default":
+      case "defaultSemiBold":
+      case "subtitle":
+      case "link":
+      case "secondary":
+      case "footnote":
       default:
-        return "Hikasami-Regular";
+        return undefined; // Use system default font
     }
   }, [type]);
 
@@ -108,6 +105,7 @@ export function ThemedText({
         type === "subtitle" ? styles.subtitle : undefined,
         type === "link" ? [styles.link, { color: linkColor }] : undefined,
         type === "monospace" ? styles.monospace : undefined,
+        type === "footnote" ? styles.footnote : undefined,
         textAlign ? { textAlign } : undefined,
         size ? sizeStyle : undefined,
         style,
@@ -122,56 +120,48 @@ export function ThemedText({
 const styles = StyleSheet.create({
   default: {
     fontSize: 17,
-    lineHeight: 22,
   },
   defaultSemiBold: {
     fontSize: 17,
-    lineHeight: 22,
     fontWeight: "600",
   },
   title: {
     fontSize: 34,
-    fontWeight: "700",
     lineHeight: 41,
     letterSpacing: 0.41,
   },
   subtitle: {
     fontSize: 22,
     fontWeight: "600",
-    lineHeight: 28,
     letterSpacing: 0.35,
   },
   link: {
     fontSize: 17,
-    lineHeight: 22,
   },
   monospace: {
     fontSize: 15,
-    lineHeight: 20,
     letterSpacing: 0.5,
   },
-  xl: {
-    fontSize: 20,
-    lineHeight: 25,
+  footnote: {
+    fontSize: 14,
+    fontWeight: "500",
   },
   xxl: {
     fontSize: 24,
-    lineHeight: 30,
+  },
+  xl: {
+    fontSize: 20,
   },
   md: {
     fontSize: 15,
-    lineHeight: 20,
   },
   sm: {
     fontSize: 13,
-    lineHeight: 18,
   },
   xs: {
     fontSize: 11,
-    lineHeight: 16,
   },
   xxs: {
     fontSize: 9,
-    lineHeight: 14,
   },
 });

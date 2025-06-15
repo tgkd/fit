@@ -1,16 +1,9 @@
 import { HKWorkoutActivityType } from "@kingstinct/react-native-healthkit";
 
-export const formatDateForWorkout = (date: Date) => {
-  const day = date.getDate().toString();
-  const month = date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
-  return { day, month };
-};
+import { formatDateForWorkout, formatDuration } from "@/lib/formatters";
 
-export const formatDuration = (minutes: number) => {
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
-};
+// Re-export formatters for backward compatibility
+export { formatDateForWorkout, formatDuration };
 
 export const getWorkoutTypeColor = (type: HKWorkoutActivityType) => {
   if (type == HKWorkoutActivityType.running || type == HKWorkoutActivityType.cycling) {

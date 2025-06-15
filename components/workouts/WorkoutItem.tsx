@@ -15,7 +15,7 @@ export function WorkoutItem({ workout }: WorkoutItemProps) {
 
   const handlePress = () => {
     router.push({
-      pathname: "/workout-details",
+      pathname: "/workouts/[id]",
       params: {
         id: workout.id,
         type: workout.type.toString(),

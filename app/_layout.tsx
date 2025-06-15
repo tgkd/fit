@@ -16,12 +16,15 @@ import "@/lib/i18n"; // Initialize i18n
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const [loaded] = useFonts({
-    "Hikasami-Regular": require("../assets/fonts/Hikasami-Regular.ttf"),
-    "Hikasami-Medium": require("../assets/fonts/Hikasami-Medium.ttf"),
-    "Hikasami-SemiBold": require("../assets/fonts/Hikasami-SemiBold.ttf"),
-    "Hikasami-Bold": require("../assets/fonts/Hikasami-Bold.ttf"),
-    "Disket-Mono-Regular": require("../assets/fonts/Disket-Mono-Regular.ttf"),
-    "Disket-Mono-Bold": require("../assets/fonts/Disket-Mono-Bold.ttf"),
+    "BarlowCondensed-Black": require("../assets/fonts/BarlowCondensed-Black.ttf"),
+    "BarlowCondensed-ExtraBold": require("../assets/fonts/BarlowCondensed-ExtraBold.ttf"),
+    "BarlowCondensed-Bold": require("../assets/fonts/BarlowCondensed-Bold.ttf"),
+    "BarlowCondensed-SemiBold": require("../assets/fonts/BarlowCondensed-SemiBold.ttf"),
+    "BarlowCondensed-Regular": require("../assets/fonts/BarlowCondensed-Regular.ttf"),
+    "BarlowCondensed-Light": require("../assets/fonts/BarlowCondensed-Light.ttf"),
+    "BarlowCondensed-ExtraLight": require("../assets/fonts/BarlowCondensed-ExtraLight.ttf"),
+    "BarlowCondensed-Thin": require("../assets/fonts/BarlowCondensed-Thin.ttf"),
+    "AlegreyaSC-Regular": require("../assets/fonts/AlegreyaSC-Regular.ttf"),
   });
 
   if (!loaded) {

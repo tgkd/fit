@@ -103,6 +103,15 @@ const translations = {
       additionalInfo: "Additional Info",
       workoutRecorded: "Workout recorded on",
       avgCaloriesPerMinute: "Avg calories per minute",
+      heartRateRange: "Heart Rate Range",
+      avgHeartRate: "Avg Heart Rate",
+      distance: "Distance",
+      pace: "Pace",
+      m: "m",
+      km: "km",
+      bpm: "bpm",
+      hours: "Hours",
+      activeCal: "Active Cal",
     },
 
     common: {
@@ -255,8 +264,6 @@ const translations = {
       avg: "Среднее",
       peak: "Пик",
     },
-  },
-  ru: {
     tabs: {
       home: "Главная",
       stress: "Стресс",
@@ -355,6 +362,16 @@ const translations = {
       additionalInfo: "Дополнительная информация",
       workoutRecorded: "Тренировка записана",
       avgCaloriesPerMinute: "Среднее калорий в минуту",
+      heartRateRange: "Диапазон пульса",
+      avgHeartRate: "Средний пульс",
+      distance: "Дистанция",
+      pace: "Темп",
+      m: "м",
+      km: "км",
+      bpm: "уд/мин",
+      hours: "Часы",
+      activeCal: "Активные калории",
+      tennis: "Теннис",
     },
 
     common: {
