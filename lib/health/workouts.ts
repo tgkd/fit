@@ -3,6 +3,7 @@ import {
   HKStatisticsOptions,
   queryQuantitySamples,
   queryStatisticsForQuantity,
+  queryWorkoutSamples,
 } from "@kingstinct/react-native-healthkit";
 import { ActivitySample, WorkoutStats } from "./types";
 import { getCurrentDateRanges, getDurationMinutes } from "./utils";
@@ -53,6 +54,15 @@ export const fetchWorkoutStats = async (): Promise<WorkoutStats> => {
     now
   );
   const standHours = Math.min(12, Math.floor(standHoursStat?.sumQuantity?.quantity || 0));
+
+  // Get workout samples from last 30 days for workouts screen
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  const allWorkouts = await queryWorkoutSamples({
+    from: thirtyDaysAgo,
+    to: now,
+  });
 
   return {
     exerciseMins,

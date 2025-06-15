@@ -4,7 +4,7 @@ import { formatDateForWorkout, formatDuration, getWorkoutTypeColor, getWorkoutTy
 import i18n from "@/lib/i18n";
 import { HKWorkoutActivityType } from "@kingstinct/react-native-healthkit";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function WorkoutDetailsScreen() {
@@ -33,15 +33,8 @@ export default function WorkoutDetailsScreen() {
   });
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        {/* Header with back button */}
-        <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backButton}>
-            <ThemedText size="lg">← {i18n.t("common.back")}</ThemedText>
-          </Pressable>
-        </View>
-
+    <ScrollView contentContainerStyle={styles.scroll}>
+      <SafeAreaView style={{ gap: 16 }}>
         {/* Workout Title Card */}
         <Card>
           <View style={styles.titleSection}>
@@ -116,17 +109,16 @@ export default function WorkoutDetailsScreen() {
             </ThemedText>
           </View>
         </Card>
-      </ScrollView>
     </SafeAreaView>
+      </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   scroll: {
-    flexGrow: 1,
+    flex: 1,
     paddingHorizontal: 16,
     paddingBottom: 46,
-    rowGap: 16,
   },
   header: {
     marginBottom: 8,

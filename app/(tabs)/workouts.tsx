@@ -16,115 +16,96 @@ export default function WorkoutsScreen() {
       return [];
     }
     return data.workouts.map((workout: any, index: number) => {
-      const duration = (new Date(workout.endDate).getTime() - new Date(workout.startDate).getTime()) / (1000 * 60); // minutes
-
+      const duration = (new Date(workout.endDate).getTime() - new Date(workout.startDate).getTime()) / (1000 * 60); // duration in minutes
       return {
         id: workout.uuid || `workout-${index}`,
         type: workout.workoutActivityType,
         duration: Math.round(duration),
         date: new Date(workout.startDate),
-        calories: Math.round(workout.totalEnergyBurned?.quantity || 0),
+        calories: workout.totalEnergyBurned?.quantity || 0,
       };
-    }).sort((a: WorkoutData, b: WorkoutData) => b.date.getTime() - a.date.getTime()); // Sort by most recent first
+    });
   };
 
-  const workouts = convertToWorkouts();
+  const allWorkouts = convertToWorkouts();
 
-  // Get workouts from last 7 days
-  const today = new Date();
-  const lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+  // Filter workouts for last 7 days
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-  const lastWeekWorkouts = workouts.filter(workout => {
-    return workout.date >= lastWeek && workout.date <= today;
-  });
-
-  // Get workouts from this month
-  const thisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-  const thisMonthWorkouts = workouts.filter(workout => {
-    return workout.date >= thisMonth && workout.date <= today;
-  });
+  const last7DaysWorkouts = allWorkouts.filter(workout =>
+    workout.date >= sevenDaysAgo
+  );
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        {/* Monthly Summary */}
+    <ScrollView style={styles.scrollView}>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <ThemedText type="title">{i18n.t("workouts.title")}</ThemedText>
+          <ThemedText type="secondary" style={styles.subtitle}>
+            {i18n.t("workouts.subtitle")}
+          </ThemedText>
+        </View>
+
+        {/* This Month Stats */}
         <Card>
-          <ThemedText type="title">{i18n.t("workouts.thisMonth")}</ThemedText>
-          <View style={styles.summaryRow}>
-            <View style={styles.summaryItem}>
-              <ThemedText type="defaultSemiBold" size="xxl" style={styles.summaryNumber}>
-                {thisMonthWorkouts.length}
+          <ThemedText type="subtitle">{i18n.t("workouts.thisMonth")}</ThemedText>
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <ThemedText type="title" size="lg">
+                {allWorkouts.length}
               </ThemedText>
-              <ThemedText style={styles.summaryLabel}>{i18n.t("workouts.workoutsCount")}</ThemedText>
+              <ThemedText type="secondary" size="sm">
+                {i18n.t("workouts.workoutsCount")}
+              </ThemedText>
             </View>
-            <View style={styles.summaryItem}>
-              <ThemedText type="defaultSemiBold" size="xxl" style={styles.summaryNumber}>
-                {Math.round(thisMonthWorkouts.reduce((sum, w) => sum + w.duration, 0) / 60)}h
+            <View style={styles.statItem}>
+              <ThemedText type="title" size="lg">
+                {Math.round(allWorkouts.reduce((sum, w) => sum + w.duration, 0) / 60)}h
               </ThemedText>
-              <ThemedText style={styles.summaryLabel}>{i18n.t("workouts.totalTime")}</ThemedText>
+              <ThemedText type="secondary" size="sm">
+                {i18n.t("workouts.totalTime")}
+              </ThemedText>
             </View>
-            <View style={styles.summaryItem}>
-              <ThemedText type="defaultSemiBold" size="xxl" style={styles.summaryNumber}>
-                {thisMonthWorkouts.reduce((sum, w) => sum + w.calories, 0)}
+            <View style={styles.statItem}>
+              <ThemedText type="title" size="lg">
+                {Math.round(allWorkouts.reduce((sum, w) => sum + w.calories, 0))}
               </ThemedText>
-              <ThemedText style={styles.summaryLabel}>{i18n.t("workouts.calories")}</ThemedText>
+              <ThemedText type="secondary" size="sm">
+                {i18n.t("workouts.calories")}
+              </ThemedText>
             </View>
           </View>
         </Card>
 
-        {/* Last Week's Workouts */}
-        <WorkoutList workouts={lastWeekWorkouts} allWorkouts={workouts} />
-
-        {/* All Time Stats */}
-        {workouts.length > 0 && (
-          <Card>
-            <ThemedText type="subtitle">{i18n.t("workouts.allTime")}</ThemedText>
-            <View style={styles.summaryRow}>
-              <View style={styles.summaryItem}>
-                <ThemedText type="defaultSemiBold" style={styles.summaryNumber}>
-                  {workouts.length}
-                </ThemedText>
-                <ThemedText style={styles.summaryLabel}>{i18n.t("workouts.totalWorkouts")}</ThemedText>
-              </View>
-              <View style={styles.summaryItem}>
-                <ThemedText type="defaultSemiBold" style={styles.summaryNumber}>
-                  {Math.round(workouts.reduce((sum, w) => sum + w.duration, 0) / 60)}h
-                </ThemedText>
-                <ThemedText style={styles.summaryLabel}>{i18n.t("workouts.totalTime")}</ThemedText>
-              </View>
-              <View style={styles.summaryItem}>
-                <ThemedText type="defaultSemiBold" style={styles.summaryNumber}>
-                  {workouts.length > 0 ? Math.round(workouts.reduce((sum, w) => sum + w.calories, 0) / workouts.length) : 0}
-                </ThemedText>
-                <ThemedText style={styles.summaryLabel}>{i18n.t("workouts.avgCalories")}</ThemedText>
-              </View>
-            </View>
-          </Card>
-        )}
-      </ScrollView>
-    </SafeAreaView>
+        {/* Last 7 Days Workouts List */}
+        <WorkoutList workouts={last7DaysWorkouts} allWorkouts={allWorkouts} />
+      </SafeAreaView>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: {
-    flexGrow: 1,
-    paddingHorizontal: 16,
-    paddingBottom: 46,
-    rowGap: 16,
+  container: {
+    flex: 1,
   },
-  summaryRow: {
+  scrollView: {
+    flex: 1,
+    padding: 16,
+  },
+  header: {
+    marginBottom: 24,
+  },
+  subtitle: {
+    marginTop: 4,
+  },
+  statsRow: {
     flexDirection: "row",
-    justifyContent: "space-around",
+    justifyContent: "space-between",
     marginTop: 16,
   },
-  summaryItem: {
+  statItem: {
     alignItems: "center",
-  },
-  summaryNumber: {
-    marginBottom: 4,
-  },
-  summaryLabel: {
-    opacity: 0.7,
+    flex: 1,
   },
 });
