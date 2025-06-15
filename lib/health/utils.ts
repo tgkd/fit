@@ -1,11 +1,11 @@
 // Shared utility functions for health modules
+import { format, startOfDay, subDays, subWeeks } from "date-fns";
 
 export const getCurrentDateRanges = () => {
   const now = new Date();
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const startOfToday = startOfDay(now);
+  const oneDayAgo = subDays(now, 1);
+  const oneWeekAgo = subWeeks(now, 1);
 
   return {
     now,
@@ -13,6 +13,43 @@ export const getCurrentDateRanges = () => {
     oneDayAgo,
     oneWeekAgo,
   };
+};
+
+/** Get date ranges for longer periods */
+export const getExtendedDateRanges = () => {
+  const now = new Date();
+  const startOfToday = startOfDay(now);
+  const fourteenDaysAgo = subDays(now, 14);
+  const oneMonthAgo = subDays(now, 30);
+
+  return {
+    now,
+    startOfToday,
+    fourteenDaysAgo,
+    oneMonthAgo,
+  };
+};
+
+/** Format hour for display (e.g., "4 AM", "5 PM") */
+export const formatHourDisplay = (date: Date): string => {
+  return format(date, "h a");
+};
+
+/** Format date for display (e.g., "Jun 15", "Dec 3") */
+export const formatDateDisplay = (date: Date): string => {
+  return format(date, "MMM d");
+};
+
+/** Format time for display (e.g., "3:45 PM") */
+export const formatTimeDisplay = (date: Date): string => {
+  return format(date, "h:mm a");
+};
+
+/** Create hour start date for a given hour (0-23) */
+export const createHourStart = (baseDate: Date, hour: number): Date => {
+  const hourStart = startOfDay(baseDate);
+  hourStart.setHours(hour);
+  return hourStart;
 };
 
 /** Normalize value v between [min, max] → 0–100, clamped */

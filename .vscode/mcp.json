@@ -1,0 +1,34 @@
+{
+  "inputs": [
+    {
+      "type": "promptString",
+      "id": "github-pat",
+      "password": true,
+      "description": "GitHub Personal Access Token (PAT, https://github.com/settings/personal-access-tokens/new)"
+    }
+  ],
+  "servers": {
+    // https://github.com/modelcontextprotocol/servers/tree/main/src/github
+    "GitHub": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${github-pat}"
+      }
+    },
+    // https://github.com/modelcontextprotocol/servers/tree/main/src/fetch
+    "fetch": {
+      "command": "uvx",
+      "args": ["mcp-server-fetch"]
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+    },
+    "Context7": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"]
+    }
+  }
+}
