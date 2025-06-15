@@ -1,5 +1,5 @@
 import { ThemedText } from "@/components/ThemedText";
-import { HKWorkoutActivityType } from "@kingstinct/react-native-healthkit";
+import { localizedWorkoutName } from "@/lib/workouts/config";
 import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, View } from "react-native";
 import { WorkoutData } from "./types";
@@ -44,17 +44,17 @@ export function WorkoutItem({ workout }: WorkoutItemProps) {
       {/* Left side: Date and workout info */}
       <View style={styles.workoutLeftSide}>
         <View style={styles.workoutDateContainer}>
-          <ThemedText type="monospace" size="lg" style={styles.workoutDay}>
+          <ThemedText type="monospace" size="xxs" style={styles.workoutDay}>
             {day}
           </ThemedText>
-          <ThemedText size="xs" style={styles.workoutMonth}>
+          <ThemedText size="sm" style={styles.workoutMonth}>
             {month}
           </ThemedText>
         </View>
 
         <View style={styles.workoutInfo}>
           <ThemedText type="defaultSemiBold" size="md" style={styles.workoutTitle}>
-            {getWorkoutTypeIcon(workout.type)} {HKWorkoutActivityType[workout.type]}
+            {getWorkoutTypeIcon(workout.type)} {localizedWorkoutName(workout.type)}
           </ThemedText>
         </View>
       </View>
@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
   },
   workoutItemPressed: {
     opacity: 0.7,
-    transform: [{ scale: 0.98 }],
+    // transform: [{ scale: 0.98 }],
   },
   workoutRibbon: {
     position: "absolute",
@@ -99,22 +99,18 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   workoutDay: {
-    lineHeight: 20,
   },
   workoutMonth: {
-    opacity: 0.7,
     marginTop: 2,
   },
   workoutInfo: {
     flex: 1,
   },
   workoutTitle: {
-    lineHeight: 20,
   },
   workoutRightSide: {
     alignItems: "flex-end",
   },
   workoutDuration: {
-    opacity: 0.8,
   },
 });

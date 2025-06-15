@@ -5,9 +5,9 @@ import { ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/components/ThemedText";
-import { getWorkoutTypeIcon } from "@/components/workouts";
+import { getWorkoutTypeIcon, WorkoutDetailsChart } from "@/components/workouts";
 import { formatFullDate, formatTime } from "@/lib/formatters";
-import { WorkoutData, getWorkoutConfig, localizedWorkoutName } from "@/lib/workouts/config";
+import { getWorkoutConfig, localizedWorkoutName, WorkoutData } from "@/lib/workouts/config";
 
 export default function WorkoutDetailsScreen() {
   const router = useRouter();
@@ -28,6 +28,7 @@ export default function WorkoutDetailsScreen() {
     minHeartRate: 139,
     averagePace: 25.97, // 25:58 per km
   };
+
 
   const config = getWorkoutConfig(workout.type);
   const workoutTypeName = HKWorkoutActivityType[workout.type];
@@ -88,6 +89,9 @@ export default function WorkoutDetailsScreen() {
             </View>
           ))}
         </View>
+
+        {/* Heart Rate Chart */}
+        <WorkoutDetailsChart workout={workout} />
 
         {/* Additional Metrics (if more than 4) */}
         {config.metrics.length > 4 && (

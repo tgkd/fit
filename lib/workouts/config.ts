@@ -76,6 +76,18 @@ export const localizedWorkoutName = (type: HKWorkoutActivityType): string => {
   switch (type) {
     case HKWorkoutActivityType.tennis:
       return i18n.t('workouts.tennis');
+    case HKWorkoutActivityType.running:
+      return i18n.t('workouts.running');
+    case HKWorkoutActivityType.cycling:
+      return i18n.t('workouts.cycling');
+    case HKWorkoutActivityType.swimming:
+      return i18n.t('workouts.swimming');
+    case HKWorkoutActivityType.functionalStrengthTraining:
+      return i18n.t('workouts.functionalStrengthTraining');
+    case HKWorkoutActivityType.yoga:
+      return i18n.t('workouts.yoga');
+    case HKWorkoutActivityType.soccer:
+      return i18n.t('workouts.soccer');
   }
   return type.toString();
 };
