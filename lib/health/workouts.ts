@@ -3,10 +3,9 @@ import {
   HKStatisticsOptions,
   queryQuantitySamples,
   queryStatisticsForQuantity,
-  queryWorkoutSamples,
 } from "@kingstinct/react-native-healthkit";
 import { ActivitySample, WorkoutStats } from "./types";
-import { getCurrentDateRanges, getDurationHours, getDurationMinutes } from "./utils";
+import { getCurrentDateRanges, getDurationMinutes } from "./utils";
 
 // Constants from original healthStats.ts
 export const ACTIVITY_MULTIPLIERS = {
@@ -16,20 +15,17 @@ export const ACTIVITY_MULTIPLIERS = {
 };
 
 /**
- * Fetch workout and exercise statistics
- * - Exercise minutes (≥3 METs)
- * - Stand hours (estimated from steps)
+ * Fetch workout and exercise statistics using Apple's native ring calculations
+ * - Exercise minutes from HealthKit's appleExerciseTime
+ * - Stand hours from HealthKit's appleStandTime
  * - Move calories (active energy burned)
  * - Raw calorie samples
  * - Raw workout samples (last 30 days for workouts screen)
  */
 export const fetchWorkoutStats = async (): Promise<WorkoutStats> => {
-  const { now, startOfToday, oneDayAgo } = getCurrentDateRanges();
+  const { now, startOfToday } = getCurrentDateRanges();
 
-  // Get workouts from last 30 days for the workouts screen
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-  // Get active calories for today
+  // Get active calories for today (Move ring)
   const caloriesSamples = await queryQuantitySamples(
     HKQuantityTypeIdentifier.activeEnergyBurned,
     { from: startOfToday, to: now }
@@ -40,37 +36,23 @@ export const fetchWorkoutStats = async (): Promise<WorkoutStats> => {
     0
   );
 
-  // Get workouts for exercise minutes calculation (last 24h)
-  const recentWorkouts = await queryWorkoutSamples({ from: oneDayAgo, to: now });
-  const exerciseMins = calculateExerciseMins(
-    recentWorkouts.map((w) => ({
-      start: new Date(w.startDate),
-      end: new Date(w.endDate),
-      // Simplified METs estimation - most workouts are at least moderate intensity
-      mets:
-        w.totalEnergyBurned && typeof w.totalEnergyBurned.quantity === "number"
-          ? Math.max(
-              3,
-              w.totalEnergyBurned.quantity /
-                getDurationHours(new Date(w.startDate), new Date(w.endDate)) /
-                70
-            )
-          : 4, // Default to moderate intensity
-    }))
-  );
-
-  // Get all workouts from last 30 days for the workouts screen
-  const allWorkouts = await queryWorkoutSamples({ from: thirtyDaysAgo, to: now });
-
-  // Estimate stand hours from steps (simplified approach)
-  const stepsStat = await queryStatisticsForQuantity(
-    HKQuantityTypeIdentifier.stepCount,
+  // Use HealthKit's exercise time directly (Exercise ring)
+  const exerciseTimeStat = await queryStatisticsForQuantity(
+    HKQuantityTypeIdentifier.appleExerciseTime,
     [HKStatisticsOptions.cumulativeSum],
     startOfToday,
     now
   );
-  const totalSteps = stepsStat?.sumQuantity?.quantity || 0;
-  const standHours = Math.min(12, Math.floor(totalSteps / 250)); // Rough estimate: 250 steps per standing hour
+  const exerciseMins = Math.floor(exerciseTimeStat?.sumQuantity?.quantity || 0);
+
+  // Use HealthKit's stand hours directly (Stand ring)
+  const standHoursStat = await queryStatisticsForQuantity(
+    HKQuantityTypeIdentifier.appleStandTime,
+    [HKStatisticsOptions.cumulativeSum],
+    startOfToday,
+    now
+  );
+  const standHours = Math.min(12, Math.floor(standHoursStat?.sumQuantity?.quantity || 0));
 
   return {
     exerciseMins,

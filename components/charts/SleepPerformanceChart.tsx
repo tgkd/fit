@@ -52,7 +52,6 @@ export function SleepPerformanceChart({
 
       <View style={styles.textContainer}>
         <ThemedText size="lg">{Math.round(percentage)}%</ThemedText>
-        <ThemedText size="sm">{i18n.t("sleep.sleep")}</ThemedText>
         <ThemedText size="sm">{i18n.t("sleep.sleepPerformance")}</ThemedText>
 
         <View

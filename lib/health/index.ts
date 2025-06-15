@@ -1,20 +1,14 @@
-// Main aggregator and re-exports for the health module
 import { fetchGeneralStats } from "./generalStats";
-import {
-  calculateRecoveryScore,
-  fetchHeartStressStats,
-} from "./heartAndStress";
+import { calculateRecoveryScore, fetchHeartStressStats } from "./heartAndStress";
 import { initializeHealthKit, isHealthKitAvailable } from "./permissions";
 import { fetchSleepStats } from "./sleep";
 import { HealthData } from "./types";
 import { fetchWorkoutStats } from "./workouts";
 
 /**
- * Main aggregator function - replaces getUserStats from healthStats.ts
- * Fetches all health data in parallel and combines into HealthData interface
+ * Main health data aggregator function
  */
 export const getAllHealthStats = async (): Promise<HealthData> => {
-  // Initialize HealthKit if needed
   await initializeHealthKit();
 
   if (!isHealthKitAvailable) {
@@ -22,31 +16,28 @@ export const getAllHealthStats = async (): Promise<HealthData> => {
   }
 
   try {
-    // Fetch all data in parallel for better performance
-    const [generalStats, workoutStats, sleepStats, heartStressStats] =
-      await Promise.all([
-        fetchGeneralStats(),
-        fetchWorkoutStats(),
-        fetchSleepStats(),
-        fetchHeartStressStats(),
-      ]);
+    const generalStats = await fetchGeneralStats();
 
-    // Override recovery score with actual sleep efficiency
+    const [workoutStats, sleepStats, heartStressStats] = await Promise.all([
+      fetchWorkoutStats(),
+      fetchSleepStats(),
+      fetchHeartStressStats(generalStats.age),
+    ]);
+
     const improvedRecoveryScore = calculateRecoveryScore(
       heartStressStats.hrvValues,
       heartStressStats.restingHeartRate || 60,
-      15, // respiratory rate - could be fetched separately
+      15,
       sleepStats.sleepEfficiency,
-      50 // prior strain - could be stored/calculated
+      50
     );
 
-    // Combine all stats into single HealthData object
     return {
       ...generalStats,
       ...workoutStats,
       ...sleepStats,
       ...heartStressStats,
-      recoveryScore: improvedRecoveryScore, // Use improved score with actual sleep data
+      recoveryScore: improvedRecoveryScore,
     };
   } catch (error) {
     console.error("Error fetching health stats:", error);
@@ -57,7 +48,7 @@ export const getAllHealthStats = async (): Promise<HealthData> => {
 };
 
 /**
- * Legacy function for backwards compatibility
+ * Legacy compatibility function
  * @deprecated Use getAllHealthStats instead
  */
 export const getUserStats = async () => {
@@ -71,7 +62,7 @@ export const getUserStats = async () => {
   };
 };
 
-// Re-export all types and functions for easy importing
+// Re-export all types and functions
 export * from "./generalStats";
 export * from "./heartAndStress";
 export * from "./permissions";

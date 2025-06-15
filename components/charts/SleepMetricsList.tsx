@@ -2,13 +2,14 @@ import React from "react";
 import { StyleSheet, View } from "react-native";
 
 import { Colors } from "@/constants/Colors";
+import { useThemeColor } from "@/hooks/useThemeColor";
 import { getPerformanceColor } from "@/lib/health";
 import { SleepMetrics } from "@/lib/health/types";
 import i18n from "@/lib/i18n";
 import { ThemedText } from "../ThemedText";
 
 interface MetricRowProps {
-  icon: string;
+  icon?: string;
   label: string;
   percentage: number;
 }
@@ -19,10 +20,8 @@ function MetricRow({ icon, label, percentage }: MetricRowProps) {
   return (
     <View style={styles.metricRow}>
       <View style={styles.metricInfo}>
-        <ThemedText size="md" style={styles.metricIcon}>
-          {icon}
-        </ThemedText>
-        <ThemedText type="defaultSemiBold" size="sm" style={styles.metricLabel}>
+        {icon ? <ThemedText size="md">{icon}</ThemedText> : null}
+        <ThemedText type="defaultSemiBold" size="sm">
           {label}
         </ThemedText>
       </View>
@@ -56,54 +55,47 @@ interface SleepMetricsListProps {
 }
 
 export function SleepMetricsList({ metrics }: SleepMetricsListProps) {
+  const borderColor = useThemeColor({}, "border");
+
   return (
-    <View style={styles.container}>
+    <>
       <MetricRow
-        icon="🕐"
         label={i18n.t("sleep.hoursVsNeeded")}
         percentage={metrics.hoursVsNeeded}
       />
+      <View style={[styles.divider, { backgroundColor: borderColor }]} />
       <MetricRow
-        icon="🌙"
         label={i18n.t("sleep.sleepConsistency")}
         percentage={metrics.sleepConsistency}
       />
+      <View style={[styles.divider, { backgroundColor: borderColor }]} />
+
       <MetricRow
-        icon="📊"
         label={i18n.t("sleep.sleepEfficiency")}
         percentage={metrics.sleepEfficiency}
       />
+      <View style={[styles.divider, { backgroundColor: borderColor }]} />
+
       <MetricRow
-        icon="💤"
         label={i18n.t("sleep.highSleepStress")}
         percentage={metrics.highSleepStress}
       />
-    </View>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    paddingVertical: 16,
-  },
   metricRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#333333",
   },
   metricInfo: {
     flexDirection: "row",
     alignItems: "center",
     flex: 1,
-  },
-  metricIcon: {
-    marginRight: 12,
-  },
-  metricLabel: {
-    letterSpacing: 0.5,
+    columnGap: 8,
   },
   metricValue: {
     flexDirection: "row",
@@ -132,5 +124,8 @@ const styles = StyleSheet.create({
   percentageText: {
     minWidth: 40,
     textAlign: "right",
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
   },
 });

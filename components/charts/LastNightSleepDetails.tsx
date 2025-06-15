@@ -18,7 +18,6 @@ function SleepStageRow({
   percentage,
   duration,
   color,
-  isTypicalRange = false,
 }: SleepStageRowProps) {
   const formatDuration = (minutes: number): string => {
     const hours = Math.floor(minutes / 60);
@@ -27,13 +26,17 @@ function SleepStageRow({
   };
 
   return (
-    <View style={styles.stageRow}>
+    <View>
       <View style={styles.stageInfo}>
         <View style={[styles.colorIndicator, { backgroundColor: color }]} />
         <ThemedText type="defaultSemiBold" size="sm" style={styles.stageName}>
           {name}
         </ThemedText>
-        <ThemedText type="defaultSemiBold" size="sm" style={styles.stagePercentage}>
+        <ThemedText
+          type="defaultSemiBold"
+          size="sm"
+          style={styles.stagePercentage}
+        >
           {percentage}%
         </ThemedText>
       </View>
@@ -49,10 +52,13 @@ function SleepStageRow({
               },
             ]}
           />
-          {isTypicalRange && <View style={styles.typicalRangeIndicator} />}
         </View>
 
-        <ThemedText type="defaultSemiBold" size="sm" style={styles.durationText}>
+        <ThemedText
+          type="defaultSemiBold"
+          size="sm"
+          style={styles.durationText}
+        >
           {formatDuration(duration)}
         </ThemedText>
       </View>
@@ -68,8 +74,8 @@ export function LastNightSleepDetails({
   lastNight,
 }: LastNightSleepDetailsProps) {
   return (
-    <>
-      <View style={styles.header}>
+    <View style={styles.container}>
+      <View>
         <ThemedText type="subtitle" size="md">
           {i18n.t("sleep.lastNightsSleep")}
         </ThemedText>
@@ -78,12 +84,12 @@ export function LastNightSleepDetails({
         </ThemedText>
       </View>
 
-      <View style={styles.sleepTimeContainer}>
-        <ThemedText type="secondary" size="xxs" style={styles.sleepTimeLabel}>
+      <View>
+        <ThemedText type="secondary" size="xxs">
           {i18n.t("sleep.hoursOfSleep")}
         </ThemedText>
         <View style={styles.sleepTimeRow}>
-          <ThemedText type="title" size="xxl" style={styles.sleepTimeMain}>
+          <ThemedText type="title" size="xxl">
             {lastNight.totalSleepTime}
           </ThemedText>
           <ThemedText type="secondary" size="md">
@@ -93,101 +99,63 @@ export function LastNightSleepDetails({
       </View>
 
       <View style={styles.rangeHeader}>
-        <View style={styles.rangeInfo}>
-          <ThemedText type="secondary" size="sm">
-            📊
-          </ThemedText>
-          <ThemedText type="secondary" size="xxs" style={styles.rangeLabel}>
-            {i18n.t("sleep.typicalRange")}
-          </ThemedText>
-        </View>
-        <ThemedText type="secondary" size="xxs" style={styles.durationLabel}>
+        <ThemedText type="secondary" size="xs">
+          {i18n.t("sleep.typicalRange") + " TODO CALC"}
+        </ThemedText>
+        <ThemedText type="secondary" size="xxs">
           {i18n.t("sleep.duration")} {lastNight.timeInBed}
         </ThemedText>
       </View>
 
-      <View style={styles.stagesContainer}>
-        <SleepStageRow
-          name={i18n.t("sleep.awake")}
-          percentage={lastNight.stages.awake.percentage}
-          duration={lastNight.stages.awake.duration}
-          color={lastNight.stages.awake.color}
-          isTypicalRange
-        />
-        <SleepStageRow
-          name={i18n.t("sleep.light")}
-          percentage={lastNight.stages.light.percentage}
-          duration={lastNight.stages.light.duration}
-          color={lastNight.stages.light.color}
-          isTypicalRange
-        />
-        <SleepStageRow
-          name={i18n.t("sleep.deep")}
-          percentage={lastNight.stages.deep.percentage}
-          duration={lastNight.stages.deep.duration}
-          color={lastNight.stages.deep.color}
-          isTypicalRange
-        />
-        <SleepStageRow
-          name={i18n.t("sleep.rem")}
-          percentage={lastNight.stages.rem.percentage}
-          duration={lastNight.stages.rem.duration}
-          color={lastNight.stages.rem.color}
-          isTypicalRange
-        />
-      </View>
-    </>
+      <SleepStageRow
+        name={i18n.t("sleep.awake")}
+        percentage={lastNight.stages.awake.percentage}
+        duration={lastNight.stages.awake.duration}
+        color={lastNight.stages.awake.color}
+      />
+      <SleepStageRow
+        name={i18n.t("sleep.light")}
+        percentage={lastNight.stages.light.percentage}
+        duration={lastNight.stages.light.duration}
+        color={lastNight.stages.light.color}
+      />
+      <SleepStageRow
+        name={i18n.t("sleep.deep")}
+        percentage={lastNight.stages.deep.percentage}
+        duration={lastNight.stages.deep.duration}
+        color={lastNight.stages.deep.color}
+      />
+      <SleepStageRow
+        name={i18n.t("sleep.rem")}
+        percentage={lastNight.stages.rem.percentage}
+        duration={lastNight.stages.rem.duration}
+        color={lastNight.stages.rem.color}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
-    marginBottom: 24,
-  },
-  sleepTimeContainer: {
-    marginBottom: 24,
-  },
-  sleepTimeLabel: {
-    fontWeight: "600",
-    letterSpacing: 1,
-    marginBottom: 8,
+  container: {
+    rowGap: 16,
   },
   sleepTimeRow: {
     flexDirection: "row",
     alignItems: "baseline",
-  },
-  sleepTimeMain: {
-    marginRight: 8,
+    columnGap: 12,
   },
   rangeHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
   },
   rangeInfo: {
     flexDirection: "row",
     alignItems: "center",
   },
-  rangeLabel: {
-    fontWeight: "600",
-    letterSpacing: 1,
-    marginLeft: 8,
-  },
-  durationLabel: {
-    fontWeight: "600",
-    letterSpacing: 1,
-  },
-  stagesContainer: {
-    marginBottom: 24,
-  },
-  stageRow: {
-    marginBottom: 16,
-  },
   stageInfo: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 8,
   },
   colorIndicator: {
     width: 12,
