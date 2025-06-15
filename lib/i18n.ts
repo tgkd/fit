@@ -68,6 +68,24 @@ const translations = {
       awakeTime: "Awake Time",
       sleepStagesDistribution: "Sleep Stages Distribution",
       unknownSource: "Unknown",
+      today: "TODAY",
+      performanceMessage:
+        "You're doing great with an optimal Sleep Performance, but Hours vs. Needed could use attention.",
+      learnMore: "LEARN MORE",
+      lastNightsSleep: "Last Night's Sleep",
+      todayVsPrior30Days: "Today vs. prior 30 days",
+      hoursOfSleep: "HOURS OF SLEEP",
+      typicalRange: "TYPICAL RANGE",
+      duration: "DURATION",
+      awake: "AWAKE",
+      light: "LIGHT",
+      restorativeSleep: "RESTORATIVE SLEEP",
+      hoursVsNeeded: "HOURS VS. NEEDED",
+      sleepConsistency: "SLEEP CONSISTENCY",
+      sleepEfficiency: "SLEEP EFFICIENCY",
+      highSleepStress: "HIGH SLEEP STRESS",
+      sleepPerformance: "SLEEP PERFORMANCE",
+      sleep: "SLEEP",
     },
 
     // Settings Screen (app/(tabs)/settings.tsx)
@@ -139,36 +157,31 @@ const translations = {
       peak: "Peak",
     },
 
-    // Sleep Screen
-    sleep: {
-      today: "TODAY",
-      performanceMessage:
-        "You're doing great with an optimal Sleep Performance, but Hours vs. Needed could use attention.",
-      learnMore: "LEARN MORE",
-      lastNightsSleep: "Last Night's Sleep",
-      todayVsPrior30Days: "Today vs. prior 30 days",
-      hoursOfSleep: "HOURS OF SLEEP",
-      typicalRange: "TYPICAL RANGE",
-      duration: "DURATION",
-      awake: "AWAKE",
-      light: "LIGHT",
-      deep: "SWS (DEEP)",
-      rem: "REM",
-      restorativeSleep: "RESTORATIVE SLEEP",
-      hoursVsNeeded: "HOURS VS. NEEDED",
-      sleepConsistency: "SLEEP CONSISTENCY",
-      sleepEfficiency: "SLEEP EFFICIENCY",
-      highSleepStress: "HIGH SLEEP STRESS",
-      sleepPerformance: "SLEEP PERFORMANCE",
-      sleep: "SLEEP",
+    // StressMonitorCard.tsx
+    stressMonitor: {
+      title: "STRESS MONITOR",
+      lastUpdated: "Last updated {{time}}",
+      loadingData: "Loading data...", // Added
+      noData: "No data available.", // Added
+      levels: {
+        low: "LOW",
+        medium: "MEDIUM",
+        high: "HIGH",
+        critical: "CRITICAL",
+      },
     },
-
-    // Settings Screen
-    settings: {
-      title: "Settings",
-      subtitle: "Configure your app preferences and account settings.",
-      healthDataTitle: "Health Data",
-      healthDataSubtitle: "Manage your health data sync and privacy settings.",
+    // HRV Screen (app/hrv.tsx)
+    hrvScreen: {
+      enhancedStressAnalysis: "Enhanced Stress Analysis",
+      basedOnPersonalBaselines: "Based on 14-day personal baselines",
+      totalDay: "Total Day",
+      sleep: "Sleep",
+      daily: "Daily",
+      baselines: "Baselines: HRV {{hrv}}ms • RHR {{rhr}}bpm",
+      stressDataUnavailable:
+        "Stress data unavailable. Using basic stress: {{stressLevel}}/100",
+      requires14DaysData:
+        "Requires 14 days of HRV and heart rate data for personal baselines.",
     },
   },
   ru: {
@@ -242,7 +255,8 @@ const translations = {
       title: "Настройки",
       subtitle: "Настройте параметры приложения",
       healthDataTitle: "Данные о здоровье",
-      healthDataSubtitle: "Управляйте разрешениями для данных о здоровье в приложении Здоровье",
+      healthDataSubtitle:
+        "Управляйте разрешениями для данных о здоровье в приложении Здоровье",
     },
 
     // StressChart.tsx
@@ -264,13 +278,7 @@ const translations = {
       avg: "Среднее",
       peak: "Пик",
     },
-    tabs: {
-      home: "Главная",
-      stress: "Стресс",
-      sleep: "Сон",
-      activity: "Активность",
-      healthData: "Здоровье",
-    },
+
     // HomeScreen (app/(tabs)/index.tsx)
     home: {
       screenTitle: "Сегодняшняя панель",
@@ -397,6 +405,33 @@ const translations = {
       avg: "Среднее",
       peak: "Пик",
     },
+
+    // StressMonitorCard.tsx
+    stressMonitor: {
+      title: "МОНИТОР СТРЕССА",
+      lastUpdated: "Обновлено {{time}}",
+      loadingData: "Загрузка данных...", // Added
+      noData: "Данные отсутствуют.", // Added
+      levels: {
+        low: "НИЗКИЙ",
+        medium: "СРЕДНИЙ",
+        high: "ВЫСОКИЙ",
+        critical: "КРИТИЧЕСКИЙ",
+      },
+    },
+    // HRV Screen (app/hrv.tsx)
+    hrvScreen: {
+      enhancedStressAnalysis: "Расширенный анализ стресса",
+      basedOnPersonalBaselines: "На основе 14-дневных личных базовых показателей",
+      totalDay: "Весь день",
+      sleep: "Сон",
+      daily: "Дневной",
+      baselines: "Базовые показатели: ВСР {{hrv}}мс • ЧСС покоя {{rhr}}уд/мин",
+      stressDataUnavailable:
+        "Данные о стрессе недоступны. Используется базовый стресс: {{stressLevel}}/100",
+      requires14DaysData:
+        "Требуются данные о ВСР и частоте сердечных сокращений за 14 дней для определения личных базовых показателей.",
+    },
   },
   ja: {
     // HomeScreen (app/(tabs)/index.tsx)
@@ -487,36 +522,31 @@ const translations = {
       stress: "ストレス", // General term for stress
     },
 
-    // Sleep Screen
-    sleep: {
-      today: "今日",
-      performanceMessage:
-        "睡眠パフォーマンスは最適ですが、必要時間との比較で改善の余地があります。",
-      learnMore: "詳細を学ぶ",
-      lastNightsSleep: "昨夜の睡眠",
-      todayVsPrior30Days: "今日 vs. 過去30日間",
-      hoursOfSleep: "睡眠時間",
-      typicalRange: "典型的な範囲",
-      duration: "持続時間",
-      awake: "覚醒",
-      light: "浅い睡眠",
-      deep: "深い睡眠",
-      rem: "レム睡眠",
-      restorativeSleep: "回復睡眠",
-      hoursVsNeeded: "必要時間との比較",
-      sleepConsistency: "睡眠の一貫性",
-      sleepEfficiency: "睡眠効率",
-      highSleepStress: "睡眠中のストレス",
-      sleepPerformance: "睡眠パフォーマンス",
-      sleep: "睡眠",
+    // StressMonitorCard.tsx
+    stressMonitor: {
+      title: "ストレスモニター",
+      lastUpdated: "最終更新 {{time}}",
+      loadingData: "データを読み込み中...", // Added
+      noData: "利用可能なデータがありません。", // Added
+      levels: {
+        low: "低い",
+        medium: "中程度",
+        high: "高い",
+        critical: "危険",
+      },
     },
-
-    // Settings Screen
-    settings: {
-      title: "設定",
-      subtitle: "アプリの設定とアカウント設定を構成します。",
-      healthDataTitle: "健康データ",
-      healthDataSubtitle: "健康データの同期とプライバシー設定を管理します。",
+    // HRV Screen (app/hrv.tsx)
+    hrvScreen: {
+      enhancedStressAnalysis: "強化されたストレス分析",
+      basedOnPersonalBaselines: "14日間の個人的なベースラインに基づく",
+      totalDay: "終日",
+      sleep: "睡眠",
+      daily: "毎日",
+      baselines: "ベースライン: HRV {{hrv}}ms • RHR {{rhr}}bpm",
+      stressDataUnavailable:
+        "ストレスデータが利用できません。基本的なストレスを使用しています: {{stressLevel}}/100",
+      requires14DaysData:
+        "個人的なベースラインには14日間のHRVと心拍数データが必要です。",
     },
   },
 };
