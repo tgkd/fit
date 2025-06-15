@@ -68,6 +68,24 @@ const translations = {
       awakeTime: "Awake Time",
       sleepStagesDistribution: "Sleep Stages Distribution",
       unknownSource: "Unknown",
+      today: "TODAY",
+      performanceMessage:
+        "You're doing great with an optimal Sleep Performance, but Hours vs. Needed could use attention.",
+      learnMore: "LEARN MORE",
+      lastNightsSleep: "Last Night's Sleep",
+      todayVsPrior30Days: "Today vs. prior 30 days",
+      hoursOfSleep: "HOURS OF SLEEP",
+      typicalRange: "TYPICAL RANGE",
+      duration: "DURATION",
+      awake: "AWAKE",
+      light: "LIGHT",
+      restorativeSleep: "RESTORATIVE SLEEP",
+      hoursVsNeeded: "HOURS VS. NEEDED",
+      sleepConsistency: "SLEEP CONSISTENCY",
+      sleepEfficiency: "SLEEP EFFICIENCY",
+      highSleepStress: "HIGH SLEEP STRESS",
+      sleepPerformance: "SLEEP PERFORMANCE",
+      sleep: "SLEEP",
     },
 
     // Settings Screen (app/(tabs)/settings.tsx)
@@ -103,12 +121,27 @@ const translations = {
     stressMonitor: {
       title: "STRESS MONITOR",
       lastUpdated: "Last updated {{time}}",
+      loadingData: "Loading data...", // Added
+      noData: "No data available.", // Added
       levels: {
         low: "LOW",
         medium: "MEDIUM",
         high: "HIGH",
         critical: "CRITICAL",
       },
+    },
+    // HRV Screen (app/hrv.tsx)
+    hrvScreen: {
+      enhancedStressAnalysis: "Enhanced Stress Analysis",
+      basedOnPersonalBaselines: "Based on 14-day personal baselines",
+      totalDay: "Total Day",
+      sleep: "Sleep",
+      daily: "Daily",
+      baselines: "Baselines: HRV {{hrv}}ms • RHR {{rhr}}bpm",
+      stressDataUnavailable:
+        "Stress data unavailable. Using basic stress: {{stressLevel}}/100",
+      requires14DaysData:
+        "Requires 14 days of HRV and heart rate data for personal baselines.",
     },
   },
   ru: {
@@ -210,12 +243,27 @@ const translations = {
     stressMonitor: {
       title: "МОНИТОР СТРЕССА",
       lastUpdated: "Обновлено {{time}}",
+      loadingData: "Загрузка данных...", // Added
+      noData: "Данные отсутствуют.", // Added
       levels: {
         low: "НИЗКИЙ",
         medium: "СРЕДНИЙ",
         high: "ВЫСОКИЙ",
         critical: "КРИТИЧЕСКИЙ",
       },
+    },
+    // HRV Screen (app/hrv.tsx)
+    hrvScreen: {
+      enhancedStressAnalysis: "Расширенный анализ стресса",
+      basedOnPersonalBaselines: "На основе 14-дневных личных базовых показателей",
+      totalDay: "Весь день",
+      sleep: "Сон",
+      daily: "Дневной",
+      baselines: "Базовые показатели: ВСР {{hrv}}мс • ЧСС покоя {{rhr}}уд/мин",
+      stressDataUnavailable:
+        "Данные о стрессе недоступны. Используется базовый стресс: {{stressLevel}}/100",
+      requires14DaysData:
+        "Требуются данные о ВСР и частоте сердечных сокращений за 14 дней для определения личных базовых показателей.",
     },
   },
   ja: {
@@ -306,12 +354,27 @@ const translations = {
     stressMonitor: {
       title: "ストレスモニター",
       lastUpdated: "最終更新 {{time}}",
+      loadingData: "データを読み込み中...", // Added
+      noData: "利用可能なデータがありません。", // Added
       levels: {
         low: "低い",
         medium: "中程度",
         high: "高い",
         critical: "危険",
       },
+    },
+    // HRV Screen (app/hrv.tsx)
+    hrvScreen: {
+      enhancedStressAnalysis: "強化されたストレス分析",
+      basedOnPersonalBaselines: "14日間の個人的なベースラインに基づく",
+      totalDay: "終日",
+      sleep: "睡眠",
+      daily: "毎日",
+      baselines: "ベースライン: HRV {{hrv}}ms • RHR {{rhr}}bpm",
+      stressDataUnavailable:
+        "ストレスデータが利用できません。基本的なストレスを使用しています: {{stressLevel}}/100",
+      requires14DaysData:
+        "個人的なベースラインには14日間のHRVと心拍数データが必要です。",
     },
   },
 };

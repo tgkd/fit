@@ -57,4 +57,10 @@ export const Colors = {
       poor: "#FF9800",
     },
   },
+  hrv: {
+    excellent: "#00E676", // Green
+    good: "#FFEB3B", // Yellow
+    poor: "#FF9800", // Orange
+    veryPoor: "#F44336", // Red
+  },
 };

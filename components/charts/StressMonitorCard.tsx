@@ -6,52 +6,9 @@ import { CartesianChart, Line, Scatter } from "victory-native";
 import hiFont from "@/assets/fonts/Hikasami-Regular.ttf";
 import { ThemedText } from "@/components/ThemedText";
 import { IconSymbol } from "@/components/ui/IconSymbol";
-import type { HealthData } from "@/context/HealthDataContext";
 import { useThemeColor } from "@/hooks/useThemeColor";
+import type { HealthData, StressChartDataPoint } from "@/lib/health"; // Updated import
 import i18n from "@/lib/i18n";
-
-export interface StressChartDataPoint {
-  time: number;
-  stress: number;
-  timestamp: string;
-}
-
-export type StressDisplayCategory = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
-
-function calculatePointStress(hrv: number, restingHR: number): number {
-  if (hrv === 0 || restingHR === 0) return 2;
-  const ratio = restingHR / hrv;
-  const stress = ((ratio - 0.5) / (3.0 - 0.5)) * 4;
-  return Math.max(0, Math.min(4, stress));
-}
-
-function generateStressChartData(
-  hrvValues: number[],
-  restingHeartRate: number | null
-): StressChartDataPoint[] {
-  const rhr = restingHeartRate || 60;
-  const today = new Date();
-
-  if (!hrvValues || hrvValues.length === 0) {
-    return [];
-  }
-
-  const recentHrvValues = hrvValues.slice(-7);
-
-  return recentHrvValues.map((hrv, index) => {
-    const date = new Date(today);
-    date.setDate(today.getDate() - (recentHrvValues.length - 1 - index));
-
-    return {
-      time: index,
-      stress: calculatePointStress(hrv, rhr),
-      timestamp: date.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-      }),
-    };
-  });
-}
 
 interface StressMonitorCardProps {
   healthData: HealthData | null;
@@ -65,7 +22,7 @@ export function StressMonitorCard({
   const backgroundColor = useThemeColor({}, "background");
   const iconColorSecondary = useThemeColor({}, "textSecondary");
 
-  if (!healthData) {
+  if (!healthData || !healthData.stressChartDisplayData) {
     return (
       <View
         style={[
@@ -73,26 +30,44 @@ export function StressMonitorCard({
           { backgroundColor, justifyContent: "center", alignItems: "center" },
         ]}
       >
-        <ThemedText>{i18n.t("stressMonitor.loadingData")}</ThemedText>
+        <ThemedText>
+          {healthData
+            ? i18n.t("stressMonitor.noData")
+            : i18n.t("stressMonitor.loadingData")}
+        </ThemedText>
       </View>
     );
   }
 
   const {
-    hrvValues,
-    restingHeartRate,
-    stressLevel: overallStressLevelFromContext,
-  } = healthData;
+    chartPlotData,
+    currentStressForVisualization,
+    yDomainForVisualization,
+    xAxisDataType,
+    lastUpdatedDisplay,
+  } = healthData.stressChartDisplayData;
 
-  const currentOverallStressChartScaled = overallStressLevelFromContext / 25;
-
-  const chartPlotData = generateStressChartData(hrvValues, restingHeartRate);
-
-  const lastUpdatedDisplay = new Date().toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
+  //   {
+  //   "baselineHRV": 0,
+  //   "baselineRHR": 60,
+  //   "totalDayStress": 1.5,
+  //   "sleepStress": 0,
+  //   "nonActivityStress": 1.5,
+  //   "hourlyStress": [
+  //     {
+  //       "hourStart": "2025-06-15T04:00:00.000Z",
+  //       "stress": 1.5
+  //     },
+  //     {
+  //       "hourStart": "2025-06-15T05:00:00.000Z",
+  //       "stress": 1.5
+  //     },
+  //     {
+  //       "hourStart": "2025-06-15T06:00:00.000Z",
+  //       "stress": 1.5
+  //     }
+  //   ]
+  // }
 
   return (
     <TouchableOpacity
@@ -101,10 +76,7 @@ export function StressMonitorCard({
       activeOpacity={0.8}
     >
       <View style={styles.header}>
-        <View style={styles.titleContainer}>
-          <IconSymbol name="moon" size={16} color={iconColorSecondary} />
-          <ThemedText size="md">{i18n.t("stressMonitor.title")}</ThemedText>
-        </View>
+        <ThemedText size="md">{i18n.t("stressMonitor.title")}</ThemedText>
         <IconSymbol name="chevron.right" size={16} color={iconColorSecondary} />
       </View>
 
@@ -115,7 +87,9 @@ export function StressMonitorCard({
       <View style={styles.chartOuterContainer}>
         <StressVisualization
           data={chartPlotData}
-          currentStress={currentOverallStressChartScaled}
+          currentStress={currentStressForVisualization}
+          yDomain={yDomainForVisualization}
+          xAxisDataType={xAxisDataType}
         />
       </View>
     </TouchableOpacity>
@@ -125,11 +99,15 @@ export function StressMonitorCard({
 interface StressVisualizationProps {
   data: StressChartDataPoint[];
   currentStress: number;
+  yDomain: [number, number];
+  xAxisDataType: "hourly" | "daily";
 }
 
 function StressVisualization({
   data,
   currentStress,
+  yDomain,
+  xAxisDataType,
 }: StressVisualizationProps) {
   const font = useFont(hiFont, 12);
   const themedTextColor = useThemeColor({}, "text");
@@ -158,15 +136,18 @@ function StressVisualization({
   }
 
   const chartData = data.map((item) => ({
-    ...item,
-    x: item.time,
+    // Ensure x is always a number (timestamp or index)
+    x:
+      typeof item.time === "number" ? item.time : new Date(item.time).getTime(),
     y: item.stress,
+    originalTimestamp: item.timestamp, // Keep original for formatting
   }));
 
-  const yDomain: [number, number] = [0, 4];
+  // Ensure xDomain is correctly calculated based on actual data points
+  const xValues = chartData.map((p) => p.x);
   const xDomain: [number, number] = [
-    chartData[0].x,
-    chartData[chartData.length - 1].x,
+    Math.min(...xValues),
+    Math.max(...xValues),
   ];
 
   return (
@@ -185,12 +166,34 @@ function StressVisualization({
             frame: "transparent",
           },
           tickCount: {
-            x: Math.min(chartData.length > 1 ? chartData.length : 1, 4),
+            x: Math.min(
+              chartData.length > 1 ? chartData.length : 1,
+              xAxisDataType === "hourly" ? 5 : 4
+            ), // More ticks for hourly
             y: 5,
           },
           formatXLabel: (value) => {
+            // Find the point by 'x' value which is now consistently a number
             const point = chartData.find((p) => p.x === value);
-            return point ? point.timestamp : "";
+            if (!point) return "";
+
+            if (
+              xAxisDataType === "hourly" &&
+              point.originalTimestamp instanceof Date
+            ) {
+              return point.originalTimestamp.toLocaleTimeString("en-US", {
+                hour: "numeric",
+                minute: "2-digit",
+                hour12: false, // Or true, depending on preference
+              });
+            }
+            if (
+              xAxisDataType === "daily" &&
+              typeof point.originalTimestamp === "string"
+            ) {
+              return point.originalTimestamp; // Already formatted e.g., "Jun 15"
+            }
+            return ""; // Fallback
           },
           formatYLabel: (value) => `${Math.round(value as number)}`,
         }}
@@ -222,6 +225,7 @@ function StressVisualization({
                     chartBounds.top,
                     Math.min(
                       chartBounds.bottom,
+                      // Ensure currentStress is scaled against the correct yDomain max
                       chartBounds.bottom -
                         (currentStress / yDomain[1]) * chartHeight
                     )
@@ -250,11 +254,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 8,
-  },
-  titleContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
   },
   chartOuterContainer: {
     minHeight: 180,

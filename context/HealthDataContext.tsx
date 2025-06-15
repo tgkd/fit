@@ -62,6 +62,8 @@ const defaultData: HealthData = {
   strainScore: 0,
   stressLevel: 0,
   bloodOxygen: null,
+
+  stressDetails: null
 };
 
 export const HealthDataContext = createContext<{
@@ -171,5 +173,17 @@ function generateFakeHealthData(): HealthData {
     strainScore: 65,
     stressLevel: 25,
     bloodOxygen: { value: 0.98, date: new Date() },
+
+    stressDetails: {
+      baselineHRV: 47.2,
+      baselineRHR: 58.5,
+      totalDayStress: 1.2,
+      sleepStress: 0.8,
+      nonActivityStress: 1.4,
+      hourlyStress: Array.from({ length: 12 }, (_, i) => ({
+        hourStart: new Date(new Date().setHours(i, 0, 0, 0)),
+        stress: Math.random() * 2.5, // Random stress between 0-2.5
+      })),
+    },
   };
 }

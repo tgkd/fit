@@ -1,8 +1,8 @@
 import {
-    HKCategorySample,
-    HKCategoryTypeIdentifier,
-    HKQuantitySample,
-    HKQuantityTypeIdentifier,
+  HKCategorySample,
+  HKCategoryTypeIdentifier,
+  HKQuantitySample,
+  HKQuantityTypeIdentifier,
 } from "@kingstinct/react-native-healthkit";
 
 // Shared interfaces for all health modules
@@ -32,7 +32,7 @@ export interface SleepMetrics {
 }
 
 export interface SleepStage {
-  type: 'awake' | 'light' | 'deep' | 'rem';
+  type: "awake" | "light" | "deep" | "rem";
   duration: number; // in minutes
   percentage: number;
   color: string;
@@ -83,8 +83,54 @@ export interface HeartStressStats {
   bloodOxygen: { value: number; date: Date | null } | null;
 }
 
+export interface StressMetrics {
+  baselineHRV: number; // ms, 14-day average HRV
+  baselineRHR: number; // bpm, 14-day average resting HR
+  totalDayStress: number; // 0–3 scale
+  sleepStress: number; // 0–3 scale
+  nonActivityStress: number; // 0–3 scale
+  hourlyStress: {
+    // detail per hour
+    hourStart: Date;
+    stress: number;
+  }[];
+}
+
+export interface HourlyHeartData {
+  hourStart: Date;
+  hr: number;
+  hrv: number;
+}
+
+export interface TimeInterval {
+  start: Date;
+  end: Date;
+}
+
+// For StressMonitorCard data
+export interface StressChartDataPoint {
+  time: number; // Can be an index or a timestamp for x-axis
+  stress: number;
+  timestamp: string | Date; // For display on x-axis
+}
+
+export interface StressChartDisplayData {
+  chartPlotData: StressChartDataPoint[];
+  currentStressForVisualization: number;
+  yDomainForVisualization: [number, number];
+  xAxisDataType: "hourly" | "daily";
+  lastUpdatedDisplay: string;
+}
+
 // Combined interface that matches current HealthData
-export interface HealthData extends GeneralStats, WorkoutStats, SleepStats, HeartStressStats {}
+export interface HealthData
+  extends GeneralStats,
+    WorkoutStats,
+    SleepStats,
+    HeartStressStats {
+  stressDetails: StressMetrics | null;
+  stressChartDisplayData?: StressChartDisplayData; // Added
+}
 
 // Activity and heart rate interfaces from healthStats.ts
 export interface ActivitySample {

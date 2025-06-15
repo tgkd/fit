@@ -1,3 +1,4 @@
+import { Colors } from "@/constants/Colors";
 import {
   getMostRecentQuantitySample,
   HKQuantityTypeIdentifier,
@@ -6,7 +7,15 @@ import {
   queryQuantitySamples,
   queryStatisticsForQuantity,
 } from "@kingstinct/react-native-healthkit";
-import { HeartRateSample, HeartStressStats } from "./types";
+import {
+  HeartRateSample,
+  HeartStressStats,
+  HourlyHeartData, // Added
+  StressChartDataPoint,
+  StressChartDisplayData,
+  StressMetrics,
+  TimeInterval,
+} from "./types";
 import {
   calculateHRMax,
   getCurrentDateRanges,
@@ -228,3 +237,339 @@ export const processHrv = (hrvValues: number[]) => {
   const hrvMostRecent = hrvValues[hrvValues.length - 1];
   return { hrv7DayAvg, hrvMostRecent };
 };
+
+/**
+ * Enhanced stress calculation using 14-day baselines and hourly analysis
+ * Based on personal baselines rather than population averages
+ */
+
+/**
+ * Build 14-day average HRV baseline using daily samples
+ */
+export const getBaselineHRV = async (): Promise<number> => {
+  const now = new Date();
+  const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 3600 * 1000);
+
+  // Get HRV samples for the last 14 days
+  const hrvSamples = await queryQuantitySamples(
+    HKQuantityTypeIdentifier.heartRateVariabilitySDNN,
+    { from: fourteenDaysAgo, to: now }
+  );
+
+  if (hrvSamples.length === 0) return 0;
+
+  // Group by day and calculate daily averages
+  const dailyAverages = new Map<string, number[]>();
+
+  hrvSamples.forEach((sample) => {
+    const dayKey = new Date(sample.startDate).toDateString();
+    if (!dailyAverages.has(dayKey)) {
+      dailyAverages.set(dayKey, []);
+    }
+    dailyAverages.get(dayKey)!.push(sample.quantity);
+  });
+
+  // Calculate average of daily averages
+  const dayAverages = Array.from(dailyAverages.values()).map(
+    (dayValues) =>
+      dayValues.reduce((sum, val) => sum + val, 0) / dayValues.length
+  );
+
+  return dayAverages.length > 0
+    ? dayAverages.reduce((sum, avg) => sum + avg, 0) / dayAverages.length
+    : 0;
+};
+
+/**
+ * Build 14-day average resting heart rate baseline
+ */
+export const getBaselineRHR = async (): Promise<number> => {
+  const now = new Date();
+  const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 3600 * 1000);
+
+  // Get daily resting heart rate statistics
+  const dailyRHR: number[] = [];
+
+  // Since we don't have queryStatisticsCollectionForQuantity, we'll query day by day
+  for (let i = 0; i < 14; i++) {
+    const dayStart = new Date(fourteenDaysAgo.getTime() + i * 24 * 3600 * 1000);
+    const dayEnd = new Date(dayStart.getTime() + 24 * 3600 * 1000);
+
+    try {
+      const stats = await queryStatisticsForQuantity(
+        HKQuantityTypeIdentifier.restingHeartRate,
+        [HKStatisticsOptions.discreteAverage],
+        dayStart,
+        dayEnd
+      );
+
+      if (stats?.averageQuantity?.quantity) {
+        dailyRHR.push(stats.averageQuantity.quantity);
+      }
+    } catch {
+      // Skip days with no data
+      continue;
+    }
+  }
+
+  return dailyRHR.length > 0
+    ? dailyRHR.reduce((sum, rhr) => sum + rhr, 0) / dailyRHR.length
+    : 60; // Default RHR if no data
+};
+
+/**
+ * Sample hourly average HR & HRV for the current day
+ */
+export const getHourlyHRandHRV = async (): Promise<HourlyHeartData[]> => {
+  const now = new Date();
+  const startOfToday = new Date(now);
+  startOfToday.setHours(0, 0, 0, 0);
+
+  const hourlyData: HourlyHeartData[] = [];
+  const currentHour = now.getHours();
+
+  // Query hour by hour since we don't have queryStatisticsCollectionForQuantity
+  for (let hour = 0; hour <= currentHour; hour++) {
+    const hourStart = new Date(startOfToday);
+    hourStart.setHours(hour);
+    const hourEnd = new Date(hourStart);
+    hourEnd.setHours(hour + 1);
+
+    try {
+      // Get heart rate stats for this hour
+      const hrStats = await queryStatisticsForQuantity(
+        HKQuantityTypeIdentifier.heartRate,
+        [HKStatisticsOptions.discreteAverage],
+        hourStart,
+        hourEnd
+      );
+
+      // Get HRV stats for this hour
+      const hrvStats = await queryStatisticsForQuantity(
+        HKQuantityTypeIdentifier.heartRateVariabilitySDNN,
+        [HKStatisticsOptions.discreteAverage],
+        hourStart,
+        hourEnd
+      );
+
+      const hr = hrStats?.averageQuantity?.quantity ?? 0;
+      const hrv = hrvStats?.averageQuantity?.quantity ?? 0;
+
+      if (hr > 0) {
+        // Only include hours with heart rate data
+        hourlyData.push({
+          hourStart,
+          hr,
+          hrv,
+        });
+      }
+    } catch {
+      // Skip hours with no data
+      continue;
+    }
+  }
+
+  return hourlyData;
+};
+
+/**
+ * Compute stress level for a single moment using baseline comparison
+ * Returns a value between 0-3 where:
+ * 0 = no stress, 1 = low stress, 2 = moderate stress, 3 = high stress
+ */
+export const computeStressMoment = (
+  currentHR: number,
+  currentHRV: number,
+  baselineRHR: number,
+  baselineHRV: number
+): number => {
+  // HRV stress: how far below baseline (0 = no drop, 1 = 100% drop)
+  const hrvStress =
+    baselineHRV > 0 ? Math.max(0, 1 - currentHRV / baselineHRV) : 0;
+
+  // HR stress: how far above resting HR (0 = at or below baseline, 1 = +50% above baseline)
+  const hrDelta = currentHR - baselineRHR;
+  const hrStress =
+    baselineRHR > 0
+      ? Math.max(0, Math.min(1, hrDelta / (baselineRHR * 0.5)))
+      : 0;
+
+  // Average and scale to 0–3
+  const raw = ((hrvStress + hrStress) / 2) * 3;
+  return parseFloat(Math.max(0, Math.min(3, raw)).toFixed(2));
+};
+
+/**
+ * Helper: detect if a timestamp falls in any interval
+ */
+export const isInIntervals = (t: Date, intervals: TimeInterval[]): boolean => {
+  return intervals.some((iv) => t >= iv.start && t < iv.end);
+};
+
+/**
+ * Main enhanced stress calculation function
+ * Returns comprehensive stress metrics based on personal baselines
+ */
+export const calculateStressMetrics = async (): Promise<StressMetrics> => {
+  // Calculate 14-day baselines
+  const [baselineHRV, baselineRHR] = await Promise.all([
+    getBaselineHRV(),
+    getBaselineRHR(),
+  ]);
+
+  // Get hourly HR & HRV data for today
+  const hourlyData = await getHourlyHRandHRV();
+
+  // TODO: Add sleep and workout interval detection
+  // For now, we'll use empty arrays and implement these later
+  const sleepIntervals: TimeInterval[] = [];
+  const workoutIntervals: TimeInterval[] = [];
+
+  // Calculate hourly stress levels
+  const hourlyStress = hourlyData.map((h) => ({
+    hourStart: h.hourStart,
+    stress: computeStressMoment(h.hr, h.hrv, baselineRHR, baselineHRV),
+  }));
+
+  // Aggregate stress metrics
+  const allStressValues = hourlyStress.map((h) => h.stress);
+  const totalDayStress =
+    allStressValues.length > 0
+      ? allStressValues.reduce((sum, stress) => sum + stress, 0) /
+        allStressValues.length
+      : 0;
+
+  // Sleep stress (hours during sleep intervals)
+  const sleepStressValues = hourlyStress
+    .filter((h) => isInIntervals(h.hourStart, sleepIntervals))
+    .map((h) => h.stress);
+  const sleepStress =
+    sleepStressValues.length > 0
+      ? sleepStressValues.reduce((sum, stress) => sum + stress, 0) /
+        sleepStressValues.length
+      : 0;
+
+  // Non-activity stress (hours not during sleep or workouts)
+  const nonActivityStressValues = hourlyStress
+    .filter(
+      (h) =>
+        !isInIntervals(h.hourStart, sleepIntervals) &&
+        !isInIntervals(h.hourStart, workoutIntervals)
+    )
+    .map((h) => h.stress);
+  const nonActivityStress =
+    nonActivityStressValues.length > 0
+      ? nonActivityStressValues.reduce((sum, stress) => sum + stress, 0) /
+        nonActivityStressValues.length
+      : 0;
+
+  return {
+    baselineHRV: roundTo(baselineHRV, 1),
+    baselineRHR: roundTo(baselineRHR, 1),
+    totalDayStress: parseFloat(totalDayStress.toFixed(2)),
+    sleepStress: parseFloat(sleepStress.toFixed(2)),
+    nonActivityStress: parseFloat(nonActivityStress.toFixed(2)),
+    hourlyStress,
+  };
+};
+
+// --- Functions for StressMonitorCard --- START ---
+
+// Legacy function, keep for fallback
+function calculatePointStressFromHRV(hrv: number, restingHR: number): number {
+  if (hrv === 0 || restingHR === 0) return 2; // Default to medium if data is missing
+  const ratio = restingHR / hrv;
+  // Scale ratio (0.5-3.0) to stress (0-4)
+  const stress = ((ratio - 0.5) / (3.0 - 0.5)) * 4;
+  return Math.max(0, Math.min(4, stress)); // Clamp between 0 and 4
+}
+
+// Legacy function, keep for fallback
+function generateStressChartDataFromHRV(
+  hrvValues: number[],
+  restingHeartRate: number | null
+): StressChartDataPoint[] {
+  const rhr = restingHeartRate || 60; // Default RHR if null
+  const today = new Date();
+
+  if (!hrvValues || hrvValues.length === 0) {
+    return [];
+  }
+
+  const recentHrvValues = hrvValues.slice(-7);
+
+  return recentHrvValues.map((hrv, index) => {
+    const date = new Date(today);
+    date.setDate(today.getDate() - (recentHrvValues.length - 1 - index));
+    return {
+      time: index, // Use index for x-axis in this legacy mode
+      stress: calculatePointStressFromHRV(hrv, rhr),
+      timestamp: date.toLocaleDateString("en-US", { // For display
+        month: "short",
+        day: "numeric",
+      }),
+    };
+  });
+}
+
+export const prepareStressChartDisplayData = (
+  hrvValues: number[] | undefined,
+  restingHeartRate: number | null | undefined,
+  overallStressLevelFromContext: number | undefined, // 0-100 scale
+  stressDetails: StressMetrics | null | undefined
+): StressChartDisplayData => {
+  let chartPlotData: StressChartDataPoint[] = [];
+  let currentStressForVisualization: number = 0;
+  let yDomainForVisualization: [number, number] = [0, 4]; // Default for HRV based (0-4)
+  let xAxisDataType: "hourly" | "daily" = "daily"; // Default for HRV based
+
+  // 1. Prioritize stressDetails.hourlyStress
+  if (
+    stressDetails &&
+    stressDetails.hourlyStress &&
+    stressDetails.hourlyStress.length > 0
+  ) {
+    chartPlotData = stressDetails.hourlyStress.map((item) => ({
+      time: new Date(item.hourStart).getTime(), // Use timestamp for x-axis
+      stress: item.stress, // This is on a 0-3 scale
+      timestamp: new Date(item.hourStart), // For display
+    }));
+    currentStressForVisualization = stressDetails.totalDayStress; // Also 0-3 scale
+    yDomainForVisualization = [0, 3.5]; // Max is 3, add padding
+    xAxisDataType = "hourly";
+  }
+  // 2. Fallback to HRV-based data
+  else if (hrvValues && hrvValues.length > 0) {
+    chartPlotData = generateStressChartDataFromHRV(
+      hrvValues,
+      restingHeartRate ?? null
+    );
+    // overallStressLevelFromContext is 0-100, scale to 0-4 for this chart
+    currentStressForVisualization = (overallStressLevelFromContext ?? 0) / 25;
+    yDomainForVisualization = [0, 4]; // Max is 4
+    xAxisDataType = "daily";
+  }
+  // If neither, chartPlotData remains empty.
+
+  const lastUpdatedDisplay = new Date().toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+
+  return {
+    chartPlotData,
+    currentStressForVisualization,
+    yDomainForVisualization,
+    xAxisDataType,
+    lastUpdatedDisplay,
+  };
+};
+
+// --- Functions for StressMonitorCard --- END ---
+
+export function getStressColor(stressLevel: number): string {
+  if (stressLevel < 1) return Colors.hrv.excellent;
+  if (stressLevel < 2) return Colors.hrv.good;
+  return Colors.hrv.poor;
+}

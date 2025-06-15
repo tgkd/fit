@@ -1,16 +1,18 @@
 import i18n from "@/lib/i18n";
 import { use } from "react";
-import { ScrollView, StyleSheet } from "react-native";
+import { useNavigation, useRouter } from "expo-router";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { ThemedText } from "@/components/ThemedText";
 import { CircularProgressChart } from "@/components/charts/CircularProgressChart";
 import { StressMonitorCard } from "@/components/charts/StressMonitorCard";
+import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/ui/Card";
 import { Colors } from "@/constants/Colors";
 import { HealthDataContext } from "@/context/HealthDataContext";
 
 export default function HomeScreen() {
+  const router = useRouter();
   const { data } = use(HealthDataContext);
 
   return (
@@ -40,7 +42,7 @@ export default function HomeScreen() {
         <StressMonitorCard
           healthData={data}
           onPress={() => {
-            console.log("Navigate to stress details");
+            router.push("/hrv");
           }}
         />
 
