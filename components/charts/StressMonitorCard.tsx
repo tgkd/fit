@@ -47,28 +47,6 @@ export function StressMonitorCard({
     lastUpdatedDisplay,
   } = healthData.stressChartDisplayData;
 
-  //   {
-  //   "baselineHRV": 0,
-  //   "baselineRHR": 60,
-  //   "totalDayStress": 1.5,
-  //   "sleepStress": 0,
-  //   "nonActivityStress": 1.5,
-  //   "hourlyStress": [
-  //     {
-  //       "hourStart": "2025-06-15T04:00:00.000Z",
-  //       "stress": 1.5
-  //     },
-  //     {
-  //       "hourStart": "2025-06-15T05:00:00.000Z",
-  //       "stress": 1.5
-  //     },
-  //     {
-  //       "hourStart": "2025-06-15T06:00:00.000Z",
-  //       "stress": 1.5
-  //     }
-  //   ]
-  // }
-
   return (
     <TouchableOpacity
       style={[styles.container, { backgroundColor }]}
@@ -166,34 +144,21 @@ function StressVisualization({
             frame: "transparent",
           },
           tickCount: {
-            x: Math.min(
-              chartData.length > 1 ? chartData.length : 1,
-              xAxisDataType === "hourly" ? 5 : 4
-            ), // More ticks for hourly
+            x: 2,
             y: 5,
           },
           formatXLabel: (value) => {
-            // Find the point by 'x' value which is now consistently a number
-            const point = chartData.find((p) => p.x === value);
-            if (!point) return "";
-
-            if (
-              xAxisDataType === "hourly" &&
-              point.originalTimestamp instanceof Date
-            ) {
-              return point.originalTimestamp.toLocaleTimeString("en-US", {
-                hour: "numeric",
-                minute: "2-digit",
-                hour12: false, // Or true, depending on preference
-              });
+            const numValue = Number(value);
+            const firstX = Math.min(...xValues);
+            const lastX = Math.max(...xValues);
+            if (Math.abs(numValue - firstX) <= Math.abs(numValue - lastX)) {
+              return (chartData[0]?.originalTimestamp as string) || " ";
+            } else {
+              return (
+                (chartData[chartData.length - 1]
+                  ?.originalTimestamp as string) || " "
+              );
             }
-            if (
-              xAxisDataType === "daily" &&
-              typeof point.originalTimestamp === "string"
-            ) {
-              return point.originalTimestamp; // Already formatted e.g., "Jun 15"
-            }
-            return ""; // Fallback
           },
           formatYLabel: (value) => `${Math.round(value as number)}`,
         }}

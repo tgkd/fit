@@ -3,11 +3,11 @@ import {
   calculateRecoveryScore,
   calculateStressMetrics,
   fetchHeartStressStats,
-  prepareStressChartDisplayData, // Added
+  prepareStressChartDisplayData,
 } from "./heartAndStress";
 import { initializeHealthKit, isHealthKitAvailable } from "./permissions";
 import { fetchSleepStats } from "./sleep";
-import { HealthData, StressChartDisplayData } from "./types"; // Added StressChartDisplayData
+import { HealthData, StressChartDisplayData } from "./types";
 import { fetchWorkoutStats } from "./workouts";
 
 /**
