@@ -1,170 +1,140 @@
-import i18n from "@/lib/i18n";
-import { use } from "react";
-import { useNavigation, useRouter } from "expo-router";
-import { ScrollView, StyleSheet, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
+import React, { use } from "react";
+import { StyleSheet } from "react-native";
 
 import { CircularProgressChart } from "@/components/charts/CircularProgressChart";
 import { StressMonitorCard } from "@/components/charts/StressMonitorCard";
 import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/ui/Card";
+import { ThemedScrollView } from "@/components/ui/ThemedScrollView";
 import { Colors } from "@/constants/Colors";
 import { HealthDataContext } from "@/context/HealthDataContext";
+import i18n from "@/lib/i18n";
 
 export default function HomeScreen() {
   const router = useRouter();
   const { data } = use(HealthDataContext);
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <Card style={styles.circularChartsContainer}>
-          <CircularProgressChart
-            value={data.sleepPerformance}
-            color={Colors.charts.sleep}
-            backgroundColor={Colors.charts.chartBackground}
-            label={i18n.t("home.sleep").toUpperCase()}
-          />
-          <CircularProgressChart
-            value={data.recoveryScore}
-            color={Colors.charts.recovery}
-            backgroundColor={Colors.charts.chartBackground}
-            label={i18n.t("home.recovery").toUpperCase()}
-          />
-          <CircularProgressChart
-            value={data.strainScore}
-            color={Colors.charts.strain}
-            backgroundColor={Colors.charts.chartBackground}
-            label={i18n.t("home.strain").toUpperCase()}
-          />
-        </Card>
-
-        <StressMonitorCard
-          healthData={data}
-          onPress={() => {
-            router.push("/hrv");
-          }}
+    <ThemedScrollView>
+      <Card style={styles.circularChartsContainer}>
+        <CircularProgressChart
+          value={data.sleepPerformance}
+          color={Colors.charts.sleep}
+          backgroundColor={Colors.charts.chartBackground}
+          label={i18n.t("home.sleep").toUpperCase()}
         />
+        <CircularProgressChart
+          value={data.recoveryScore}
+          color={Colors.charts.recovery}
+          backgroundColor={Colors.charts.chartBackground}
+          label={i18n.t("home.recovery").toUpperCase()}
+        />
+        <CircularProgressChart
+          value={data.strainScore}
+          color={Colors.charts.strain}
+          backgroundColor={Colors.charts.chartBackground}
+          label={i18n.t("home.strain").toUpperCase()}
+        />
+      </Card>
 
+      <StressMonitorCard
+        healthData={data}
+        onPress={() => {
+          router.push("/hrv");
+        }}
+      />
+
+      <Card>
+        <ThemedText type="subtitle">{i18n.t("home.sleep")}</ThemedText>
+        <ThemedText type="title">
+          {i18n.t("home.sleepHours", { hours: data.sleepHours })}
+        </ThemedText>
+        <ThemedText>
+          {i18n.t("home.performance", {
+            performance: data.sleepPerformance.toFixed(1),
+          })}
+        </ThemedText>
+        <ThemedText>
+          {i18n.t("home.consistency", {
+            consistency: data.sleepConsistency.toFixed(1),
+          })}
+        </ThemedText>
+      </Card>
+
+      <Card>
+        <ThemedText type="subtitle">{i18n.t("home.heartRate")}</ThemedText>
+        <ThemedText type="title">
+          {i18n.t("home.restingHeartRateValue", {
+            value: data.restingHeartRate,
+          })}
+        </ThemedText>
+        <ThemedText>{i18n.t("home.restingHeartRate")}</ThemedText>
+      </Card>
+
+      <Card>
+        <ThemedText type="subtitle">{i18n.t("home.activity")}</ThemedText>
+        <ThemedText type="title">{data.steps.toLocaleString()}</ThemedText>
+        <ThemedText>{i18n.t("home.stepsToday")}</ThemedText>
+        <ThemedText>
+          {i18n.t("home.caloriesBurned", {
+            calories: Math.round(data.moveKcal),
+          })}
+        </ThemedText>
+      </Card>
+
+      <Card>
+        <ThemedText type="subtitle">{i18n.t("home.recovery")}</ThemedText>
+        <ThemedText type="title">
+          {i18n.t("home.recoveryScore", {
+            score: data.recoveryScore.toFixed(1),
+          })}
+        </ThemedText>
+        <ThemedText>{i18n.t("home.recoveryScoreLabel")}</ThemedText>
+      </Card>
+
+      <Card>
+        <ThemedText type="subtitle">{i18n.t("home.strain")}</ThemedText>
+        <ThemedText type="title">
+          {i18n.t("home.strainScore", {
+            score: data.strainScore.toFixed(1),
+          })}
+        </ThemedText>
+        <ThemedText>{i18n.t("home.trainingStrain")}</ThemedText>
+      </Card>
+
+      {data.bloodOxygen?.value ? (
         <Card>
-          <ThemedText type="subtitle">{i18n.t("home.sleep")}</ThemedText>
+          <ThemedText type="subtitle">
+            {i18n.t("home.bloodOxygen")}
+          </ThemedText>
           <ThemedText type="title">
-            {i18n.t("home.sleepHours", { hours: data.sleepHours })}
-          </ThemedText>
-          <ThemedText>
-            {i18n.t("home.performance", {
-              performance: data.sleepPerformance.toFixed(1),
+            {i18n.t("home.bloodOxygenValue", {
+              value: data.bloodOxygen.value.toFixed(1),
             })}
           </ThemedText>
-          <ThemedText>
-            {i18n.t("home.consistency", {
-              consistency: data.sleepConsistency.toFixed(1),
-            })}
-          </ThemedText>
+          <ThemedText>{i18n.t("home.spo2")}</ThemedText>
         </Card>
+      ) : null}
 
-        <Card>
-          <ThemedText type="subtitle">{i18n.t("home.heartRate")}</ThemedText>
-          <ThemedText type="title">
-            {i18n.t("home.restingHeartRateValue", {
-              value: data.restingHeartRate,
-            })}
-          </ThemedText>
-          <ThemedText>{i18n.t("home.restingHeartRate")}</ThemedText>
-        </Card>
-
-        <Card>
-          <ThemedText type="subtitle">{i18n.t("home.activity")}</ThemedText>
-          <ThemedText type="title">{data.steps.toLocaleString()}</ThemedText>
-          <ThemedText>{i18n.t("home.stepsToday")}</ThemedText>
-          <ThemedText>
-            {i18n.t("home.caloriesBurned", {
-              calories: Math.round(data.moveKcal),
-            })}
-          </ThemedText>
-        </Card>
-
-        <Card>
-          <ThemedText type="subtitle">{i18n.t("home.recovery")}</ThemedText>
-          <ThemedText type="title">
-            {i18n.t("home.recoveryScore", {
-              score: data.recoveryScore.toFixed(1),
-            })}
-          </ThemedText>
-          <ThemedText>{i18n.t("home.recoveryScoreLabel")}</ThemedText>
-        </Card>
-
-        <Card>
-          <ThemedText type="subtitle">{i18n.t("home.strain")}</ThemedText>
-          <ThemedText type="title">
-            {i18n.t("home.strainScore", {
-              score: data.strainScore.toFixed(1),
-            })}
-          </ThemedText>
-          <ThemedText>{i18n.t("home.trainingStrain")}</ThemedText>
-        </Card>
-
-        {data.bloodOxygen?.value ? (
-          <Card>
-            <ThemedText type="subtitle">
-              {i18n.t("home.bloodOxygen")}
-            </ThemedText>
-            <ThemedText type="title">
-              {i18n.t("home.bloodOxygenValue", {
-                value: data.bloodOxygen.value.toFixed(1),
-              })}
-            </ThemedText>
-            <ThemedText>{i18n.t("home.spo2")}</ThemedText>
-          </Card>
-        ) : null}
-
-        <Card>
-          <ThemedText type="subtitle">{i18n.t("home.stress")}</ThemedText>
-          <ThemedText type="title">
-            {i18n.t("home.stressLevelValue", {
-              value: data.stressLevel.toFixed(1),
-            })}
-          </ThemedText>
-          <ThemedText>{i18n.t("home.stressLevel")}</ThemedText>
-        </Card>
-      </ScrollView>
-    </SafeAreaView>
+      <Card>
+        <ThemedText type="subtitle">{i18n.t("home.stress")}</ThemedText>
+        <ThemedText type="title">
+          {i18n.t("home.stressLevelValue", {
+            value: data.stressLevel.toFixed(1),
+          })}
+        </ThemedText>
+        <ThemedText>{i18n.t("home.stressLevel")}</ThemedText>
+      </Card>
+    </ThemedScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: {
-    flexGrow: 1,
-    paddingHorizontal: 16,
-    paddingBottom: 46,
-    rowGap: 16,
-  },
   circularChartsContainer: {
     flexDirection: "row",
     justifyContent: "space-around",
     alignItems: "center",
     gap: 12,
-  },
-  metricsContainer: {
-    gap: 16,
-    marginTop: 16,
-  },
-  metricCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 12,
-    padding: 16,
-    gap: 4,
-  },
-  instructionsContainer: {
-    gap: 8,
-    marginTop: 24,
-    marginBottom: 16,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: "absolute",
   },
 });
