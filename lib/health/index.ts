@@ -13,7 +13,7 @@ import { fetchWorkoutStats } from "./workouts";
 /**
  * Main health data aggregator function
  */
-export const getAllHealthStats = async (): Promise<HealthData> => {
+export const getAllHealthStats = async (defaults?: any): Promise<HealthData> => {
   await initializeHealthKit();
 
   if (!isHealthKitAvailable) {
@@ -26,12 +26,12 @@ export const getAllHealthStats = async (): Promise<HealthData> => {
     const [workoutStats, sleepStats, heartStressStats] = await Promise.all([
       fetchWorkoutStats(),
       fetchSleepStats(),
-      fetchHeartStressStats(generalStats.age),
+      fetchHeartStressStats(generalStats.age, defaults),
     ]);
 
     let stressDetails: HealthData["stressDetails"] = null;
     try {
-      stressDetails = await calculateStressMetrics();
+      stressDetails = await calculateStressMetrics(defaults);
     } catch (error) {
       console.warn(
         "Enhanced stress calculation failed, using fallback:",
@@ -41,10 +41,10 @@ export const getAllHealthStats = async (): Promise<HealthData> => {
 
     const improvedRecoveryScore = calculateRecoveryScore(
       heartStressStats.hrvValues,
-      heartStressStats.restingHeartRate || 60,
-      15, // Assuming default respiratory rate, consider fetching if available
+      heartStressStats.restingHeartRate || (defaults?.RESTING_HEART_RATE ?? 60),
+      defaults?.RESPIRATORY_RATE ?? 15,
       sleepStats.sleepEfficiency,
-      50 // Assuming default prior strain, consider persisting or calculating
+      defaults?.PRIOR_STRAIN ?? 50
     );
 
     // Prepare display data for the StressMonitorCard
@@ -53,7 +53,8 @@ export const getAllHealthStats = async (): Promise<HealthData> => {
         heartStressStats.hrvValues,
         heartStressStats.restingHeartRate,
         heartStressStats.stressLevel, // This is the 0-100 overall stress
-        stressDetails
+        stressDetails,
+        defaults
       );
 
     return {

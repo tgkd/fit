@@ -51,7 +51,8 @@ const STRESS_RATIO_BOUNDS = {
  * - Blood oxygen saturation
  */
 export const fetchHeartStressStats = async (
-  age?: number | null
+  age?: number | null,
+  defaults?: any
 ): Promise<HeartStressStats> => {
   const { now, startOfToday, oneDayAgo, oneWeekAgo } = getCurrentDateRanges();
 
@@ -77,7 +78,7 @@ export const fetchHeartStressStats = async (
     startOfToday,
     now
   );
-  const respRate = respStats?.averageQuantity?.quantity ?? 15; // Default respiratory rate
+  const respRate = respStats?.averageQuantity?.quantity ?? (defaults?.RESPIRATORY_RATE ?? 15);
 
   // Get heart rate samples for strain calculation
   const hrSamplesRaw = await queryQuantitySamples(
@@ -101,10 +102,10 @@ export const fetchHeartStressStats = async (
   // Calculate metrics with improved algorithms
   const recoveryScore = calculateRecoveryScore(
     hrvValues,
-    restingHeartRate || 60, // Default RHR if null
+    restingHeartRate || (defaults?.RESTING_HEART_RATE ?? 60),
     respRate,
-    85, // Default sleep efficiency - will be overridden by sleep module
-    50 // Default prior strain - TODO: persist from previous day
+    defaults?.SLEEP_EFFICIENCY ?? 85, // Will be overridden by sleep module
+    defaults?.PRIOR_STRAIN ?? 50 // TODO: persist from previous day
   );
 
   // Use dynamic HRmax calculation
@@ -112,7 +113,7 @@ export const fetchHeartStressStats = async (
   const strainScore = calculateStrainScore(
     hrSamples,
     hrMax,
-    restingHeartRate || 60
+    restingHeartRate || (defaults?.RESTING_HEART_RATE ?? 60)
   );
 
   const stressLevel = calculateStressLevel(restingHeartRate, hrv7DayAvg);
@@ -283,7 +284,9 @@ export const getBaselineHRV = async (): Promise<number> => {
 /**
  * Build 14-day average resting heart rate baseline
  */
-export const getBaselineRHR = async (): Promise<number> => {
+export const getBaselineRHR = async (
+  defaultRHR?: number
+): Promise<number> => {
   const now = new Date();
   const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 3600 * 1000);
 
@@ -314,7 +317,7 @@ export const getBaselineRHR = async (): Promise<number> => {
 
   return dailyRHR.length > 0
     ? dailyRHR.reduce((sum, rhr) => sum + rhr, 0) / dailyRHR.length
-    : 60; // Default RHR if no data
+    : (defaultRHR ?? 60);
 };
 
 /**
@@ -410,11 +413,11 @@ export const isInIntervals = (t: Date, intervals: TimeInterval[]): boolean => {
  * Main enhanced stress calculation function
  * Returns comprehensive stress metrics based on personal baselines
  */
-export const calculateStressMetrics = async (): Promise<StressMetrics> => {
+export const calculateStressMetrics = async (defaults?: any): Promise<StressMetrics> => {
   // Calculate 14-day baselines
   const [baselineHRV, baselineRHR] = await Promise.all([
     getBaselineHRV(),
-    getBaselineRHR(),
+    getBaselineRHR(defaults?.RESTING_HEART_RATE),
   ]);
 
   // Get hourly HR & HRV data for today
@@ -476,8 +479,12 @@ export const calculateStressMetrics = async (): Promise<StressMetrics> => {
 // --- Functions for StressMonitorCard --- START ---
 
 // Legacy function, keep for fallback
-function calculatePointStressFromHRV(hrv: number, restingHR: number): number {
-  if (hrv === 0 || restingHR === 0) return 2; // Default to medium if data is missing
+function calculatePointStressFromHRV(
+  hrv: number,
+  restingHR: number,
+  defaultStressLevel = 2
+): number {
+  if (hrv === 0 || restingHR === 0) return defaultStressLevel;
   const ratio = restingHR / hrv;
   // Scale ratio (0.5-3.0) to stress (0-4)
   const stress = ((ratio - 0.5) / (3.0 - 0.5)) * 4;
@@ -487,9 +494,11 @@ function calculatePointStressFromHRV(hrv: number, restingHR: number): number {
 // Legacy function, keep for fallback
 function generateStressChartDataFromHRV(
   hrvValues: number[],
-  restingHeartRate: number | null
+  restingHeartRate: number | null,
+  defaultRHR = 60,
+  defaultStressLevel = 2
 ): StressChartDataPoint[] {
-  const rhr = restingHeartRate || 60; // Default RHR if null
+  const rhr = restingHeartRate || defaultRHR;
   const today = new Date();
 
   if (!hrvValues || hrvValues.length === 0) {
@@ -503,7 +512,7 @@ function generateStressChartDataFromHRV(
     date.setDate(today.getDate() - (recentHrvValues.length - 1 - index));
     return {
       time: index, // Use index for x-axis in this legacy mode
-      stress: calculatePointStressFromHRV(hrv, rhr),
+      stress: calculatePointStressFromHRV(hrv, rhr, defaultStressLevel),
       timestamp: date.toLocaleDateString("en-US", { // For display
         month: "short",
         day: "numeric",
@@ -516,7 +525,8 @@ export const prepareStressChartDisplayData = (
   hrvValues: number[] | undefined,
   restingHeartRate: number | null | undefined,
   overallStressLevelFromContext: number | undefined, // 0-100 scale
-  stressDetails: StressMetrics | null | undefined
+  stressDetails: StressMetrics | null | undefined,
+  defaults?: any
 ): StressChartDisplayData => {
   let chartPlotData: StressChartDataPoint[] = [];
   let currentStressForVisualization: number = 0;
@@ -542,7 +552,9 @@ export const prepareStressChartDisplayData = (
   else if (hrvValues && hrvValues.length > 0) {
     chartPlotData = generateStressChartDataFromHRV(
       hrvValues,
-      restingHeartRate ?? null
+      restingHeartRate ?? null,
+      defaults?.RESTING_HEART_RATE,
+      defaults?.DEFAULT_STRESS_LEVEL
     );
     // overallStressLevelFromContext is 0-100, scale to 0-4 for this chart
     currentStressForVisualization = (overallStressLevelFromContext ?? 0) / 25;
