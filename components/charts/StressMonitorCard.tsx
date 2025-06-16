@@ -1,13 +1,13 @@
-import { useFont } from "@shopify/react-native-skia";
+import { LinearGradient, useFont, vec } from "@shopify/react-native-skia";
 import React from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
-import { CartesianChart, Line, Scatter } from "victory-native";
+import { Area, CartesianChart } from "victory-native";
 
 import hiFont from "@/assets/fonts/Hikasami-Regular.ttf";
 import { ThemedText } from "@/components/ThemedText";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { useThemeColor } from "@/hooks/useThemeColor";
-import type { HealthData, StressChartDataPoint } from "@/lib/health"; // Updated import
+import type { HealthData, StressChartDataPoint } from "@/lib/health/types";
 import i18n from "@/lib/i18n";
 
 interface StressMonitorCardProps {
@@ -91,14 +91,6 @@ function StressVisualization({
   const themedTextColor = useThemeColor({}, "text");
   const themedLineColor = useThemeColor({}, "tint");
   const themedGridColor = useThemeColor({}, "textSecondary");
-  const themedScatterColor = useThemeColor({}, "tint");
-
-  const getStressColor = (stress: number) => {
-    if (stress <= 1) return "#10b981";
-    if (stress <= 2) return "#3b82f6";
-    if (stress <= 3) return "#f59e0b";
-    return "#ef4444";
-  };
 
   if (!data || data.length < 1) {
     return (
@@ -135,7 +127,6 @@ function StressVisualization({
         xKey="x"
         yKeys={["y"]}
         domain={{ y: yDomain, x: xDomain }}
-        domainPadding={{ left: 20, right: 20, top: 10, bottom: 10 }}
         axisOptions={{
           font,
           labelColor: themedTextColor,
@@ -144,66 +135,34 @@ function StressVisualization({
             frame: "transparent",
           },
           tickCount: {
-            x: 2,
-            y: 5,
+            x: 4,
+            y: 4,
           },
           formatXLabel: (value) => {
-            const numValue = Number(value);
-            const firstX = Math.min(...xValues);
-            const lastX = Math.max(...xValues);
-            if (Math.abs(numValue - firstX) <= Math.abs(numValue - lastX)) {
-              return (chartData[0]?.originalTimestamp as string) || " ";
-            } else {
-              return (
-                (chartData[chartData.length - 1]
-                  ?.originalTimestamp as string) || " "
-              );
-            }
+            return new Date(value).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: undefined,
+            });
           },
           formatYLabel: (value) => `${Math.round(value as number)}`,
         }}
       >
-        {({ points, chartBounds }) => {
-          const chartWidth = chartBounds.right - chartBounds.left;
-          const chartHeight = chartBounds.bottom - chartBounds.top;
-
-          return (
-            <>
-              {chartData.length > 1 && (
-                <Line
-                  points={points.y}
-                  color={themedLineColor}
-                  strokeWidth={2}
-                  curveType="natural"
-                />
-              )}
-              <Scatter
-                points={points.y}
-                color={themedScatterColor}
-                radius={3}
-              />
-              <View
-                style={{
-                  position: "absolute",
-                  left: chartBounds.left,
-                  top: Math.max(
-                    chartBounds.top,
-                    Math.min(
-                      chartBounds.bottom,
-                      // Ensure currentStress is scaled against the correct yDomain max
-                      chartBounds.bottom -
-                        (currentStress / yDomain[1]) * chartHeight
-                    )
-                  ),
-                  height: 2,
-                  backgroundColor: getStressColor(currentStress),
-                  opacity: 0.8,
-                  width: chartWidth,
-                }}
-              />
-            </>
-          );
-        }}
+        {({ points, chartBounds, canvasSize, yScale, yTicks }) => (
+          <Area
+            y0={chartBounds.bottom}
+            points={points.y}
+            curveType="linear"
+            color={themedLineColor}
+            opacity={0.3}
+            animate={{ type: "timing", duration: 300 }}
+          >
+            <LinearGradient
+              start={vec(0, 0)}
+              end={vec(0, chartBounds.bottom)}
+              colors={["#ef4444", "#f59e0b", "#10b981"]}
+            />
+          </Area>
+        )}
       </CartesianChart>
     </View>
   );
@@ -225,6 +184,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   chartVisualizationContainer: {
-    height: 150,
+    height: 180,
   },
 });

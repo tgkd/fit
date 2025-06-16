@@ -520,7 +520,7 @@ export const calculateSleepNeed = (
 /**
  * Calculate enhanced sleep consistency based on timing variance over multiple nights
  */
-export const calculateEnhancedSleepConsistency = (
+export const calculatEnhancedSleepConsistency = (
   clusters: SleepCluster[]
 ): number => {
   const mainSleepClusters = clusters
@@ -704,7 +704,7 @@ export const calculateEnhancedSleepPerformance = async (
       : 100;
 
   // 2. Sleep Consistency
-  const sleepConsistency = calculateEnhancedSleepConsistency(clusters);
+  const sleepConsistency = calculatEnhancedSleepConsistency(clusters);
 
   // 3. Sleep Efficiency
   const sleepEfficiency =

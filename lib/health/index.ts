@@ -46,12 +46,20 @@ export const getAllHealthStats = async (
       );
     }
 
-    const improvedRecoveryScore = calculateRecoveryScore(
+    // Use the recovery score from heartStressStats (calculated with baselines)
+    // instead of recalculating without baselines
+    console.log('🔍 Recovery score comparison:');
+    console.log('- Heart stress stats recovery score (with baselines):', heartStressStats.recoveryScore);
+
+    // Calculate what the score would be without baselines for debugging
+    const recoveryScoreWithoutBaselines = calculateRecoveryScore(
       heartStressStats.hrvValues,
       heartStressStats.restingHeartRate || (defaults?.RESTING_HEART_RATE ?? 60),
       defaults?.RESPIRATORY_RATE ?? 15,
       sleepStats.sleepEfficiency
     );
+    console.log('- Recovery score without baselines:', recoveryScoreWithoutBaselines);
+    console.log('- Difference:', Math.abs(heartStressStats.recoveryScore - recoveryScoreWithoutBaselines).toFixed(1), 'points');
 
     const stressChartDisplayData: StressChartDisplayData =
       prepareStressChartDisplayData(
@@ -69,7 +77,8 @@ export const getAllHealthStats = async (
       ...generalStats,
       ...workoutStats,
       ...heartStressStats,
-      recoveryScore: improvedRecoveryScore,
+      // Use the recovery score that was calculated with baseline values
+      recoveryScore: heartStressStats.recoveryScore,
       sleep: sleepStats,
       strainScore,
       stressDetails,

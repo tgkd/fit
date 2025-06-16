@@ -72,6 +72,7 @@ export const fetchHeartStressStats = async (
     { from: oneWeekAgo, to: now }
   );
   const hrvValues = hrvSamples.map((s) => s.quantity);
+
   const { hrv7DayAvg, hrvMostRecent } = processHrv(hrvValues);
 
   // Get respiratory rate for recovery calculation
@@ -93,20 +94,18 @@ export const fetchHeartStressStats = async (
     ? { value: spo2Sample.quantity, date: new Date(spo2Sample.endDate) }
     : null;
 
-  // Calculate metrics with improved algorithms
   const recoveryScore = calculateRecoveryScore(
     hrvValues,
     restingHeartRate || (defaults?.RESTING_HEART_RATE ?? 60),
     respRate,
     defaults?.SLEEP_EFFICIENCY ?? 85,
-    true, // Enable personalized ranges
     hrv7DayAvg > 0 ? hrv7DayAvg : undefined,
     restingHeartRate || undefined
   );
 
   const stressLevel = calculateStressLevel(restingHeartRate, hrv7DayAvg);
 
-  return {
+  const result = {
     restingHeartRate,
     hrv7DayAvg,
     hrvMostRecent,
@@ -115,6 +114,8 @@ export const fetchHeartStressStats = async (
     stressLevel,
     bloodOxygen,
   };
+
+  return result;
 };
 
 /*
@@ -158,11 +159,12 @@ export const calculateRecoveryScore = (
   restingHR: number, // bpm
   respRate: number, // breaths/min
   sleepEff: number, // %
-  usePersonalizedRanges: boolean = false,
   baselineHrv?: number,
   baselineRhr?: number
 ): number => {
-  if (hrv.length === 0) return 0;
+  if (hrv.length === 0) {
+    return 0;
+  }
 
   // Use 7-day HRV average instead of single value for more stable metric
   const avgHRV = hrv.length > 0 ? mean(hrv) : 0;
@@ -190,7 +192,9 @@ export const calculateRecoveryScore = (
     normResp * RECOVERY_WEIGHTS.RESP +
     normSleep * RECOVERY_WEIGHTS.SLEEP;
 
-  return roundTo(score, 1);
+  const finalScore = roundTo(score, 1);
+
+  return finalScore;
 };
 
 /**
@@ -201,7 +205,9 @@ export const calculateStressLevel = (
   restingHeartRate: number | null,
   hrv: number | null
 ): number => {
-  if (!restingHeartRate || !hrv || hrv === 0) return 0;
+  if (!restingHeartRate || !hrv || hrv === 0) {
+    return 0;
+  }
 
   // A higher ratio suggests more stress. Normalize this to a 0-100 scale.
   // A typical RHR/HRV ratio for healthy adults might be 1.0-2.0. A ratio > 2.5 could indicate high stress.
@@ -213,7 +219,9 @@ export const calculateStressLevel = (
       (STRESS_RATIO_BOUNDS.high - STRESS_RATIO_BOUNDS.low)) *
     100;
 
-  return Math.max(0, Math.min(100, roundTo(stressScore, 1)));
+  const finalStressLevel = Math.max(0, Math.min(100, roundTo(stressScore, 1)));
+
+  return finalStressLevel;
 };
 
 /**
@@ -224,8 +232,10 @@ export const processHrv = (hrvValues: number[]) => {
   if (hrvValues.length === 0) {
     return { hrv7DayAvg: 0, hrvMostRecent: 0 };
   }
+
   const hrv7DayAvg = mean(hrvValues);
   const hrvMostRecent = hrvValues[hrvValues.length - 1];
+
   return { hrv7DayAvg, hrvMostRecent };
 };
 
@@ -242,7 +252,9 @@ export const getBaselineHRV = async (): Promise<number> => {
     { from: fourteenDaysAgo, to: now }
   );
 
-  if (hrvSamples.length === 0) return 0;
+  if (hrvSamples.length === 0) {
+    return 0;
+  }
 
   // Group by day using bucketBy for efficient processing
   const dailyGroups = bucketBy(hrvSamples, "day");
@@ -253,7 +265,8 @@ export const getBaselineHRV = async (): Promise<number> => {
   );
 
   // Return average of daily averages
-  return dailyAverages.length > 0 ? mean(dailyAverages) : 0;
+  const baselineHRV = dailyAverages.length > 0 ? mean(dailyAverages) : 0;
+  return baselineHRV;
 };
 
 /**
@@ -273,7 +286,9 @@ export const getBaselineRHR = async (defaultRHR?: number): Promise<number> => {
     }
   );
 
-  if (rhrSamples.length === 0) return defaultRHR ?? 60;
+  if (rhrSamples.length === 0) {
+    return defaultRHR ?? 60;
+  }
 
   // Group by day using bucketBy
   const dailyGroups = bucketBy(rhrSamples, "day");
@@ -284,7 +299,8 @@ export const getBaselineRHR = async (defaultRHR?: number): Promise<number> => {
   );
 
   // Return average of daily averages
-  return dailyAverages.length > 0 ? mean(dailyAverages) : defaultRHR ?? 60;
+  const baselineRHR = dailyAverages.length > 0 ? mean(dailyAverages) : defaultRHR ?? 60;
+  return baselineRHR;
 };
 
 /**
@@ -337,17 +353,21 @@ export const getHourlyHRandHRV = async (): Promise<HourlyHeartData[]> => {
     const hour = parseInt(hourKey.split(":")[0], 10);
     const hourStart = createHourStart(startOfToday, hour);
 
-    hourlyData.push({
+    const hourlyDataPoint = {
       hourStart,
       hr: roundTo(avgHR, 1),
       hrv: roundTo(avgHRV, 1),
-    });
+    };
+
+    hourlyData.push(hourlyDataPoint);
   });
 
   // Sort by hour
-  return hourlyData.sort(
+  const sortedData = hourlyData.sort(
     (a, b) => a.hourStart.getTime() - b.hourStart.getTime()
   );
+
+  return sortedData;
 };
 
 /**
@@ -363,43 +383,87 @@ export const computeStressMoment = (
   baselineHRV: number,
   hourOfDay?: number
 ): number => {
-  // HRV stress: how far below baseline (0 = no drop, 1 = 100% drop)
-  const hrvStress =
-    baselineHRV > 0 ? Math.max(0, 1 - currentHRV / baselineHRV) : 0;
-
-  // HR stress: how far above resting HR (0 = at or below baseline, 1 = +50% above baseline)
+  // HR stress: how far above resting HR (improved scaling for better variation)
   const hrDelta = currentHR - baselineRHR;
   const hrStress =
     baselineRHR > 0
-      ? Math.max(0, Math.min(1, hrDelta / (baselineRHR * 0.5)))
+      ? Math.max(0, Math.min(1.0, hrDelta / (baselineRHR * 0.6))) // Back to 1.0 max but use 0.6 for sensitivity
       : 0;
 
-  // Average and scale to 0–3
-  let raw = ((hrvStress + hrStress) / 2) * 3;
+  // Handle missing HRV data more gracefully with better HR-based estimation
+  let hrvStress: number;
+  if (currentHRV === 0 || baselineHRV <= 0) {
+    // When HRV is missing, estimate stress more dynamically based on HR elevation
+    const hrElevationRatio = hrDelta / baselineRHR;
+
+    if (hrElevationRatio > 1.0) {
+      // HR elevated by >100% suggests high stress (more moderate)
+      hrvStress = 0.6 + Math.min(0.3, (hrElevationRatio - 1.0) * 0.3);
+    } else if (hrElevationRatio > 0.6) {
+      // HR elevated by 60-100% suggests moderate-high stress
+      hrvStress = 0.4 + (hrElevationRatio - 0.6) * 0.5;
+    } else if (hrElevationRatio > 0.3) {
+      // HR elevated by 30-60% suggests moderate stress
+      hrvStress = 0.2 + (hrElevationRatio - 0.3) * 0.67;
+    } else if (hrElevationRatio > 0.1) {
+      // HR elevated by 10-30% suggests mild stress
+      hrvStress = 0.05 + (hrElevationRatio - 0.1) * 0.75;
+    } else if (hrElevationRatio < -0.1) {
+      // HR significantly below baseline suggests very low stress
+      hrvStress = 0.02;
+    } else {
+      // HR close to baseline suggests low stress
+      hrvStress = 0.05;
+    }
+  } else {
+    // Normal HRV-based calculation when HRV data is available
+    hrvStress = Math.max(0, Math.min(1, 1 - currentHRV / baselineHRV));
+  }
+
+  // Combine HR and HRV stress with weighted average (HR gets more weight when HRV is missing)
+  let combinedStress: number;
+  if (currentHRV === 0) {
+    // When HRV is missing, rely more heavily on HR patterns
+    combinedStress = hrStress * 0.7 + hrvStress * 0.3;
+  } else {
+    // When HRV is available, use balanced weighting
+    combinedStress = hrStress * 0.5 + hrvStress * 0.5;
+  }
+
+  // Scale to 0–3 range with improved sensitivity
+  let raw = combinedStress * 3;
 
   // Apply time-of-day adjustments if hour is provided
   if (hourOfDay !== undefined) {
-    raw = adjustForTimeOfDay(raw, hourOfDay);
+    const adjusted = adjustForTimeOfDay(raw, hourOfDay);
+    raw = adjusted;
   }
 
-  return parseFloat(Math.max(0, Math.min(3, raw)).toFixed(2));
+  const finalStress = parseFloat(Math.max(0, Math.min(3, raw)).toFixed(2));
+
+  return finalStress;
 };
 
 /**
  * Adjust stress values based on time of day context
  */
 const adjustForTimeOfDay = (stressValue: number, hourOfDay: number): number => {
-  // HR naturally higher during day, lower at night
-  // Apply small adjustment factors based on time of day
+  // Apply more significant time-based adjustments for better variation
   if (hourOfDay >= 22 || hourOfDay < 6) {
-    // Late night/early morning: higher HR is more significant
-    return stressValue * 1.2;
+    // Late night/early morning: elevated HR is more significant (high stress indicator)
+    return stressValue * 1.4;
   } else if (hourOfDay >= 14 && hourOfDay < 16) {
-    // Post-lunch dip: higher HR is less significant
-    return stressValue * 0.9;
+    // Post-lunch dip: elevated HR is less concerning (natural afternoon pattern)
+    return stressValue * 0.7;
   } else if (hourOfDay >= 6 && hourOfDay < 9) {
-    // Morning: HR naturally higher, less significant
-    return stressValue * 0.95;
+    // Morning: HR naturally higher due to cortisol awakening response
+    return stressValue * 0.8;
+  } else if (hourOfDay >= 16 && hourOfDay < 18) {
+    // Late afternoon: stress often peaks due to daily accumulation
+    return stressValue * 1.2;
+  } else if (hourOfDay >= 18 && hourOfDay < 22) {
+    // Evening: should be winding down, elevated HR more concerning
+    return stressValue * 1.1;
   }
   return stressValue;
 };
@@ -429,16 +493,19 @@ export const calculateStressMetrics = async (
   const workoutIntervals: TimeInterval[] = [];
 
   // Calculate hourly stress levels with time-of-day context
-  const hourlyStress = hourlyData.map((h) => ({
-    hourStart: h.hourStart,
-    stress: computeStressMoment(
+  const hourlyStress = hourlyData.map((h) => {
+    const stressMoment = computeStressMoment(
       h.hr,
       h.hrv,
       baselineRHR,
       baselineHRV,
       h.hourStart.getHours()
-    ),
-  }));
+    );
+    return {
+      hourStart: h.hourStart,
+      stress: stressMoment,
+    };
+  });
 
   // Aggregate stress metrics
   const allStressValues = hourlyStress.map((h) => h.stress);
@@ -472,7 +539,7 @@ export const calculateStressMetrics = async (
         nonActivityStressValues.length
       : 0;
 
-  return {
+  const result = {
     baselineHRV: roundTo(baselineHRV, 1),
     baselineRHR: roundTo(baselineRHR, 1),
     totalDayStress: parseFloat(totalDayStress.toFixed(2)),
@@ -480,6 +547,8 @@ export const calculateStressMetrics = async (
     nonActivityStress: parseFloat(nonActivityStress.toFixed(2)),
     hourlyStress,
   };
+
+  return result;
 };
 
 // --- Functions for StressMonitorCard --- START ---
@@ -609,7 +678,11 @@ export const prepareStressChartDisplayData = (
       timestamp: formatHourDisplay(new Date(item.hourStart)), // Use date-fns utility
     }));
     currentStressForVisualization = stressDetails.totalDayStress; // Also 0-3 scale
-    yDomainForVisualization = [0, 3.5]; // Max is 3, add padding
+
+    // Use a fixed Y domain that shows the full 0-3 stress scale
+    // This provides consistent context and proper Y-axis labels
+    yDomainForVisualization = [0, 3];
+
     xAxisDataType = "hourly";
   }
   // 2. Fallback to HRV-based data
@@ -625,17 +698,18 @@ export const prepareStressChartDisplayData = (
     yDomainForVisualization = [0, 4]; // Max is 4
     xAxisDataType = "daily";
   }
-  // If neither, chartPlotData remains empty.
 
   const lastUpdatedDisplay = formatTimeDisplay(new Date());
 
-  return {
+  const result = {
     chartPlotData,
     currentStressForVisualization,
     yDomainForVisualization,
     xAxisDataType,
     lastUpdatedDisplay,
   };
+
+  return result;
 };
 
 // --- Functions for StressMonitorCard --- END ---
