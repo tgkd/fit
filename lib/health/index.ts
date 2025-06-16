@@ -41,7 +41,7 @@ export const getAllHealthStats = async (
       stressDetails = await calculateStressMetrics(defaults);
     } catch (error) {
       console.warn(
-        "Enhanced stress calculation failed, using fallback:",
+        "Stress calculation failed, using fallback:",
         error
       );
     }
@@ -106,3 +106,4 @@ export * from "./sleep";
 export * from "./strain";
 export * from "./utils";
 export * from "./workouts";
+

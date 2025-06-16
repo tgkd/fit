@@ -3,7 +3,7 @@ import {
   HKQuantitySample,
   HKQuantityTypeIdentifier,
   HKWorkout,
-  LengthUnit
+  LengthUnit,
 } from "@kingstinct/react-native-healthkit";
 
 // Shared interfaces for all health modules
@@ -41,7 +41,33 @@ export interface SleepMetrics {
   hoursVsNeeded: number;
   sleepConsistency: number;
   sleepEfficiency: number;
-  highSleepStress: number;
+  sleepStress: number; // Sleep quality score (0-100, higher = better restfulness)
+}
+
+export interface SleepNeed {
+  baselineHours: number;
+  strainHours: number;
+  sleepDebtHours: number;
+  napHours: number;
+  totalNeedHours: number;
+}
+
+export interface SleepCluster {
+  start: Date;
+  end: Date;
+  asleepMs: number;
+  timeInBedMs: number;
+  isMainSleep: boolean;
+}
+
+export interface SleepPerformanceMetrics {
+  hoursVsNeeded: number; // Percentage of sleep vs needed (0–100)
+  sleepConsistency: number; // Consistency score (0–100)
+  sleepEfficiency: number; // Sleep efficiency percentage (0–100)
+  sleepStress: number; // Sleep quality score (0–100, higher = better restfulness)
+  overallScore: number; // Overall sleep performance (0–100)
+  sleepNeed: SleepNeed;
+  mainCluster: SleepCluster;
 }
 
 export interface SleepStage {

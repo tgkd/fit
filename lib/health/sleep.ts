@@ -2,12 +2,25 @@ import {
   HKCategorySample,
   HKCategoryTypeIdentifier,
   HKCategoryValueSleepAnalysis,
+  HKQuantityTypeIdentifier,
   queryCategorySamples,
+  queryQuantitySamples,
 } from "@kingstinct/react-native-healthkit";
 
 import { Colors } from "@/constants/Colors";
-import { LastNightSleep, SleepMetrics, SleepStats } from "./types";
-import { getCurrentDateRanges, msToHours, roundTo } from "./utils";
+import {
+  LastNightSleep,
+  SleepCluster,
+  SleepMetrics,
+  SleepNeed,
+  SleepPerformanceMetrics,
+  SleepStats,
+} from "./types";
+import { getCurrentDateRanges, msToHours, msToMinutes, roundTo } from "./utils";
+
+// Export types for external use
+export type { SleepCluster, SleepNeed, SleepPerformanceMetrics };
+
 export const SLEEP_PERFORMANCE_GOAL_HOURS = 8;
 export const SLEEP_CONSISTENCY_MAX_STD_DEV_HOURS = 2.5;
 
@@ -20,6 +33,7 @@ export const ACTUAL_SLEEP_VALUES = [
 
 /**
  * Fetch comprehensive sleep statistics
+ * Enhanced version that uses the new sleep performance calculation
  */
 export const fetchSleepStats = async (): Promise<SleepStats> => {
   const { oneWeekAgo, now } = getCurrentDateRanges();
@@ -33,18 +47,37 @@ export const fetchSleepStats = async (): Promise<SleepStats> => {
   const sleepEfficiency = calculateSleepEfficiency(sleepSamples);
   const sleepConsistency = calculateSleepConsistency(sleepSamples);
 
-  const metrics = calculateSleepMetrics(sleepSamples, totalSleep);
+  // Use enhanced calculation if available, otherwise fallback to basic calculation
+  let metrics: SleepMetrics;
+  let sleepPerformance: number;
+
+  try {
+    const enhancedMetrics = await calculateEnhancedSleepPerformance();
+    if (enhancedMetrics) {
+      // Convert SleepPerformanceMetrics to SleepMetrics format
+      metrics = {
+        hoursVsNeeded: enhancedMetrics.hoursVsNeeded,
+        sleepConsistency: enhancedMetrics.sleepConsistency,
+        sleepEfficiency: enhancedMetrics.sleepEfficiency,
+        sleepStress: enhancedMetrics.sleepStress, // This is already a performance score (higher = better)
+      };
+      sleepPerformance = enhancedMetrics.overallScore;
+    } else {
+      throw new Error("Enhanced metrics unavailable");
+    }
+  } catch {
+    // Fallback to basic calculation
+    metrics = calculateSleepMetrics(sleepSamples, totalSleep);
+    sleepPerformance = calculateSleepPerformance(totalSleep, sleepEfficiency, sleepConsistency);
+  }
+
   const lastNight = calculateLastNightSleep(sleepSamples);
 
   return {
     sleepHours: roundTo(totalSleep, 1),
-    sleepPerformance: calculateSleepPerformance(
-      totalSleep,
-      sleepEfficiency,
-      sleepConsistency
-    ),
-    sleepConsistency,
-    sleepEfficiency,
+    sleepPerformance,
+    sleepConsistency: metrics.sleepConsistency,
+    sleepEfficiency: metrics.sleepEfficiency,
     dailySleepDurations,
     metrics,
     lastNight,
@@ -183,13 +216,28 @@ export const calculateSleepMetrics = (
     totalSleepTime > 0
       ? (totalAwakeTime / (totalSleepTime + totalAwakeTime)) * 100
       : 0;
-  const highSleepStress = awakePercentage > 10 ? awakePercentage - 10 : 0;
+
+  // Calculate sleep stress as a performance score (higher = better)
+  // Convert awake percentage to stress score: low awake time = high performance score
+  // If no sleep data is available, return a neutral score instead of 100%
+  let sleepStressScore: number;
+
+  if (totalSleepTime === 0 && totalAwakeTime === 0) {
+    // No sleep data available, return neutral score
+    sleepStressScore = 50;
+  } else if (awakePercentage === 0) {
+    // Perfect sleep (no awake time recorded) - but cap at 95% to be realistic
+    sleepStressScore = 95;
+  } else {
+    // Normal calculation: convert awake percentage to quality score
+    sleepStressScore = Math.max(0, 100 - awakePercentage);
+  }
 
   return {
     hoursVsNeeded: roundTo(hoursVsNeeded, 0),
     sleepConsistency: roundTo(sleepConsistency, 0),
     sleepEfficiency: roundTo(sleepEfficiency, 0),
-    highSleepStress: roundTo(highSleepStress, 0),
+    sleepStress: roundTo(sleepStressScore, 0), // Now a performance score like the others
   };
 };
 
@@ -354,4 +402,403 @@ export const getPerformanceColor = (perf: number) => {
   if (perf >= 80) return Colors.sleep.performance.excellent;
   if (perf >= 60) return Colors.sleep.performance.good;
   return Colors.sleep.performance.poor;
+};
+
+/**
+ * Enhanced Sleep Performance Calculation
+ * Implements comprehensive sleep analysis based on HealthKit data
+ */
+
+/**
+ * Determines if a sleep analysis value represents actual sleep
+ */
+const isAsleepValue = (value: HKCategoryValueSleepAnalysis): boolean => {
+  return ACTUAL_SLEEP_VALUES.includes(value);
+};
+
+/**
+ * Groups sleep samples into contiguous sleep sessions (clusters)
+ * Separates main overnight sleep from naps based on timing gaps
+ */
+export const createSleepClusters = (
+  sleepSamples: readonly HKCategorySample<HKCategoryTypeIdentifier.sleepAnalysis>[]
+): SleepCluster[] => {
+  if (!sleepSamples || sleepSamples.length === 0) return [];
+
+  const sortedSamples = [...sleepSamples].sort(
+    (a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+  );
+
+  const clusters: SleepCluster[] = [];
+  const MAX_GAP_MS = 3 * 60 * 60 * 1000; // 3 hours gap breaks a sleep session
+
+  let currentCluster: SleepCluster = {
+    start: new Date(sortedSamples[0].startDate),
+    end: new Date(sortedSamples[0].endDate),
+    asleepMs: isAsleepValue(sortedSamples[0].value)
+      ? new Date(sortedSamples[0].endDate).getTime() -
+        new Date(sortedSamples[0].startDate).getTime()
+      : 0,
+    timeInBedMs:
+      sortedSamples[0].value === HKCategoryValueSleepAnalysis.inBed
+        ? new Date(sortedSamples[0].endDate).getTime() -
+          new Date(sortedSamples[0].startDate).getTime()
+        : 0,
+    isMainSleep: false,
+  };
+
+  for (let i = 1; i < sortedSamples.length; i++) {
+    const sample = sortedSamples[i];
+    const sampleStart = new Date(sample.startDate);
+    const sampleEnd = new Date(sample.endDate);
+    const durationMs = sampleEnd.getTime() - sampleStart.getTime();
+
+    if (sampleStart.getTime() - currentCluster.end.getTime() <= MAX_GAP_MS) {
+      // Continue current cluster
+      if (sampleEnd.getTime() > currentCluster.end.getTime()) {
+        currentCluster.end = sampleEnd;
+      }
+      if (isAsleepValue(sample.value)) {
+        currentCluster.asleepMs += durationMs;
+      }
+      if (sample.value === HKCategoryValueSleepAnalysis.inBed) {
+        currentCluster.timeInBedMs += durationMs;
+      }
+    } else {
+      // Gap too large - finish current cluster and start new one
+      clusters.push(currentCluster);
+      currentCluster = {
+        start: sampleStart,
+        end: sampleEnd,
+        asleepMs: isAsleepValue(sample.value) ? durationMs : 0,
+        timeInBedMs:
+          sample.value === HKCategoryValueSleepAnalysis.inBed ? durationMs : 0,
+        isMainSleep: false,
+      };
+    }
+  }
+
+  clusters.push(currentCluster);
+
+  // Identify main sleep sessions (>= 3 hours of sleep)
+  const mainClusters = clusters.filter((c) => msToHours(c.asleepMs) >= 3);
+
+  // Mark the longest cluster as main sleep
+  if (mainClusters.length > 0) {
+    const longestCluster = mainClusters.reduce((prev, current) =>
+      current.asleepMs > prev.asleepMs ? current : prev
+    );
+    longestCluster.isMainSleep = true;
+  }
+
+  return clusters;
+};
+
+/**
+ * Calculate sleep need based on baseline, strain, debt, and naps
+ */
+export const calculateSleepNeed = (
+  baselineHours: number = 8.0,
+  strainHours: number = 0.0,
+  sleepDebtHours: number = 0.0,
+  napHours: number = 0.0
+): SleepNeed => {
+  const totalNeedHours = Math.max(
+    0,
+    baselineHours + strainHours + sleepDebtHours - napHours
+  );
+
+  return {
+    baselineHours,
+    strainHours,
+    sleepDebtHours,
+    napHours,
+    totalNeedHours,
+  };
+};
+
+/**
+ * Calculate enhanced sleep consistency based on timing variance over multiple nights
+ */
+export const calculateEnhancedSleepConsistency = (
+  clusters: SleepCluster[]
+): number => {
+  const mainSleepClusters = clusters
+    .filter((c) => c.isMainSleep)
+    .sort((a, b) => a.end.getTime() - b.end.getTime())
+    .slice(-5); // Last 5 nights
+
+  if (mainSleepClusters.length < 2) return 100;
+
+  let totalBedDiffMinutes = 0;
+  let totalWakeDiffMinutes = 0;
+  let countDiffs = 0;
+
+  for (let i = 1; i < mainSleepClusters.length; i++) {
+    const prev = mainSleepClusters[i - 1];
+    const curr = mainSleepClusters[i];
+
+    // Calculate bedtime variance (24h ideal interval)
+    const idealInterval = 24 * 60 * 60 * 1000; // 24 hours in ms
+    const actualBedInterval = curr.start.getTime() - prev.start.getTime();
+    const bedDiff = Math.abs(actualBedInterval - idealInterval);
+    totalBedDiffMinutes += msToMinutes(bedDiff);
+
+    // Calculate wake time variance
+    const actualWakeInterval = curr.end.getTime() - prev.end.getTime();
+    const wakeDiff = Math.abs(actualWakeInterval - idealInterval);
+    totalWakeDiffMinutes += msToMinutes(wakeDiff);
+
+    countDiffs++;
+  }
+
+  const avgBedDiffMin = totalBedDiffMinutes / countDiffs;
+  const avgWakeDiffMin = totalWakeDiffMinutes / countDiffs;
+  const avgTimingDiffMin = (avgBedDiffMin + avgWakeDiffMin) / 2;
+
+  // Convert to score: 1 point deducted per 6 minutes of variance
+  const consistencyScore = Math.max(0, 100 - avgTimingDiffMin / 6);
+  return roundTo(consistencyScore, 1);
+};
+
+/**
+ * Calculate sleep stress using physiological data during sleep
+ */
+export const calculateSleepStress = async (
+  sleepCluster: SleepCluster
+): Promise<number> => {
+  const { start, end } = sleepCluster;
+
+  try {
+    // Fetch physiological data during sleep
+    const [hrSamples, hrvSamples, respSamples] = await Promise.all([
+      queryQuantitySamples(HKQuantityTypeIdentifier.heartRate, {
+        from: start,
+        to: end,
+      }),
+      queryQuantitySamples(HKQuantityTypeIdentifier.heartRateVariabilitySDNN, {
+        from: start,
+        to: end,
+      }),
+      queryQuantitySamples(HKQuantityTypeIdentifier.respiratoryRate, {
+        from: start,
+        to: end,
+      }),
+    ]);
+
+    const hrValues = hrSamples.map((s) => s.quantity);
+    const hrvValues = hrvSamples.map((s) => s.quantity);
+    const respValues = respSamples.map((s) => s.quantity);
+
+    let stressPercentage = 0;
+
+    // Analyze heart rate stress indicators
+    if (hrValues.length > 0) {
+      const sortedHR = [...hrValues].sort((a, b) => a - b);
+      const hrThreshold = sortedHR[Math.floor(0.9 * sortedHR.length)]; // 90th percentile
+      const highHrCount = hrValues.filter((hr) => hr > hrThreshold).length;
+      const highHrFraction = highHrCount / hrValues.length;
+      stressPercentage += highHrFraction * 100;
+    }
+
+    // Analyze HRV stress indicators (low HRV = high stress)
+    if (hrvValues.length > 0) {
+      const sortedHRV = [...hrvValues].sort((a, b) => a - b);
+      const hrvThreshold = sortedHRV[Math.floor(0.1 * sortedHRV.length)]; // 10th percentile
+      const lowHrvCount = hrvValues.filter((v) => v < hrvThreshold).length;
+      const lowHrvFraction = lowHrvCount / hrvValues.length;
+      stressPercentage += lowHrvFraction * 100;
+    }
+
+    // Analyze respiratory rate stress indicators
+    if (respValues.length > 0) {
+      const sortedResp = [...respValues].sort((a, b) => a - b);
+      const respThreshold = sortedResp[Math.floor(0.9 * sortedResp.length)]; // 90th percentile
+      const highRespCount = respValues.filter((r) => r > respThreshold).length;
+      const highRespFraction = highRespCount / respValues.length;
+      stressPercentage += highRespFraction * 50; // Half weight for respiratory rate
+    }
+
+    // Cap stress percentage at 100% and invert to score (higher is better)
+    stressPercentage = Math.min(100, stressPercentage);
+    const sleepStressScore = Math.max(0, 100 - stressPercentage);
+
+    // If no physiological stress indicators were found, fall back to basic calculation
+    if (hrValues.length === 0 && hrvValues.length === 0 && respValues.length === 0) {
+      return calculateBasicSleepStress(sleepCluster);
+    }
+
+    return roundTo(sleepStressScore, 1);
+  } catch (error) {
+    console.warn(
+      "Could not fetch physiological data for sleep stress calculation:",
+      error
+    );
+    // Fallback to basic awake time calculation
+    return calculateBasicSleepStress(sleepCluster);
+  }
+};
+
+/**
+ * Fallback sleep stress calculation based on awake time percentage
+ */
+const calculateBasicSleepStress = (sleepCluster: SleepCluster): number => {
+  const totalTime =
+    sleepCluster.asleepMs + (sleepCluster.timeInBedMs - sleepCluster.asleepMs);
+
+  // If no sleep data, return neutral score instead of perfect score
+  if (totalTime === 0) return 50;
+
+  const awakeTime = sleepCluster.timeInBedMs - sleepCluster.asleepMs;
+  const awakePercentage = (awakeTime / totalTime) * 100;
+
+  // If no awake time recorded, cap at 95% instead of 100%
+  if (awakePercentage === 0) return 95;
+
+  const highSleepStress = awakePercentage > 10 ? awakePercentage - 10 : 0;
+  const sleepQualityScore = Math.max(0, 100 - highSleepStress);
+
+  return roundTo(sleepQualityScore, 1);
+};
+
+/**
+ * Calculate comprehensive enhanced sleep performance metrics
+ */
+export const calculateEnhancedSleepPerformance = async (
+  sleepNeed?: SleepNeed
+): Promise<SleepPerformanceMetrics> => {
+  const { now } = getCurrentDateRanges();
+
+  // Fetch 5 days of sleep data for consistency analysis
+  const fiveDaysAgo = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000);
+  const sleepSamples = await queryCategorySamples(
+    HKCategoryTypeIdentifier.sleepAnalysis,
+    { from: fiveDaysAgo, to: now }
+  );
+
+  if (!sleepSamples || sleepSamples.length === 0) {
+    throw new Error("No sleep data available");
+  }
+
+  // Create sleep clusters
+  const clusters = createSleepClusters(sleepSamples);
+  const mainCluster = clusters.find((c) => c.isMainSleep);
+
+  if (!mainCluster) {
+    throw new Error("Could not identify main sleep session");
+  }
+
+  // Calculate sleep need (use provided or defaults)
+  const calculatedSleepNeed = sleepNeed || calculateSleepNeed();
+
+  // Calculate total sleep hours from main cluster
+  const totalSleepHours = msToHours(mainCluster.asleepMs);
+
+  // 1. Hours vs. Needed
+  const hoursVsNeeded =
+    calculatedSleepNeed.totalNeedHours > 0
+      ? Math.min(
+          100,
+          (totalSleepHours / calculatedSleepNeed.totalNeedHours) * 100
+        )
+      : 100;
+
+  // 2. Sleep Consistency
+  const sleepConsistency = calculateEnhancedSleepConsistency(clusters);
+
+  // 3. Sleep Efficiency
+  const sleepEfficiency =
+    mainCluster.timeInBedMs > 0
+      ? Math.min(100, (mainCluster.asleepMs / mainCluster.timeInBedMs) * 100)
+      : 0;
+
+  // 4. Sleep Stress
+  const sleepStress = await calculateSleepStress(mainCluster);
+
+  // 5. Overall Score (weighted average)
+  const overallScore = Math.round(
+    (hoursVsNeeded + sleepConsistency + sleepEfficiency + sleepStress) / 4
+  );
+
+  return {
+    hoursVsNeeded: Math.round(hoursVsNeeded),
+    sleepConsistency: Math.round(sleepConsistency),
+    sleepEfficiency: Math.round(sleepEfficiency),
+    sleepStress: Math.round(sleepStress),
+    overallScore,
+    sleepNeed: calculatedSleepNeed,
+    mainCluster,
+  };
+};
+
+/**
+ * Enhanced sleep performance calculation with personalized sleep need
+ * This is the main function that should be used for comprehensive sleep analysis
+ */
+export const calculatePersonalizedSleepPerformance = async (
+  baselineHours: number = 8.0,
+  strainHours: number = 0.0,
+  sleepDebtHours: number = 0.0,
+  napHours: number = 0.0
+): Promise<SleepPerformanceMetrics> => {
+  const sleepNeed = calculateSleepNeed(
+    baselineHours,
+    strainHours,
+    sleepDebtHours,
+    napHours
+  );
+  return calculateEnhancedSleepPerformance(sleepNeed);
+};
+
+/**
+ * Convenience function for getting enhanced sleep metrics with user preferences
+ * This can be called from React components that need detailed sleep analysis
+ */
+export const getSleepMetrics = async (options?: {
+  baselineHours?: number;
+  strainHours?: number;
+  sleepDebtHours?: number;
+  napHours?: number;
+}): Promise<SleepPerformanceMetrics> => {
+  const {
+    baselineHours = 8.0,
+    strainHours = 0.0,
+    sleepDebtHours = 0.0,
+    napHours = 0.0,
+  } = options || {};
+
+  return calculatePersonalizedSleepPerformance(
+    baselineHours,
+    strainHours,
+    sleepDebtHours,
+    napHours
+  );
+};
+
+/**
+ * Get sleep debt based on recent sleep history
+ * Calculates accumulated sleep deficit from the past week
+ */
+export const calculateSleepDebt = async (
+  targetHours: number = 8.0
+): Promise<number> => {
+  const { oneWeekAgo, now } = getCurrentDateRanges();
+
+  const sleepSamples = await queryCategorySamples(
+    HKCategoryTypeIdentifier.sleepAnalysis,
+    { from: oneWeekAgo, to: now }
+  );
+
+  const clusters = createSleepClusters(sleepSamples);
+  const mainSleepClusters = clusters.filter((c) => c.isMainSleep);
+
+  let totalDebt = 0;
+
+  mainSleepClusters.forEach((cluster) => {
+    const actualSleep = msToHours(cluster.asleepMs);
+    const deficit = Math.max(0, targetHours - actualSleep);
+    totalDebt += deficit;
+  });
+
+  return roundTo(totalDebt, 1);
 };

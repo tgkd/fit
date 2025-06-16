@@ -47,7 +47,7 @@ const defaultData: HealthData = {
       hoursVsNeeded: 0,
       sleepConsistency: 0,
       sleepEfficiency: 0,
-      highSleepStress: 0,
+      sleepStress: 0,
     },
     lastNight: {
       totalSleepTime: "",
@@ -168,7 +168,7 @@ function generateFakeHealthData(): HealthData {
         hoursVsNeeded: 81,
         sleepConsistency: 90,
         sleepEfficiency: 92,
-        highSleepStress: 0,
+        sleepStress: 15, // Inverted stress percentage
       },
     },
 

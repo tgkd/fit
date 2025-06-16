@@ -230,11 +230,6 @@ export const processHrv = (hrvValues: number[]) => {
 };
 
 /**
- * Enhanced stress calculation using 14-day baselines and hourly analysis
- * Based on personal baselines rather than population averages
- */
-
-/**
  * Build 14-day average HRV baseline using daily samples
  * Optimized to use bucketBy for efficient grouping
  */
@@ -416,10 +411,6 @@ export const isInIntervals = (t: Date, intervals: TimeInterval[]): boolean => {
   return intervals.some((iv) => t >= iv.start && t < iv.end);
 };
 
-/**
- * Main enhanced stress calculation function
- * Returns comprehensive stress metrics based on personal baselines
- */
 export const calculateStressMetrics = async (
   defaults?: any
 ): Promise<StressMetrics> => {
