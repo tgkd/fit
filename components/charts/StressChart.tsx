@@ -197,19 +197,3 @@ function generateStressChartData(healthData: HealthData): StressDataPoint[] {
     };
   });
 }
-
-function getStressLevel(stressValue: number): string {
-  if (stressValue < 20) return "Low";
-  if (stressValue < 40) return "Mild";
-  if (stressValue < 60) return "Moderate";
-  if (stressValue < 80) return "High";
-  return "Maximum";
-}
-
-function getStressColor(stressValue: number): string {
-  if (stressValue < 20) return "#10b981"; // green
-  if (stressValue < 40) return "#f59e0b"; // yellow
-  if (stressValue < 60) return "#f97316"; // orange
-  if (stressValue < 80) return "#ef4444"; // red
-  return "#dc2626"; // dark red
-}

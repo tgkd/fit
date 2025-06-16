@@ -1,7 +1,5 @@
 import {
   EnergyUnit,
-  HKCategorySample,
-  HKCategoryTypeIdentifier,
   HKQuantitySample,
   HKQuantityTypeIdentifier,
   HKWorkout,
@@ -81,8 +79,6 @@ export interface SleepStats {
   sleepConsistency: number;
   sleepEfficiency: number;
   dailySleepDurations: { date: string; duration: number }[];
-  sleep: readonly HKCategorySample<HKCategoryTypeIdentifier.sleepAnalysis>[];
-  // New detailed sleep data
   metrics: SleepMetrics;
   lastNight: LastNightSleep;
 }
@@ -93,7 +89,6 @@ export interface HeartStressStats {
   hrvMostRecent: number;
   hrvValues: number[];
   recoveryScore: number;
-  strainScore: number;
   stressLevel: number;
   bloodOxygen: { value: number; date: Date | null } | null;
 }
@@ -141,8 +136,9 @@ export interface StressChartDisplayData {
 export interface HealthData
   extends GeneralStats,
     WorkoutStats,
-    SleepStats,
     HeartStressStats {
+  sleep: SleepStats;
+  strainScore: number;
   stressDetails: StressMetrics | null;
   stressChartDisplayData?: StressChartDisplayData; // Added
 }
@@ -186,4 +182,22 @@ export interface WriteHealthDataOptions {
     distance?: number; // meters
     startDate?: Date;
   };
+}
+
+// Definition for HealthDataDefaults
+export interface HealthDataDefaults {
+  RESTING_HEART_RATE?: number;
+  RESPIRATORY_RATE?: number;
+  SLEEP_EFFICIENCY?: number;
+  DEFAULT_STRESS_LEVEL?: number;
+  HRV_BASELINE?: number;
+
+  // Strain calculation defaults
+  MAX_HEART_RATE?: number;
+  STRAIN_LOG_SCALE_FACTOR?: number;
+  HEART_RATE_ZONE_WEIGHTS?: number[];
+  MUSCLE_POINTS_PER_KCAL?: number;
+  MUSCLE_POINTS_PER_MINUTE_DURATION?: number;
+  HRR_ZONE_LOWER_BOUND_PERCENTAGES?: number[];
+  MIN_HRR_FALLBACK_ADJUSTMENT?: number;
 }

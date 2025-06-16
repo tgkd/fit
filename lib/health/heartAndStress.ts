@@ -9,7 +9,6 @@ import {
   queryStatisticsForQuantity,
 } from "@kingstinct/react-native-healthkit";
 import {
-  HeartRateSample,
   HeartStressStats,
   HourlyHeartData, // Added
   StressChartDataPoint,
@@ -18,7 +17,6 @@ import {
   TimeInterval,
 } from "./types";
 import {
-  calculateHRMax,
   createHourStart,
   formatDateDisplay,
   formatHourDisplay,
@@ -36,11 +34,10 @@ const RESP_RATE_RANGE = { min: 8, max: 20 }; // Respiratory rate range
 
 // Recovery score weights
 const RECOVERY_WEIGHTS = {
-  HRV: 0.4,
-  RHR: 0.2,
-  RESP: 0.1,
-  SLEEP: 0.2,
-  STRAIN: 0.1,
+  HRV: 0.5,
+  RHR: 0.25,
+  RESP: 0.125,
+  SLEEP: 0.125,
 };
 
 // Stress level calculation constants
@@ -52,7 +49,7 @@ const STRESS_RATIO_BOUNDS = {
 /**
  * Fetch heart rate, HRV, and stress-related statistics
  * - Resting heart rate, HRV data
- * - Recovery and strain scores
+ * - Recovery score
  * - Stress level calculation
  * - Blood oxygen saturation
  */
@@ -60,7 +57,7 @@ export const fetchHeartStressStats = async (
   age?: number | null,
   defaults?: any
 ): Promise<HeartStressStats> => {
-  const { now, startOfToday, oneDayAgo, oneWeekAgo } = getCurrentDateRanges();
+  const { now, startOfToday, oneWeekAgo } = getCurrentDateRanges();
 
   // Get resting heart rate (most recent)
   const restingHRSample = await getMostRecentQuantitySample(
@@ -87,16 +84,6 @@ export const fetchHeartStressStats = async (
   const respRate =
     respStats?.averageQuantity?.quantity ?? defaults?.RESPIRATORY_RATE ?? 15;
 
-  // Get heart rate samples for strain calculation
-  const hrSamplesRaw = await queryQuantitySamples(
-    HKQuantityTypeIdentifier.heartRate,
-    { from: oneDayAgo, to: now }
-  );
-  const hrSamples: HeartRateSample[] = hrSamplesRaw.map((h) => ({
-    timestamp: new Date(h.startDate),
-    value: h.quantity,
-  }));
-
   // Get blood oxygen saturation
   const spo2Sample = await getMostRecentQuantitySample(
     HKQuantityTypeIdentifier.oxygenSaturation,
@@ -112,14 +99,9 @@ export const fetchHeartStressStats = async (
     restingHeartRate || (defaults?.RESTING_HEART_RATE ?? 60),
     respRate,
     defaults?.SLEEP_EFFICIENCY ?? 85,
-    defaults?.PRIOR_STRAIN ?? 50
-  );
-
-  const hrMax = calculateHRMax(age ?? null);
-  const strainScore = calculateStrainScore(
-    hrSamples,
-    hrMax,
-    restingHeartRate || (defaults?.RESTING_HEART_RATE ?? 60)
+    true, // Enable personalized ranges
+    hrv7DayAvg > 0 ? hrv7DayAvg : undefined,
+    restingHeartRate || undefined
   );
 
   const stressLevel = calculateStressLevel(restingHeartRate, hrv7DayAvg);
@@ -130,7 +112,6 @@ export const fetchHeartStressStats = async (
     hrvMostRecent,
     hrvValues,
     recoveryScore,
-    strainScore,
     stressLevel,
     bloodOxygen,
   };
@@ -140,12 +121,15 @@ export const fetchHeartStressStats = async (
 OUTPUT:
      {
   "restingHeartRate": 59,
-  "hrv7DayAvg": 0,
-  "hrvMostRecent": 0,
-  "hrvValues": [],
-  "recoveryScore": 0,
-  "strainScore": 22.2,
-  "stressLevel": 0,
+  "hrv7DayAvg": 41.666666666666664,
+  "hrvMostRecent": 43,
+  "hrvValues": [
+    41,
+    41,
+    43
+  ],
+  "recoveryScore": 52.9,
+  "stressLevel": 36.6,
   "bloodOxygen": {
     "value": 0.93,
     "date": "2025-06-15T03:36:07.000Z"
@@ -167,89 +151,46 @@ const calculateDynamicRhrRange = (baselineRhr: number) => ({
 
 /**
  * Calculate recovery score with optional dynamic ranges
- * Weighted average of HRV, Resting HR (inverse), Resp Rate (inverse),
- * Sleep Efficiency, Prior Strain (inverse)
+ * Weighted average of HRV, Resting HR (inverse), Resp Rate (inverse), and Sleep Efficiency
  */
 export const calculateRecoveryScore = (
   hrv: number[], // ms SDNN over last night
   restingHR: number, // bpm
   respRate: number, // breaths/min
   sleepEff: number, // %
-  priorStrain: number, // 0–100
   usePersonalizedRanges: boolean = false,
   baselineHrv?: number,
   baselineRhr?: number
 ): number => {
   if (hrv.length === 0) return 0;
 
-  const latestHRV = hrv[hrv.length - 1] || hrv[0] || 0;
+  // Use 7-day HRV average instead of single value for more stable metric
+  const avgHRV = hrv.length > 0 ? mean(hrv) : 0;
 
-  // Use personalized ranges if available and requested, otherwise use population ranges
-  const hrvRange =
-    usePersonalizedRanges && baselineHrv
-      ? calculateDynamicHrvRange(baselineHrv)
-      : HRV_RANGE;
+  // Always use personalized ranges when available
+  const hrvRange = baselineHrv
+    ? calculateDynamicHrvRange(baselineHrv)
+    : HRV_RANGE;
 
-  const rhrRange =
-    usePersonalizedRanges && baselineRhr
-      ? calculateDynamicRhrRange(baselineRhr)
-      : RHR_RANGE;
+  const rhrRange = baselineRhr
+    ? calculateDynamicRhrRange(baselineRhr)
+    : RHR_RANGE;
 
   // Normalize values using appropriate ranges
-  const normHRV = normalize(latestHRV, hrvRange.min, hrvRange.max);
+  const normHRV = normalize(avgHRV, hrvRange.min, hrvRange.max);
   const normRHR = 100 - normalize(restingHR, rhrRange.min, rhrRange.max); // lower HR better
   const normResp =
     100 - normalize(respRate, RESP_RATE_RANGE.min, RESP_RATE_RANGE.max); // lower RR better
   const normSleep = Math.max(0, Math.min(100, sleepEff)); // ensure 0-100 range
-  const normStrainInv = 100 - Math.max(0, Math.min(100, priorStrain)); // high strain reduces readiness
 
-  // weights: HRV 40%, RHR 20%, Resp 10%, Sleep 20%, Strain 10%
+  // Calculate weighted recovery score
   const score =
     normHRV * RECOVERY_WEIGHTS.HRV +
     normRHR * RECOVERY_WEIGHTS.RHR +
     normResp * RECOVERY_WEIGHTS.RESP +
-    normSleep * RECOVERY_WEIGHTS.SLEEP +
-    normStrainInv * RECOVERY_WEIGHTS.STRAIN;
+    normSleep * RECOVERY_WEIGHTS.SLEEP;
 
   return roundTo(score, 1);
-};
-
-/**
- * Calculate strain score using heart rate zones with HRR (Karvonen method)
- * Sum of (minutes_in_zone × zone_index) ÷ 60
- * Zones based on Heart Rate Reserve for more accuracy
- */
-export const calculateStrainScore = (
-  hrSamples: HeartRateSample[],
-  hrMax: number,
-  restingHR: number = 60
-): number => {
-  if (hrSamples.length < 2) return 0;
-
-  const hrReserve = hrMax - restingHR;
-  let weightedMinSum = 0;
-
-  for (let i = 1; i < hrSamples.length; i++) {
-    const prev = hrSamples[i - 1];
-    const curr = hrSamples[i];
-    const minutes =
-      (curr.timestamp.getTime() - prev.timestamp.getTime()) / 1000 / 60;
-
-    // Use Heart Rate Reserve (Karvonen method) for more accurate zones
-    const hrr = (prev.value - restingHR) / hrReserve;
-    const pct = Math.max(0, Math.min(1, hrr)); // Clamp to [0, 1]
-
-    let zone = 0;
-    if (pct < 0.5) zone = 1; // Easy (50-60% HRR)
-    else if (pct < 0.6) zone = 2; // Moderate (60-70% HRR)
-    else if (pct < 0.7) zone = 3; // Vigorous (70-80% HRR)
-    else if (pct < 0.8) zone = 4; // Hard (80-90% HRR)
-    else zone = 5; // Maximum (90%+ HRR)
-
-    weightedMinSum += zone * minutes;
-  }
-
-  return roundTo(weightedMinSum / 60, 1);
 };
 
 /**
@@ -648,7 +589,6 @@ defaults
   "RESPIRATORY_RATE": 15,
   "RESTING_HEART_RATE": 60,
   "SLEEP_EFFICIENCY": 85,
-  "PRIOR_STRAIN": 50,
   "DEFAULT_STRESS_LEVEL": 2,
   "HRV_BASELINE": 45
 }

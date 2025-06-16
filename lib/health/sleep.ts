@@ -38,14 +38,14 @@ export const fetchSleepStats = async (): Promise<SleepStats> => {
 
   return {
     sleepHours: roundTo(totalSleep, 1),
-    sleepPerformance: Math.min(
-      100,
-      (totalSleep / SLEEP_PERFORMANCE_GOAL_HOURS) * 100
+    sleepPerformance: calculateSleepPerformance(
+      totalSleep,
+      sleepEfficiency,
+      sleepConsistency
     ),
     sleepConsistency,
     sleepEfficiency,
     dailySleepDurations,
-    sleep: sleepSamples,
     metrics,
     lastNight,
   };
@@ -308,6 +308,46 @@ export const calculateLastNightSleep = (
       averageDuration: formatDuration(restorativeSleepMinutes),
     },
   };
+};
+
+/**
+ * Calculate comprehensive sleep performance score
+ * Combines duration (50%), efficiency (30%), and consistency (20%)
+ */
+export const calculateSleepPerformance = (
+  totalSleep: number,
+  sleepEfficiency: number,
+  sleepConsistency: number
+): number => {
+  // Duration score: optimal around 7-9 hours, penalize too little or too much
+  let durationScore = 0;
+  if (totalSleep >= 7 && totalSleep <= 9) {
+    durationScore = 100;
+  } else if (totalSleep >= 6 && totalSleep < 7) {
+    durationScore = 70 + ((totalSleep - 6) / 1) * 30; // 70-100%
+  } else if (totalSleep > 9 && totalSleep <= 10) {
+    durationScore = 70 + ((10 - totalSleep) / 1) * 30; // 100-70%
+  } else if (totalSleep >= 5 && totalSleep < 6) {
+    durationScore = 40 + ((totalSleep - 5) / 1) * 30; // 40-70%
+  } else if (totalSleep > 10 && totalSleep <= 11) {
+    durationScore = 40 + ((11 - totalSleep) / 1) * 30; // 70-40%
+  } else if (totalSleep < 5) {
+    durationScore = Math.max(0, (totalSleep / 5) * 40); // 0-40%
+  } else {
+    durationScore = Math.max(0, 40 - (totalSleep - 11) * 10); // <40% for >11h
+  }
+
+  // Efficiency score: direct mapping (85%+ is good)
+  const efficiencyScore = Math.min(100, Math.max(0, sleepEfficiency));
+
+  // Consistency score: higher is better (90%+ is good)
+  const consistencyScore = Math.min(100, Math.max(0, sleepConsistency));
+
+  // Weighted combination: Duration 50%, Efficiency 30%, Consistency 20%
+  const overallScore =
+    durationScore * 0.5 + efficiencyScore * 0.3 + consistencyScore * 0.2;
+
+  return roundTo(overallScore, 1);
 };
 
 export const getPerformanceColor = (perf: number) => {

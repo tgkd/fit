@@ -1,21 +1,22 @@
 import React, { createContext, ReactNode, useEffect, useState } from "react";
 
 import {
-    calculateRecoveryScore,
-    getAllHealthStats,
-    isHealthKitAvailable,
-    HealthData as ModularHealthData,
-    WriteHealthDataOptions as ModularWriteHealthDataOptions,
+  calculateRecoveryScore,
+  getAllHealthStats,
+  isHealthKitAvailable,
 } from "@/lib/health";
+import {
+  HealthData as ModularHealthData,
+  WriteHealthDataOptions as ModularWriteHealthDataOptions,
+} from "@/lib/health/types";
 
 // Default values for health calculations when data is missing
 export const HEALTH_DEFAULTS = {
-  RESPIRATORY_RATE: 15,           // Default breaths per minute
-  RESTING_HEART_RATE: 60,         // Default resting heart rate
-  SLEEP_EFFICIENCY: 85,           // Default sleep efficiency percentage
-  PRIOR_STRAIN: 50,               // Default prior day strain
-  DEFAULT_STRESS_LEVEL: 2,        // Default stress level when data missing
-  HRV_BASELINE: 45                // Default HRV baseline when no data
+  RESPIRATORY_RATE: 15, // Default breaths per minute
+  RESTING_HEART_RATE: 60, // Default resting heart rate
+  SLEEP_EFFICIENCY: 85, // Default sleep efficiency percentage
+  DEFAULT_STRESS_LEVEL: 2, // Default stress level when data missing
+  HRV_BASELINE: 45, // Default HRV baseline when no data
 };
 
 // Use the modular HealthData interface
@@ -35,32 +36,33 @@ const defaultData: HealthData = {
   rawCalories: [],
   workouts: [],
 
-  // SleepStats
-  sleepHours: 0,
-  sleepPerformance: 0,
-  sleepConsistency: 0,
-  sleepEfficiency: 0,
-  dailySleepDurations: [],
-  sleep: [],
-  metrics: {
-    hoursVsNeeded: 0,
+  sleep: {
+    // SleepStats
+    sleepHours: 0,
+    sleepPerformance: 0,
     sleepConsistency: 0,
     sleepEfficiency: 0,
-    highSleepStress: 0,
-  },
-  lastNight: {
-    totalSleepTime: "",
-    averageSleepTime: "",
-    timeInBed: "",
-    stages: {
-      awake: { percentage: 0, duration: 0, color: "#8B8B8B" },
-      light: { percentage: 0, duration: 0, color: "#7BA7D9" },
-      deep: { percentage: 0, duration: 0, color: "#D97BB6" },
-      rem: { percentage: 0, duration: 0, color: "#9B7AD9" },
+    dailySleepDurations: [],
+    metrics: {
+      hoursVsNeeded: 0,
+      sleepConsistency: 0,
+      sleepEfficiency: 0,
+      highSleepStress: 0,
     },
-    restorativeSleep: {
-      duration: "",
-      averageDuration: "",
+    lastNight: {
+      totalSleepTime: "",
+      averageSleepTime: "",
+      timeInBed: "",
+      stages: {
+        awake: { percentage: 0, duration: 0, color: "#8B8B8B" },
+        light: { percentage: 0, duration: 0, color: "#7BA7D9" },
+        deep: { percentage: 0, duration: 0, color: "#D97BB6" },
+        rem: { percentage: 0, duration: 0, color: "#9B7AD9" },
+      },
+      restorativeSleep: {
+        duration: "",
+        averageDuration: "",
+      },
     },
   },
 
@@ -74,7 +76,7 @@ const defaultData: HealthData = {
   stressLevel: 0,
   bloodOxygen: null,
 
-  stressDetails: null
+  stressDetails: null,
 };
 
 export const HealthDataContext = createContext<{
@@ -138,35 +140,35 @@ function generateFakeHealthData(): HealthData {
     rawCalories: [],
     workouts: [],
 
-    // SleepStats
-    sleepHours: 7.5,
-    sleepPerformance: 94,
-    sleepConsistency: 85,
-    sleepEfficiency: 92,
-    dailySleepDurations: [
-      { date: "2025-01-14", duration: 7.5 },
-      { date: "2025-01-13", duration: 8.0 },
-    ],
-    sleep: [],
-    metrics: {
-      hoursVsNeeded: 81,
-      sleepConsistency: 90,
+    sleep: {
+      sleepHours: 7.5,
+      sleepPerformance: 94,
+      sleepConsistency: 85,
       sleepEfficiency: 92,
-      highSleepStress: 0,
-    },
-    lastNight: {
-      totalSleepTime: "7:12",
-      averageSleepTime: "7:23",
-      timeInBed: "7:54",
-      stages: {
-        awake: { percentage: 8, duration: 42, color: "#8B8B8B" },
-        light: { percentage: 50, duration: 230, color: "#7BA7D9" },
-        deep: { percentage: 25, duration: 121, color: "#D97BB6" },
-        rem: { percentage: 17, duration: 81, color: "#9B7AD9" },
+      dailySleepDurations: [
+        { date: "2025-01-14", duration: 7.5 },
+        { date: "2025-01-13", duration: 8.0 },
+      ],
+      lastNight: {
+        totalSleepTime: "7:12",
+        averageSleepTime: "7:23",
+        timeInBed: "7:54",
+        stages: {
+          awake: { percentage: 8, duration: 42, color: "#8B8B8B" },
+          light: { percentage: 50, duration: 230, color: "#7BA7D9" },
+          deep: { percentage: 25, duration: 121, color: "#D97BB6" },
+          rem: { percentage: 17, duration: 81, color: "#9B7AD9" },
+        },
+        restorativeSleep: {
+          duration: "3:22",
+          averageDuration: "3:26",
+        },
       },
-      restorativeSleep: {
-        duration: "3:22",
-        averageDuration: "3:26",
+      metrics: {
+        hoursVsNeeded: 81,
+        sleepConsistency: 90,
+        sleepEfficiency: 92,
+        highSleepStress: 0,
       },
     },
 
@@ -179,8 +181,7 @@ function generateFakeHealthData(): HealthData {
       fakeHrvValues,
       fakeRHR,
       HEALTH_DEFAULTS.RESPIRATORY_RATE,
-      92, // sleep efficiency
-      HEALTH_DEFAULTS.PRIOR_STRAIN
+      92 // sleep efficiency
     ),
     strainScore: 65,
     stressLevel: 25,

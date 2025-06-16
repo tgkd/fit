@@ -7,14 +7,19 @@ import {
 } from "./heartAndStress";
 import { initializeHealthKit, isHealthKitAvailable } from "./permissions";
 import { fetchSleepStats } from "./sleep";
-import { HealthData, StressChartDisplayData } from "./types";
+import { calculateDayStrain } from "./strain";
+import {
+  HealthData,
+  HealthDataDefaults,
+  StressChartDisplayData,
+} from "./types";
 import { fetchWorkoutStats } from "./workouts";
 
 /**
  * Main health data aggregator function
  */
 export const getAllHealthStats = async (
-  defaults?: any
+  defaults?: HealthDataDefaults // Use HealthDataDefaults type
 ): Promise<HealthData> => {
   await initializeHealthKit();
 
@@ -45,8 +50,7 @@ export const getAllHealthStats = async (
       heartStressStats.hrvValues,
       heartStressStats.restingHeartRate || (defaults?.RESTING_HEART_RATE ?? 60),
       defaults?.RESPIRATORY_RATE ?? 15,
-      sleepStats.sleepEfficiency,
-      defaults?.PRIOR_STRAIN ?? 50
+      sleepStats.sleepEfficiency
     );
 
     const stressChartDisplayData: StressChartDisplayData =
@@ -58,12 +62,16 @@ export const getAllHealthStats = async (
         defaults
       );
 
+    // Calculate strain score for today
+    const strainScore = await calculateDayStrain(new Date(), defaults);
+
     return {
       ...generalStats,
       ...workoutStats,
-      ...sleepStats,
       ...heartStressStats,
       recoveryScore: improvedRecoveryScore,
+      sleep: sleepStats,
+      strainScore,
       stressDetails,
       stressChartDisplayData,
     };
@@ -95,7 +103,6 @@ export * from "./generalStats";
 export * from "./heartAndStress";
 export * from "./permissions";
 export * from "./sleep";
-export * from "./types";
+export * from "./strain";
 export * from "./utils";
 export * from "./workouts";
-
