@@ -197,6 +197,7 @@ const translations = {
       sleep: "Сон",
       activity: "Активность",
       healthData: "Здоровье",
+      settings: "Настройки",
     },
     // HomeScreen (app/(tabs)/index.tsx)
     home: {
@@ -254,93 +255,24 @@ const translations = {
       awakeTime: "Время бодрствования",
       sleepStagesDistribution: "Распределение фаз сна",
       unknownSource: "Неизвестно",
-    },
-
-    // Settings Screen (app/(tabs)/settings.tsx)
-    settings: {
-      title: "Настройки",
-      subtitle: "Настройте параметры приложения",
-      healthDataTitle: "Данные о здоровье",
-      healthDataSubtitle:
-        "Управляйте разрешениями для данных о здоровье в приложении Здоровье",
-    },
-
-    // StressChart.tsx
-    stressChart: {
-      title: "Уровни стресса",
-      levelYAxis: "Уровень стресса",
-      timeXAxis: "Время",
-      legendLow: "Низкий",
-      legendModerate: "Умеренный",
-      legendMid: "Средний",
-      legendHigh: "Высокий",
-      legendMax: "Максимальный",
-      legendVeryHigh: "Очень высокий",
-      statsAvg: "Среднее:",
-      statsMin: "Мин:",
-      statsMax: "Макс:",
-      statsCurrent: "Текущий:",
-      stress: "Стресс",
-      avg: "Среднее",
-      peak: "Пик",
-    },
-
-    // HomeScreen (app/(tabs)/index.tsx)
-    home: {
-      screenTitle: "Сегодняшняя панель",
-      dailyStressTrends: "Ежедневные тенденции стресса",
-      noStressData: "Данные о стрессе недоступны.",
-      loadingHealthData: "Загрузка данных о здоровье...",
-      strain: "Нагрузка",
-      recovery: "Восстановление",
-      sleep: "Сон",
-      hrv: "ВСР",
-      readiness: "Готовность",
-      currentScore: "Текущий балл",
-      avgLast7Days: "Среднее за 7 дней",
-      lastNight: "Прошлая ночь",
-      sleepHours: "{{hours}} ч",
-      performance: "Производительность: {{performance}}",
-      consistency: "Постоянство: {{consistency}}",
-      heartRate: "Пульс",
-      restingHeartRateValue: "{{value}} уд/мин",
-      restingHeartRate: "В покое",
-      activity: "Активность",
-      stepsToday: "Шагов сегодня",
-      caloriesBurned: "{{calories}} ккал сожжено",
-      recoveryScore: "{{score}}",
-      recoveryScoreLabel: "Балл восстановления",
-      strainScore: "{{score}}",
-      trainingStrain: "Тренировочная нагрузка",
-      bloodOxygen: "Кислород в крови",
-      bloodOxygenValue: "{{value}}%",
-      spo2: "SpO2",
-      stress: "Стресс",
-      stressLevelValue: "{{value}}",
-      stressLevel: "Текущий уровень",
-      hrvValue: "{{value}} мс",
-      hrvLabel: "ВСР",
-      healthData: "Синхронизация данных о здоровье",
-      healthDataSync:
-        "Ваши данные о здоровье автоматически синхронизируются с вашего устройства или совместимых приложений Health Connect.",
-    },
-
-    // Sleep Screen (app/(tabs)/sleep.tsx)
-    sleep: {
-      chart: {
-        total: "Всего",
-        deep: "Глубокий",
-        rem: "БДГ",
-        core: "Основной",
-        awake: "Бодрствование",
-      },
-      total: "Общий сон",
-      deep: "Глубокий сон",
-      rem: "БДГ-сон",
-      core: "Основной сон",
-      awakeTime: "Время бодрствования",
-      sleepStagesDistribution: "Распределение фаз сна",
-      unknownSource: "Неизвестно",
+      today: "СЕГОДНЯ",
+      performanceMessage:
+        "Вы отлично справляетесь с оптимальной производительностью сна, но часы против необходимых требуют внимания.",
+      learnMore: "УЗНАТЬ БОЛЬШЕ",
+      lastNightsSleep: "Прошлой ночью сон",
+      todayVsPrior30Days: "Сегодня против предыдущих 30 дней",
+      hoursOfSleep: "ЧАСЫ СНА",
+      typicalRange: "ТИПИЧНЫЙ ДИАПАЗОН",
+      duration: "ПРОДОЛЖИТЕЛЬНОСТЬ",
+      awake: "БОДРСТВОВАНИЕ",
+      light: "ЛЕГКИЙ",
+      restorativeSleep: "ВОССТАНОВИТЕЛЬНЫЙ СОН",
+      hoursVsNeeded: "ЧАСЫ ПРОТИВ НЕОБХОДИМЫХ",
+      sleepConsistency: "ПОСТОЯНСТВО СНА",
+      sleepEfficiency: "ЭФФЕКТИВНОСТЬ СНА",
+      highSleepStress: "ВЫСОКИЙ СТРЕСС СНА",
+      sleepPerformance: "ПРОИЗВОДИТЕЛЬНОСТЬ СНА",
+      sleep: "СОН",
     },
 
     // Settings Screen (app/(tabs)/settings.tsx)
@@ -365,7 +297,6 @@ const translations = {
       avgCalories: "ср. калорий",
       noWorkoutData: "Данных о тренировках нет в HealthKit. Начните тренировку на вашем Apple Watch или iPhone, чтобы увидеть данные здесь.",
       noWorkoutsLast7Days: "Тренировок не было за последние 7 дней",
-      // Workout Details Screen
       quickStats: "Быстрая статистика",
       duration: "Продолжительность",
       details: "Детали",
@@ -385,7 +316,6 @@ const translations = {
       bpm: "уд/мин",
       hours: "Часы",
       activeCal: "Активные калории",
-      tennis: "Теннис",
       running: "Бег",
       cycling: "Велосипед",
       swimming: "Плавание",
@@ -422,8 +352,8 @@ const translations = {
     stressMonitor: {
       title: "МОНИТОР СТРЕССА",
       lastUpdated: "Обновлено {{time}}",
-      loadingData: "Загрузка данных...", // Added
-      noData: "Данные отсутствуют.", // Added
+      loadingData: "Загрузка данных...",
+      noData: "Данные отсутствуют.",
       levels: {
         low: "НИЗКИЙ",
         medium: "СРЕДНИЙ",
@@ -446,21 +376,29 @@ const translations = {
     },
   },
   ja: {
+    tabs: {
+      home: "ホーム",
+      stress: "ストレス",
+      sleep: "睡眠",
+      activity: "アクティビティ",
+      healthData: "健康データ",
+      settings: "設定",
+    },
     // HomeScreen (app/(tabs)/index.tsx)
     home: {
-      screenTitle: "今日のダッシュボード", // Was homeScreenTitle
+      screenTitle: "今日のダッシュボード",
       dailyStressTrends: "日次ストレス傾向",
       noStressData: "ストレスデータがありません。",
       loadingHealthData: "健康データを読み込み中...",
       strain: "負荷",
       recovery: "回復",
       sleep: "睡眠",
-      hrv: "HRV", // Often kept as HRV or 心拍変動
+      hrv: "HRV",
       readiness: "準備状態",
       currentScore: "現在のスコア",
       avgLast7Days: "過去7日間の平均",
       lastNight: "昨晩",
-      sleepHours: "{{hours}}時間", // for sleep duration, was hours
+      sleepHours: "{{hours}}時間",
       performance: "パフォーマンス: {{performance}}",
       consistency: "一貫性: {{consistency}}",
       heartRate: "心拍数",
@@ -476,7 +414,7 @@ const translations = {
       bloodOxygen: "血中酸素",
       bloodOxygenValue: "{{value}}%",
       spo2: "SpO2",
-      stress: "ストレス", // General term for stress, also used in metric card
+      stress: "ストレス",
       stressLevelValue: "{{value}}",
       stressLevel: "現在のレベル",
       hrvValue: "{{value}} ms",
@@ -486,11 +424,55 @@ const translations = {
         "健康データは、お使いのデバイスまたはHealth Connect対応アプリから自動的に同期されます。",
     },
 
+    // Sleep Screen (app/(tabs)/sleep.tsx)
+    sleep: {
+      chart: {
+        total: "合計",
+        deep: "深い",
+        rem: "REM",
+        core: "コア",
+        awake: "覚醒",
+      },
+      total: "合計睡眠",
+      deep: "深い睡眠",
+      rem: "REM睡眠",
+      core: "コア睡眠",
+      awakeTime: "覚醒時間",
+      sleepStagesDistribution: "睡眠段階の分布",
+      unknownSource: "不明",
+      today: "今日",
+      performanceMessage:
+        "最適な睡眠パフォーマンスで素晴らしい結果ですが、必要時間vs実際時間に注意が必要です。",
+      learnMore: "詳細を見る",
+      lastNightsSleep: "昨夜の睡眠",
+      todayVsPrior30Days: "今日 vs 過去30日間",
+      hoursOfSleep: "睡眠時間",
+      typicalRange: "一般的な範囲",
+      duration: "継続時間",
+      awake: "覚醒",
+      light: "浅い",
+      restorativeSleep: "回復睡眠",
+      hoursVsNeeded: "時間 vs 必要",
+      sleepConsistency: "睡眠の一貫性",
+      sleepEfficiency: "睡眠効率",
+      highSleepStress: "高睡眠ストレス",
+      sleepPerformance: "睡眠パフォーマンス",
+      sleep: "睡眠",
+    },
+
+    // Settings Screen (app/(tabs)/settings.tsx)
+    settings: {
+      title: "設定",
+      subtitle: "アプリの設定を構成する",
+      healthDataTitle: "健康データ",
+      healthDataSubtitle: "ヘルスアプリで健康データの権限を管理する",
+    },
+
     // Workouts Screen (app/(tabs)/workouts.tsx)
     workouts: {
       title: "トレーニング",
       subtitle: "HealthKitからトレーニングを追跡および管理する",
-      thisMonth: "この月",
+      thisMonth: "今月",
       last7Days: "過去7日間",
       allTime: "全期間",
       workoutsCount: "トレーニング",
@@ -500,7 +482,6 @@ const translations = {
       avgCalories: "平均カロリー",
       noWorkoutData: "HealthKitからのトレーニングデータがありません。Apple WatchまたはiPhoneでトレーニングを開始してここにデータを表示します。",
       noWorkoutsLast7Days: "過去7日間にトレーニングはありません",
-      // Workout Details Screen
       quickStats: "クイック統計",
       duration: "継続時間",
       details: "詳細",
@@ -511,6 +492,21 @@ const translations = {
       additionalInfo: "追加情報",
       workoutRecorded: "トレーニング記録日",
       avgCaloriesPerMinute: "1分あたりの平均カロリー",
+      heartRateRange: "心拍数範囲",
+      avgHeartRate: "平均心拍数",
+      distance: "距離",
+      pace: "ペース",
+      m: "m",
+      km: "km",
+      bpm: "bpm",
+      hours: "時間",
+      activeCal: "アクティブカロリー",
+      running: "ランニング",
+      cycling: "サイクリング",
+      swimming: "水泳",
+      functionalStrengthTraining: "ファンクショナル筋力トレーニング",
+      yoga: "ヨガ",
+      soccer: "サッカー",
     },
 
     common: {
@@ -519,27 +515,30 @@ const translations = {
 
     // StressChart.tsx
     stressChart: {
-      // Added nesting
-      title: "ストレスレベル", // Was stressChartTitle
-      levelYAxis: "ストレスレベル", // Was stressLevelYAxis
+      title: "ストレスレベル",
+      levelYAxis: "ストレスレベル",
       timeXAxis: "時間",
       legendLow: "低い",
       legendModerate: "中程度",
+      legendMid: "中間",
       legendHigh: "高い",
+      legendMax: "最大",
       legendVeryHigh: "非常に高い",
       statsAvg: "平均:",
       statsMin: "最小:",
       statsMax: "最大:",
       statsCurrent: "現在:",
-      stress: "ストレス", // General term for stress
+      stress: "ストレス",
+      avg: "平均",
+      peak: "ピーク",
     },
 
     // StressMonitorCard.tsx
     stressMonitor: {
       title: "ストレスモニター",
       lastUpdated: "最終更新 {{time}}",
-      loadingData: "データを読み込み中...", // Added
-      noData: "利用可能なデータがありません。", // Added
+      loadingData: "データを読み込み中...",
+      noData: "利用可能なデータがありません。",
       levels: {
         low: "低い",
         medium: "中程度",

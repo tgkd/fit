@@ -46,23 +46,6 @@ export default function HomeScreen() {
       />
 
       <Card>
-        <ThemedText type="subtitle">{i18n.t("home.sleep")}</ThemedText>
-        <ThemedText type="title">
-          {i18n.t("home.sleepHours", { hours: data.sleep.sleepHours })}
-        </ThemedText>
-        <ThemedText>
-          {i18n.t("home.performance", {
-            performance: data.sleep.sleepPerformance.toFixed(1),
-          })}
-        </ThemedText>
-        <ThemedText>
-          {i18n.t("home.consistency", {
-            consistency: data.sleep.sleepConsistency.toFixed(1),
-          })}
-        </ThemedText>
-      </Card>
-
-      <Card>
         <ThemedText type="subtitle">{i18n.t("home.heartRate")}</ThemedText>
         <ThemedText type="title">
           {i18n.t("home.restingHeartRateValue", {
