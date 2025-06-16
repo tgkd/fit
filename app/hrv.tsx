@@ -17,7 +17,7 @@ export default function HRVScreen() {
         <>
           <View style={styles.header}>
             <ThemedText type="subtitle" size="xl" style={styles.title}>
-              {i18n.t("hrvScreen.enhancedStressAnalysis")}
+              {i18n.t("hrvScreen.stressAnalysis")}
             </ThemedText>
             <ThemedText type="secondary" size="md" style={styles.subtitle}>
               {i18n.t("hrvScreen.basedOnPersonalBaselines")}
@@ -96,7 +96,7 @@ export default function HRVScreen() {
       {!data.stressDetails && (
         <View style={styles.emptyStateContainer}>
           <ThemedText type="subtitle" size="xl">
-            {i18n.t("hrvScreen.enhancedStressAnalysis")}
+            {i18n.t("hrvScreen.stressAnalysis")}
           </ThemedText>
           <ThemedText size="md">
             {i18n.t("hrvScreen.stressDataUnavailable", {

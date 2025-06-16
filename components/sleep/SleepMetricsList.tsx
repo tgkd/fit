@@ -77,8 +77,8 @@ export function SleepMetricsList({ metrics }: SleepMetricsListProps) {
       <View style={[styles.divider, { backgroundColor: borderColor }]} />
 
       <MetricRow
-        label={i18n.t("sleep.highSleepStress")}
-        percentage={metrics.highSleepStress}
+        label={i18n.t("sleep.sleepStress")}
+        percentage={metrics.sleepStress}
       />
     </>
   );

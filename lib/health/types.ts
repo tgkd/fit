@@ -1,11 +1,9 @@
 import {
   EnergyUnit,
-  HKCategorySample,
-  HKCategoryTypeIdentifier,
   HKQuantitySample,
   HKQuantityTypeIdentifier,
   HKWorkout,
-  LengthUnit
+  LengthUnit,
 } from "@kingstinct/react-native-healthkit";
 
 // Shared interfaces for all health modules
@@ -43,7 +41,33 @@ export interface SleepMetrics {
   hoursVsNeeded: number;
   sleepConsistency: number;
   sleepEfficiency: number;
-  highSleepStress: number;
+  sleepStress: number; // Sleep quality score (0-100, higher = better restfulness)
+}
+
+export interface SleepNeed {
+  baselineHours: number;
+  strainHours: number;
+  sleepDebtHours: number;
+  napHours: number;
+  totalNeedHours: number;
+}
+
+export interface SleepCluster {
+  start: Date;
+  end: Date;
+  asleepMs: number;
+  timeInBedMs: number;
+  isMainSleep: boolean;
+}
+
+export interface SleepPerformanceMetrics {
+  hoursVsNeeded: number; // Percentage of sleep vs needed (0–100)
+  sleepConsistency: number; // Consistency score (0–100)
+  sleepEfficiency: number; // Sleep efficiency percentage (0–100)
+  sleepStress: number; // Sleep quality score (0–100, higher = better restfulness)
+  overallScore: number; // Overall sleep performance (0–100)
+  sleepNeed: SleepNeed;
+  mainCluster: SleepCluster;
 }
 
 export interface SleepStage {
@@ -81,8 +105,6 @@ export interface SleepStats {
   sleepConsistency: number;
   sleepEfficiency: number;
   dailySleepDurations: { date: string; duration: number }[];
-  sleep: readonly HKCategorySample<HKCategoryTypeIdentifier.sleepAnalysis>[];
-  // New detailed sleep data
   metrics: SleepMetrics;
   lastNight: LastNightSleep;
 }
@@ -93,7 +115,6 @@ export interface HeartStressStats {
   hrvMostRecent: number;
   hrvValues: number[];
   recoveryScore: number;
-  strainScore: number;
   stressLevel: number;
   bloodOxygen: { value: number; date: Date | null } | null;
 }
@@ -141,8 +162,9 @@ export interface StressChartDisplayData {
 export interface HealthData
   extends GeneralStats,
     WorkoutStats,
-    SleepStats,
     HeartStressStats {
+  sleep: SleepStats;
+  strainScore: number;
   stressDetails: StressMetrics | null;
   stressChartDisplayData?: StressChartDisplayData; // Added
 }
@@ -186,4 +208,22 @@ export interface WriteHealthDataOptions {
     distance?: number; // meters
     startDate?: Date;
   };
+}
+
+// Definition for HealthDataDefaults
+export interface HealthDataDefaults {
+  RESTING_HEART_RATE?: number;
+  RESPIRATORY_RATE?: number;
+  SLEEP_EFFICIENCY?: number;
+  DEFAULT_STRESS_LEVEL?: number;
+  HRV_BASELINE?: number;
+
+  // Strain calculation defaults
+  MAX_HEART_RATE?: number;
+  STRAIN_LOG_SCALE_FACTOR?: number;
+  HEART_RATE_ZONE_WEIGHTS?: number[];
+  MUSCLE_POINTS_PER_KCAL?: number;
+  MUSCLE_POINTS_PER_MINUTE_DURATION?: number;
+  HRR_ZONE_LOWER_BOUND_PERCENTAGES?: number[];
+  MIN_HRR_FALLBACK_ADJUSTMENT?: number;
 }

@@ -2,8 +2,8 @@ import React, { use } from "react";
 import { StyleSheet } from "react-native";
 
 import { LastNightSleepDetails } from "@/components/charts/LastNightSleepDetails";
-import { SleepMetricsList } from "@/components/charts/SleepMetricsList";
 import { SleepPerformanceChart } from "@/components/charts/SleepPerformanceChart";
+import { SleepMetricsList } from "@/components/sleep/SleepMetricsList";
 import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/ui/Card";
 import { ThemedScrollView } from "@/components/ui/ThemedScrollView";
@@ -21,17 +21,15 @@ export default function SleepScreen() {
 
       <Card style={styles.chartCard}>
         <SleepPerformanceChart
-          percentage={data.sleepPerformance}
+          percentage={data.sleep.sleepPerformance}
           size={220}
         />
       </Card>
-
       <Card>
-        <SleepMetricsList metrics={data.metrics} />
+        <SleepMetricsList metrics={data.sleep.metrics} />
       </Card>
-
       <Card>
-        <LastNightSleepDetails lastNight={data.lastNight} />
+        <LastNightSleepDetails lastNight={data.sleep.lastNight} />
       </Card>
     </ThemedScrollView>
   );

@@ -19,7 +19,7 @@ export default function HomeScreen() {
     <ThemedScrollView>
       <Card style={styles.circularChartsContainer}>
         <CircularProgressChart
-          value={data.sleepPerformance}
+          value={data.sleep.sleepPerformance}
           color={Colors.charts.sleep}
           backgroundColor={Colors.charts.chartBackground}
           label={i18n.t("home.sleep").toUpperCase()}
@@ -44,23 +44,6 @@ export default function HomeScreen() {
           router.push("/hrv");
         }}
       />
-
-      <Card>
-        <ThemedText type="subtitle">{i18n.t("home.sleep")}</ThemedText>
-        <ThemedText type="title">
-          {i18n.t("home.sleepHours", { hours: data.sleepHours })}
-        </ThemedText>
-        <ThemedText>
-          {i18n.t("home.performance", {
-            performance: data.sleepPerformance.toFixed(1),
-          })}
-        </ThemedText>
-        <ThemedText>
-          {i18n.t("home.consistency", {
-            consistency: data.sleepConsistency.toFixed(1),
-          })}
-        </ThemedText>
-      </Card>
 
       <Card>
         <ThemedText type="subtitle">{i18n.t("home.heartRate")}</ThemedText>
@@ -105,9 +88,7 @@ export default function HomeScreen() {
 
       {data.bloodOxygen?.value ? (
         <Card>
-          <ThemedText type="subtitle">
-            {i18n.t("home.bloodOxygen")}
-          </ThemedText>
+          <ThemedText type="subtitle">{i18n.t("home.bloodOxygen")}</ThemedText>
           <ThemedText type="title">
             {i18n.t("home.bloodOxygenValue", {
               value: data.bloodOxygen.value.toFixed(1),
