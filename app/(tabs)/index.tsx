@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import React, { use } from "react";
-import { StyleSheet } from "react-native";
+import { Pressable, StyleSheet } from "react-native";
 
 import { CircularProgressChart } from "@/components/charts/CircularProgressChart";
 import { StressMonitorCard } from "@/components/charts/StressMonitorCard";
@@ -18,12 +18,14 @@ export default function HomeScreen() {
   return (
     <ThemedScrollView>
       <Card style={styles.circularChartsContainer}>
-        <CircularProgressChart
-          value={data.sleep.sleepPerformance}
-          color={Colors.charts.sleep}
-          backgroundColor={Colors.charts.chartBackground}
-          label={i18n.t("home.sleep").toUpperCase()}
-        />
+        <Pressable onPress={() => router.push("/sleep")}>
+          <CircularProgressChart
+            value={data.sleep.sleepPerformance}
+            color={Colors.charts.sleep}
+            backgroundColor={Colors.charts.chartBackground}
+            label={i18n.t("home.sleep").toUpperCase()}
+          />
+        </Pressable>
         <CircularProgressChart
           value={data.recoveryScore}
           color={Colors.charts.recovery}

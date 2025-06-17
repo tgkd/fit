@@ -14,7 +14,7 @@ export default function SleepScreen() {
   const { data } = use(HealthDataContext);
 
   return (
-    <ThemedScrollView>
+    <ThemedScrollView paddingTop={16}>
       <ThemedText type="defaultSemiBold" size="md" textAlign="center">
         {i18n.t("sleep.today")}
       </ThemedText>
