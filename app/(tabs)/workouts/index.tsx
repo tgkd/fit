@@ -1,104 +1,108 @@
+import { useContext } from "react";
+import { FlatList, ListRenderItem, StyleSheet, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
 import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/ui/Card";
-import { ThemedScrollView } from "@/components/ui/ThemedScrollView";
-import { WorkoutData, WorkoutList } from "@/components/workouts";
+import { WorkoutItem } from "@/components/workouts";
+import { WorkoutData } from "@/components/workouts/types";
 import { HealthDataContext } from "@/context/HealthDataContext";
 import { formatDurationHHMM } from "@/lib/formatters";
+import { processWorkoutData } from "@/lib/health/workouts";
 import i18n from "@/lib/i18n";
-import { EnergyUnit, HKWorkout, LengthUnit } from "@kingstinct/react-native-healthkit";
-import { useContext } from "react";
-import { StyleSheet, View } from "react-native";
 
 export default function WorkoutsScreen() {
   const { data } = useContext(HealthDataContext);
 
-  // Convert HealthKit workout data to our format
-  const convertToWorkouts = (): WorkoutData[] => {
-    if (!data.workouts || data.workouts.length === 0) {
-      return [];
-    }
-    return data.workouts.map((workout: HKWorkout<EnergyUnit, LengthUnit>, index: number) => {
-      const duration =
-        (new Date(workout.endDate).getTime() -
-          new Date(workout.startDate).getTime()) /
-        (1000 * 60); // duration in minutes
-      return {
-        id: workout.uuid || `workout-${index}`,
-        type: workout.workoutActivityType,
-        duration: Math.round(duration),
-        date: new Date(workout.startDate),
-        calories: workout.totalEnergyBurned?.quantity || 0,
-      };
-    });
-  };
+  // Process workout data using utility functions
+  const { allWorkouts, last7DaysWorkouts, monthStats } = processWorkoutData(
+    data.workouts || []
+  );
 
-  const allWorkouts = convertToWorkouts();
-
-  // Filter workouts for last 7 days
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-  const last7DaysWorkouts = allWorkouts.filter(
-    (workout) => workout.date >= sevenDaysAgo
-  ).sort((a,b) => b.date - a.date);
-
-  let totalStats = [
+  // Format stats for display
+  const totalStats = [
     {
       label: i18n.t("workouts.workoutsCount"),
-      value: allWorkouts.length,
+      value: monthStats.totalWorkouts,
     },
     {
       label: i18n.t("workouts.totalTime"),
-      value: formatDurationHHMM(
-        allWorkouts.reduce((sum, w) => sum + w.duration, 0)
-      ),
+      value: formatDurationHHMM(monthStats.totalDurationMinutes),
     },
     {
       label: i18n.t("workouts.calories"),
-      value: Math.round(
-        allWorkouts.reduce((sum, w) => sum + w.calories, 0)
-      ),
+      value: monthStats.totalCalories,
     },
   ];
 
-  return (
-    <ThemedScrollView>
-        <View style={styles.container}>
-          {/* This Month Stats */}
-          <Card>
-            <ThemedText type="title">
-              {i18n.t("workouts.thisMonth")}
-            </ThemedText>
-            <View style={styles.statsRow}>
-              {totalStats.map((stat) => (
-                <View key={stat.label} style={styles.statItem}>
-                  <ThemedText type="monospace" style={styles.statValue}>
-                    {stat.value}
-                  </ThemedText>
-                  <ThemedText type="secondary">
-                    {stat.label}
-                  </ThemedText>
-                </View>
-              ))}
-            </View>
-          </Card>
+  const renderWorkoutItem: ListRenderItem<WorkoutData> = ({ item }) => (
+    <WorkoutItem workout={item} />
+  );
 
-          {/* Last 7 Days Workouts List */}
-          <WorkoutList workouts={last7DaysWorkouts} allWorkouts={allWorkouts} />
+  const renderHeader = () => (
+    <View style={styles.headerContainer}>
+      <Card>
+        <ThemedText type="title">{i18n.t("workouts.thisMonth")}</ThemedText>
+        <View style={styles.statsRow}>
+          {totalStats.map((stat) => (
+            <View key={stat.label} style={styles.statItem}>
+              <ThemedText type="monospace" style={styles.statValue}>
+                {stat.value}
+              </ThemedText>
+              <ThemedText type="secondary">{stat.label}</ThemedText>
+            </View>
+          ))}
         </View>
-    </ThemedScrollView>
+      </Card>
+
+      <ThemedText type="title" style={styles.sectionTitle}>
+        {i18n.t("workouts.last7Days")}
+      </ThemedText>
+    </View>
+  );
+
+  const renderEmptyComponent = () => (
+    <View style={styles.emptyContainer}>
+      <ThemedText style={styles.emptyText}>
+        {allWorkouts.length === 0
+          ? i18n.t("workouts.noWorkoutData")
+          : i18n.t("workouts.noWorkoutsLast7Days")}
+      </ThemedText>
+    </View>
+  );
+
+  return (
+    <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
+      <FlatList
+        data={last7DaysWorkouts}
+        renderItem={renderWorkoutItem}
+        keyExtractor={(item) => item.id}
+        ListHeaderComponent={renderHeader}
+        ListEmptyComponent={renderEmptyComponent}
+        contentContainerStyle={styles.flatListContent}
+        style={styles.flatList}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        maxToRenderPerBatch={10}
+        initialNumToRender={10}
+      />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: {
+  safeArea: {
     flex: 1,
-    paddingHorizontal: 16,
   },
-  container: {
+  flatList: {
     flex: 1,
+  },
+  flatListContent: {
+    paddingHorizontal: 16,
     paddingVertical: 16,
-    gap: 16,
+    paddingBottom: 64,
+  },
+  headerContainer: {
+    marginBottom: 16,
   },
   statsRow: {
     flexDirection: "row",
@@ -111,5 +115,19 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontSize: 36,
+  },
+  sectionTitle: {
+    marginTop: 16,
+  },
+  separator: {
+    height: 16,
+  },
+  emptyContainer: {
+    alignItems: "center",
+    paddingVertical: 32,
+  },
+  emptyText: {
+    textAlign: "center",
+    opacity: 0.7,
   },
 });

@@ -1,7 +1,8 @@
+import { StyleSheet, View } from "react-native";
+
 import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/ui/Card";
 import i18n from "@/lib/i18n";
-import { StyleSheet, View } from "react-native";
 import { WorkoutItem } from "./WorkoutItem";
 import { WorkoutData } from "./types";
 
@@ -24,8 +25,7 @@ export function WorkoutList({ workouts, allWorkouts }: WorkoutListProps) {
         <ThemedText style={styles.emptyText}>
           {allWorkouts.length === 0
             ? i18n.t("workouts.noWorkoutData")
-            : i18n.t("workouts.noWorkoutsLast7Days")
-          }
+            : i18n.t("workouts.noWorkoutsLast7Days")}
         </ThemedText>
       )}
     </Card>

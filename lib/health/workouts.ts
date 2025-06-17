@@ -1,10 +1,15 @@
 import {
+  EnergyUnit,
   HKQuantityTypeIdentifier,
   HKStatisticsOptions,
+  HKWorkout,
+  LengthUnit,
   queryQuantitySamples,
   queryStatisticsForQuantity,
   queryWorkoutSamples,
 } from "@kingstinct/react-native-healthkit";
+
+import { WorkoutData } from "@/components/workouts/types";
 import { ActivitySample, WorkoutStats } from "./types";
 import { getCurrentDateRanges, getDurationMinutes } from "./utils";
 
@@ -35,6 +40,19 @@ export interface WorkoutHeartRateData {
     timestamp: Date;
     value: number;
   }[];
+}
+
+// New interfaces for workout processing
+export interface WorkoutPeriodStats {
+  totalWorkouts: number;
+  totalDurationMinutes: number;
+  totalCalories: number;
+}
+
+export interface ProcessedWorkoutData {
+  allWorkouts: WorkoutData[];
+  last7DaysWorkouts: WorkoutData[];
+  monthStats: WorkoutPeriodStats;
 }
 
 /**
@@ -180,4 +198,99 @@ export const fetchWorkoutHeartRateData = async (
       heartRateSamples: [],
     };
   }
+};
+
+/**
+ * Convert HealthKit workout data to our WorkoutData format
+ */
+export const convertHealthKitWorkouts = (
+  healthKitWorkouts: readonly HKWorkout<EnergyUnit, LengthUnit>[]
+): WorkoutData[] => {
+  if (!healthKitWorkouts || healthKitWorkouts.length === 0) {
+    return [];
+  }
+
+  return healthKitWorkouts.map((workout, index) => {
+    const duration =
+      (new Date(workout.endDate).getTime() -
+        new Date(workout.startDate).getTime()) /
+      (1000 * 60); // duration in minutes
+
+    return {
+      id: workout.uuid || `workout-${index}`,
+      type: workout.workoutActivityType,
+      duration: Math.round(duration),
+      date: new Date(workout.startDate),
+      calories: workout.totalEnergyBurned?.quantity || 0,
+    };
+  });
+};
+
+/**
+ * Filter workouts by date range
+ */
+export const filterWorkoutsByDateRange = (
+  workouts: WorkoutData[],
+  startDate: Date,
+  endDate?: Date
+): WorkoutData[] => {
+  const end = endDate || new Date();
+
+  return workouts.filter(
+    (workout) => workout.date >= startDate && workout.date <= end
+  );
+};
+
+/**
+ * Get workouts for the last N days, sorted by date (newest first)
+ */
+export const getWorkoutsForLastDays = (
+  workouts: WorkoutData[],
+  days: number
+): WorkoutData[] => {
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - days);
+
+  return filterWorkoutsByDateRange(workouts, startDate)
+    .sort((a, b) => b.date.getTime() - a.date.getTime());
+};
+
+/**
+ * Get workouts for the current month
+ */
+export const getWorkoutsForCurrentMonth = (workouts: WorkoutData[]): WorkoutData[] => {
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  return filterWorkoutsByDateRange(workouts, startOfMonth);
+};
+
+/**
+ * Calculate aggregate statistics for a set of workouts
+ */
+export const calculateWorkoutStats = (workouts: WorkoutData[]): WorkoutPeriodStats => {
+  return {
+    totalWorkouts: workouts.length,
+    totalDurationMinutes: workouts.reduce((sum, workout) => sum + workout.duration, 0),
+    totalCalories: Math.round(workouts.reduce((sum, workout) => sum + workout.calories, 0)),
+  };
+};
+
+/**
+ * Process workout data for the workouts screen
+ * Returns all workouts, last 7 days workouts, and current month statistics
+ */
+export const processWorkoutData = (
+  healthKitWorkouts: readonly HKWorkout<EnergyUnit, LengthUnit>[]
+): ProcessedWorkoutData => {
+  const allWorkouts = convertHealthKitWorkouts(healthKitWorkouts);
+  const last7DaysWorkouts = getWorkoutsForLastDays(allWorkouts, 7);
+  const currentMonthWorkouts = getWorkoutsForCurrentMonth(allWorkouts);
+  const monthStats = calculateWorkoutStats(currentMonthWorkouts);
+
+  return {
+    allWorkouts,
+    last7DaysWorkouts,
+    monthStats,
+  };
 };
