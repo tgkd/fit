@@ -34,15 +34,7 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="sleep"
-        options={{
-          title: i18n.t("tabs.sleep"),
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="bed.double.fill" color={color} />
-          ),
-        }}
-      />
+
       <Tabs.Screen
         name="workouts"
         options={{

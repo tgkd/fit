@@ -47,7 +47,7 @@ export default function RootLayout() {
                 presentation: "modal",
                 headerShown: false,
               }}
-            />{" "}
+            />
             <Stack.Screen
               name="sleep"
               options={{

@@ -122,7 +122,7 @@ export const calculateSleepEfficiency = (
 };
 
 /**
- * Calculate sleep consistency based on bedtime variance
+ * Calculate sleep consistency based on bedtime variance and sleep quality
  */
 export const calculateSleepConsistency = (
   sleepSamples: readonly HKCategorySample<HKCategoryTypeIdentifier.sleepAnalysis>[]
@@ -131,8 +131,38 @@ export const calculateSleepConsistency = (
     .filter((s) => s.value === HKCategoryValueSleepAnalysis.inBed)
     .map((s) => new Date(s.startDate));
 
-  if (bedTimes.length < 2) return 100;
+  // If we don't have enough bedtime data, calculate based on sleep quality consistency
+  if (bedTimes.length < 2) {
+    // Use awake time percentage as a consistency indicator
+    const lastNightSamples = getLastNightSamples(sleepSamples);
 
+    if (lastNightSamples.length === 0) return 100;
+
+    const totalAwakeTime = lastNightSamples
+      .filter((s) => s.value === HKCategoryValueSleepAnalysis.awake)
+      .reduce((acc, s) => {
+        const duration = new Date(s.endDate).getTime() - new Date(s.startDate).getTime();
+        return acc + duration;
+      }, 0);
+
+    const totalSleepTime = lastNightSamples
+      .filter((s) => ACTUAL_SLEEP_VALUES.includes(s.value))
+      .reduce((acc, s) => {
+        const duration = new Date(s.endDate).getTime() - new Date(s.startDate).getTime();
+        return acc + duration;
+      }, 0);
+
+    if (totalSleepTime === 0) return 100;
+
+    const awakePercentage = (totalAwakeTime / (totalSleepTime + totalAwakeTime)) * 100;
+
+    // Good sleep consistency means low awake percentage
+    // 0% awake = 100% consistency, 20% awake = 80% consistency, etc.
+    const consistencyScore = Math.max(0, 100 - awakePercentage);
+    return roundTo(consistencyScore, 1);
+  }
+
+  // Original bedtime variance calculation for when we have multiple nights
   const msSinceMidnight = bedTimes.map(
     (d) => d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds()
   );
@@ -259,17 +289,77 @@ export const calculateSleepMetrics = (
 const getLastNightSamples = (
   sleepSamples: readonly HKCategorySample<HKCategoryTypeIdentifier.sleepAnalysis>[]
 ): HKCategorySample<HKCategoryTypeIdentifier.sleepAnalysis>[] => {
+  // Original noon-to-noon approach
   const yesterdayNoon = new Date();
   yesterdayNoon.setHours(12, 0, 0, 0);
-  yesterdayNoon.setDate(yesterdayNoon.getDate() - 1);
-
-  const todayNoon = new Date();
+  yesterdayNoon.setDate(yesterdayNoon.getDate() - 1);  const todayNoon = new Date();
   todayNoon.setHours(12, 0, 0, 0);
 
-  return sleepSamples.filter((sample) => {
+  let filteredSamples = sleepSamples.filter((sample) => {
     const startDate = new Date(sample.startDate);
     return startDate >= yesterdayNoon && startDate < todayNoon;
   });
+
+  // If no samples found with noon-to-noon, try a broader approach
+  if (filteredSamples.length === 0) {
+    // Try to find the most recent sleep session by looking at the last 48 hours
+    const fortyEightHoursAgo = new Date();
+    fortyEightHoursAgo.setHours(fortyEightHoursAgo.getHours() - 48);
+
+    // Get all recent samples
+    const recentSamples = sleepSamples.filter(sample => {
+      const startDate = new Date(sample.startDate);
+      return startDate >= fortyEightHoursAgo;
+    });
+
+    // Group samples by sleep session (samples close together in time)
+    const sleepSessions: (typeof sleepSamples[0][])[] = [];
+    let currentSession: typeof sleepSamples[0][] = [];
+
+    const sortedRecentSamples = [...recentSamples].sort(
+      (a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+    );
+
+    for (let i = 0; i < sortedRecentSamples.length; i++) {
+      const sample = sortedRecentSamples[i];
+
+      if (currentSession.length === 0) {
+        currentSession = [sample];
+      } else {
+        const lastSample = currentSession[currentSession.length - 1];
+        const timeDiff = new Date(sample.startDate).getTime() - new Date(lastSample.endDate).getTime();
+
+        // If gap is more than 4 hours, start a new session
+        if (timeDiff > 4 * 60 * 60 * 1000) {
+          sleepSessions.push(currentSession);
+          currentSession = [sample];
+        } else {
+          currentSession.push(sample);
+        }
+      }
+    }
+
+    if (currentSession.length > 0) {
+      sleepSessions.push(currentSession);
+    }
+
+    // Get the most recent substantial sleep session (more than 30 minutes)
+    const substantialSessions = sleepSessions.filter(session => {
+      const totalDuration = session.reduce((sum, sample) => {
+        const duration = new Date(sample.endDate).getTime() - new Date(sample.startDate).getTime();
+        return sum + duration;
+      }, 0);
+      return totalDuration > 30 * 60 * 1000; // More than 30 minutes
+    });    if (substantialSessions.length > 0) {
+      // Use the most recent substantial session
+      filteredSamples = substantialSessions[substantialSessions.length - 1];
+    } else if (recentSamples.length > 0) {
+      // Fallback to all recent samples if no substantial sessions found
+      filteredSamples = recentSamples;
+    }
+  }
+
+  return filteredSamples;
 };
 
 /**
@@ -720,7 +810,8 @@ export const calculateEnhancedSleepPerformance = async (
       : 100;
 
   // 2. Sleep Consistency
-  const sleepConsistency = calculatEnhancedSleepConsistency(clusters);
+  // Use the improved calculateSleepConsistency with fallback logic
+  const sleepConsistency = calculateSleepConsistency(sleepSamples);
 
   // 3. Sleep Efficiency
   const sleepEfficiency =
