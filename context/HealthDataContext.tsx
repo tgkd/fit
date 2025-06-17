@@ -1,6 +1,7 @@
 import React, { createContext, ReactNode, useEffect, useState } from "react";
 
-import { getAllHealthStats, isHealthKitAvailable } from "@/lib/health";
+import { getAllHealthStats } from "@/lib/health";
+import { isHealthKitAvailable } from "@/lib/health/permissions";
 import {
   HealthData as ModularHealthData,
   WriteHealthDataOptions as ModularWriteHealthDataOptions,
@@ -83,6 +84,42 @@ const defaultData: HealthData = {
   bloodOxygen: null,
 
   stressDetails: null,
+
+  // Period averages
+  sleepAverages: {
+    last14Days: {
+      duration: 0,
+      efficiency: 0,
+      performance: 0,
+      consistency: 0,
+    },
+    last30Days: {
+      duration: 0,
+      efficiency: 0,
+      performance: 0,
+      consistency: 0,
+    },
+  },
+  stressAverages: {
+    last14Days: {
+      level: 0,
+      hrvAverage: 0,
+      restingHeartRate: 0,
+    },
+    last30Days: {
+      level: 0,
+      hrvAverage: 0,
+      restingHeartRate: 0,
+    },
+  },
+  recoveryAverages: {
+    last14Days: {
+      score: 0,
+    },
+    last30Days: {
+      score: 0,
+    },
+  },
 };
 
 export const HealthDataContext = createContext<{
@@ -198,6 +235,42 @@ function generateFakeHealthData(): HealthData {
         hourStart: new Date(new Date().setHours(i, 0, 0, 0)),
         stress: Math.random() * 2.5, // Random stress between 0-2.5
       })),
+    },
+
+    // Period averages with fake data
+    sleepAverages: {
+      last14Days: {
+        duration: 7.4,
+        efficiency: 88,
+        performance: 86,
+        consistency: 82,
+      },
+      last30Days: {
+        duration: 7.6,
+        efficiency: 90,
+        performance: 88,
+        consistency: 85,
+      },
+    },
+    stressAverages: {
+      last14Days: {
+        level: 22,
+        hrvAverage: 46.8,
+        restingHeartRate: 59.2,
+      },
+      last30Days: {
+        level: 25,
+        hrvAverage: 45.5,
+        restingHeartRate: 60.1,
+      },
+    },
+    recoveryAverages: {
+      last14Days: {
+        score: 91,
+      },
+      last30Days: {
+        score: 89,
+      },
     },
   };
 }

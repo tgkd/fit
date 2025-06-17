@@ -103,3 +103,36 @@ export const calculateHRMax = (age: number | null): number => {
   if (!age || age <= 0) return 190; // Default fallback
   return Math.round(207 - 0.7 * age);
 };
+
+/**
+ * Get date range for specified number of days from today
+ */
+export const getDateRange = (days: number): { from: Date; to: Date } => {
+  const to = new Date();
+  const from = subDays(to, days - 1); // Include today
+  return { from: startOfDay(from), to };
+};
+
+/**
+ * Generate array of dates between start and end dates (inclusive)
+ */
+export const getDatesArray = (startDate: Date, endDate: Date): Date[] => {
+  const dates: Date[] = [];
+  const currentDate = new Date(startDate);
+
+  while (currentDate <= endDate) {
+    dates.push(new Date(currentDate));
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+
+  return dates;
+};
+
+/**
+ * Calculate average of an array of numbers, filtering out null/undefined values
+ */
+export const calculateAverage = (values: (number | null | undefined)[]): number => {
+  const validValues = values.filter((v): v is number => v != null && !isNaN(v));
+  if (validValues.length === 0) return 0;
+  return validValues.reduce((sum, val) => sum + val, 0) / validValues.length;
+};

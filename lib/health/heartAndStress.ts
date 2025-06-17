@@ -9,16 +9,19 @@ import {
 import {
   HeartStressStats,
   HourlyHeartData,
+  StressAverages,
   StressChartDataPoint,
   StressChartDisplayData,
   StressMetrics,
   TimeInterval,
 } from "./types";
 import {
+  calculateAverage,
   createHourStart,
   formatHourDisplay,
   formatTimeDisplay,
   getCurrentDateRanges,
+  getDateRange,
   getExtendedDateRanges,
   roundTo,
 } from "./utils";
@@ -61,7 +64,11 @@ export const fetchHeartStressStats = async (
     : null;
 
   // Use modern stress calculation
-  const stressLevel = await calculateModernStressLevel(restingHeartRate, hrv7DayAvg, defaults);
+  const stressLevel = await calculateModernStressLevel(
+    restingHeartRate,
+    hrv7DayAvg,
+    defaults
+  );
 
   const result = {
     restingHeartRate,
@@ -130,7 +137,10 @@ export const calculateBaselineHRV = async (defaults?: any): Promise<number> => {
     mean(daySamples.map((s) => s.quantity))
   );
 
-  const baselineHRV = dailyAverages.length > 0 ? mean(dailyAverages) : defaults?.HRV_BASELINE || 45;
+  const baselineHRV =
+    dailyAverages.length > 0
+      ? mean(dailyAverages)
+      : defaults?.HRV_BASELINE || 45;
   return baselineHRV;
 };
 
@@ -159,7 +169,10 @@ export const calculateBaselineRHR = async (defaults?: any): Promise<number> => {
     mean(daySamples.map((s) => s.quantity))
   );
 
-  const baselineRHR = dailyAverages.length > 0 ? mean(dailyAverages) : defaults?.RESTING_HEART_RATE || 60;
+  const baselineRHR =
+    dailyAverages.length > 0
+      ? mean(dailyAverages)
+      : defaults?.RESTING_HEART_RATE || 60;
   return baselineRHR;
 };
 
@@ -547,8 +560,10 @@ export const prepareStressChartDisplayData = async (
 
     if (chartPlotData.length > 0) {
       // Calculate current stress from chart data
-      const stressValues = chartPlotData.map(d => d.stress);
-      currentStressForVisualization = stressValues.reduce((sum, stress) => sum + stress, 0) / stressValues.length;
+      const stressValues = chartPlotData.map((d) => d.stress);
+      currentStressForVisualization =
+        stressValues.reduce((sum, stress) => sum + stress, 0) /
+        stressValues.length;
       yDomainForVisualization = [0, 3];
       xAxisDataType = "hourly";
     }
@@ -559,7 +574,11 @@ export const prepareStressChartDisplayData = async (
 
       // Create a simple 24-hour visualization with current stress level
       const now = new Date();
-      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const startOfDay = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate()
+      );
 
       chartPlotData = Array.from({ length: 24 }, (_, hour) => {
         const hourTime = new Date(startOfDay);
@@ -567,7 +586,10 @@ export const prepareStressChartDisplayData = async (
 
         // Add some realistic variation around the current stress level
         const variation = (Math.random() - 0.5) * 0.5; // ±0.25 variation
-        const stress = Math.max(0, Math.min(3, currentStressForVisualization + variation));
+        const stress = Math.max(
+          0,
+          Math.min(3, currentStressForVisualization + variation)
+        );
 
         return {
           time: hourTime.getTime(),
@@ -607,3 +629,82 @@ export function getStressColor(stressLevel: number): string {
   if (normalizedLevel < 2) return Colors.hrv.good;
   return Colors.hrv.poor;
 }
+
+/**
+ * Fetch stress averages for 14 and 30 day periods
+ */
+export const fetchStressAverages = async (
+  defaults?: any
+): Promise<{
+  last14Days: StressAverages;
+  last30Days: StressAverages;
+}> => {
+  const range30Days = getDateRange(30);
+  const range14Days = getDateRange(14);
+
+  // Fetch 30 days of data once and filter for 14 days
+  const [hrv30Days, rhr30Days] = await Promise.all([
+    queryQuantitySamples(
+      HKQuantityTypeIdentifier.heartRateVariabilitySDNN,
+      range30Days
+    ),
+    queryQuantitySamples(
+      HKQuantityTypeIdentifier.restingHeartRate,
+      range30Days
+    ),
+  ]);
+
+  // Filter the 30-day data to get 14-day samples
+  const hrv14Days = hrv30Days.filter(
+    (sample) => new Date(sample.startDate) >= range14Days.from
+  );
+  const rhr14Days = rhr30Days.filter(
+    (sample) => new Date(sample.startDate) >= range14Days.from
+  );
+
+  const calculate14DayAverages = async () => {
+    const hrvValues = hrv14Days.map((sample) => sample.quantity);
+    const rhrValues = rhr14Days.map((sample) => sample.quantity);
+
+    const avgHrv = calculateAverage(hrvValues);
+    const avgRhr = calculateAverage(rhrValues);
+
+    // Calculate stress level based on HRV deviation from baseline
+    const baselineHRV = await calculateBaselineHRV(defaults);
+    const stressLevel = Math.max(
+      0,
+      Math.min(100, 100 - (avgHrv / baselineHRV) * 100)
+    );
+
+    return {
+      level: roundTo(stressLevel, 1),
+      hrvAverage: roundTo(avgHrv, 1),
+      restingHeartRate: roundTo(avgRhr, 1),
+    };
+  };
+
+  const calculate30DayAverages = async () => {
+    const hrvValues = hrv30Days.map((sample) => sample.quantity);
+    const rhrValues = rhr30Days.map((sample) => sample.quantity);
+
+    const avgHrv = calculateAverage(hrvValues);
+    const avgRhr = calculateAverage(rhrValues);
+
+    const baselineHRV = await calculateBaselineHRV(defaults);
+    const stressLevel = Math.max(
+      0,
+      Math.min(100, 100 - (avgHrv / baselineHRV) * 100)
+    );
+
+    return {
+      level: roundTo(stressLevel, 1),
+      hrvAverage: roundTo(avgHrv, 1),
+      restingHeartRate: roundTo(avgRhr, 1),
+    };
+  };
+
+  return {
+    last14Days: await calculate14DayAverages(),
+    last30Days: await calculate30DayAverages(),
+  };
+};

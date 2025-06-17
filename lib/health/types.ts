@@ -157,6 +157,29 @@ export interface StressChartDisplayData {
   lastUpdatedDisplay: string;
 }
 
+// Period averages interfaces for historical data
+export interface PeriodAverages<T> {
+  last14Days: T;
+  last30Days: T;
+}
+
+export interface SleepAverages {
+  duration: number; // hours
+  efficiency: number; // percentage 0-100
+  performance: number; // percentage 0-100
+  consistency: number; // percentage 0-100
+}
+
+export interface StressAverages {
+  level: number; // 0-100 stress level
+  hrvAverage: number; // ms
+  restingHeartRate: number; // bpm
+}
+
+export interface RecoveryAverages {
+  score: number; // 0-100 recovery score
+}
+
 // Combined interface that matches current HealthData
 export interface HealthData
   extends GeneralStats,
@@ -166,7 +189,10 @@ export interface HealthData
   recoveryScore: number;
   strainScore: number;
   stressDetails: StressMetrics | null;
-  stressChartDisplayData?: StressChartDisplayData; // Added
+  stressChartDisplayData?: StressChartDisplayData;
+  sleepAverages: PeriodAverages<SleepAverages>;
+  stressAverages: PeriodAverages<StressAverages>;
+  recoveryAverages: PeriodAverages<RecoveryAverages>;
 }
 
 // Activity and heart rate interfaces from healthStats.ts

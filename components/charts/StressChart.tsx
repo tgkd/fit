@@ -23,44 +23,51 @@ export function StressChart({ data: initData }: StressChartProps) {
   const themedLineColor = useThemeColor({}, "tint");
   const themedGridColor = useThemeColor({}, "textSecondary");
 
+  console.log(">>>", initData.stressAverages);
+
   if (!initData || !initData.stressChartDisplayData) {
     return (
       <Card>
         <ThemedView style={styles.header}>
           <ThemedText type="subtitle">{i18n.t("stressChart.title")}</ThemedText>
         </ThemedView>
-        <View style={[styles.chartContainer, { justifyContent: "center", alignItems: "center" }]}>
+        <View
+          style={[
+            styles.chartContainer,
+            { justifyContent: "center", alignItems: "center" },
+          ]}
+        >
           <ThemedText>{i18n.t("stressChart.noData")}</ThemedText>
         </View>
       </Card>
     );
   }
 
-  const {
-    chartPlotData,
-    yDomainForVisualization,
-  } = initData.stressChartDisplayData;
+  const { chartPlotData, yDomainForVisualization } =
+    initData.stressChartDisplayData;
 
   // Convert chart data to the format expected by CartesianChart
   const chartData = chartPlotData.map((item) => ({
-    x: typeof item.time === "number" ? item.time : new Date(item.time).getTime(),
+    x:
+      typeof item.time === "number" ? item.time : new Date(item.time).getTime(),
     y: item.stress,
     originalTimestamp: item.timestamp,
   }));
 
   // Calculate stats for display
-  const avgStress = chartData.length > 0
-    ? chartData.reduce((sum, d) => sum + d.y, 0) / chartData.length
-    : 0;
-  const maxStress = chartData.length > 0
-    ? Math.max(...chartData.map((d) => d.y))
-    : 0;
+  const avgStress =
+    chartData.length > 0
+      ? chartData.reduce((sum, d) => sum + d.y, 0) / chartData.length
+      : 0;
+  const maxStress =
+    chartData.length > 0 ? Math.max(...chartData.map((d) => d.y)) : 0;
 
   // Ensure xDomain is correctly calculated based on actual data points
   const xValues = chartData.map((p) => p.x);
-  const xDomain: [number, number] = chartData.length > 1
-    ? [Math.min(...xValues), Math.max(...xValues)]
-    : [0, 1];
+  const xDomain: [number, number] =
+    chartData.length > 1
+      ? [Math.min(...xValues), Math.max(...xValues)]
+      : [0, 1];
 
   return (
     <Card>

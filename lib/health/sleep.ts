@@ -10,13 +10,21 @@ import {
 import { Colors } from "@/constants/Colors";
 import {
   LastNightSleep,
+  SleepAverages,
   SleepCluster,
   SleepMetrics,
   SleepNeed,
   SleepPerformanceMetrics,
   SleepStats,
 } from "./types";
-import { getCurrentDateRanges, msToHours, msToMinutes, roundTo } from "./utils";
+import {
+  calculateAverage,
+  getCurrentDateRanges,
+  getDateRange,
+  msToHours,
+  msToMinutes,
+  roundTo,
+} from "./utils";
 
 // Export types for external use
 export type { SleepCluster, SleepNeed, SleepPerformanceMetrics };
@@ -68,7 +76,11 @@ export const fetchSleepStats = async (): Promise<SleepStats> => {
   } catch {
     // Fallback to basic calculation
     metrics = calculateSleepMetrics(sleepSamples, totalSleep);
-    sleepPerformance = calculateSleepPerformance(totalSleep, sleepEfficiency, sleepConsistency);
+    sleepPerformance = calculateSleepPerformance(
+      totalSleep,
+      sleepEfficiency,
+      sleepConsistency
+    );
   }
 
   const lastNight = calculateLastNightSleep(sleepSamples);
@@ -624,7 +636,11 @@ export const calculateSleepStress = async (
     const sleepStressScore = Math.max(0, 100 - stressPercentage);
 
     // If no physiological stress indicators were found, fall back to basic calculation
-    if (hrValues.length === 0 && hrvValues.length === 0 && respValues.length === 0) {
+    if (
+      hrValues.length === 0 &&
+      hrvValues.length === 0 &&
+      respValues.length === 0
+    ) {
       return calculateBasicSleepStress(sleepCluster);
     }
 
@@ -801,4 +817,63 @@ export const calculateSleepDebt = async (
   });
 
   return roundTo(totalDebt, 1);
+};
+
+/**
+ * Fetch sleep averages for 14 and 30 day periods
+ */
+export const fetchSleepAverages = async (): Promise<{
+  last14Days: SleepAverages;
+  last30Days: SleepAverages;
+}> => {
+  const range30Days = getDateRange(30);
+  const range14Days = getDateRange(14);
+
+  // Fetch 30 days of data once and slice for 14 days
+  const sleepSamples30 = await queryCategorySamples(
+    HKCategoryTypeIdentifier.sleepAnalysis,
+    range30Days
+  );
+
+  // Filter the 30-day data to get 14-day samples
+  const sleepSamples14 = sleepSamples30.filter(
+    (sample) => new Date(sample.startDate) >= range14Days.from
+  );
+
+  const calculate14DayAverages = () => {
+    const { dailySleepDurations } = processSleepData(sleepSamples14);
+    const efficiency = calculateSleepEfficiency(sleepSamples14);
+    const consistency = calculateSleepConsistency(sleepSamples14);
+
+    const durations = dailySleepDurations.map((d) => d.duration);
+    const avgDuration = calculateAverage(durations);
+
+    return {
+      duration: roundTo(avgDuration, 1),
+      efficiency: roundTo(efficiency, 1),
+      performance: roundTo((efficiency + consistency) / 2, 1),
+      consistency: roundTo(consistency, 1),
+    };
+  };
+
+  const calculate30DayAverages = () => {
+    const { dailySleepDurations } = processSleepData(sleepSamples30);
+    const efficiency = calculateSleepEfficiency(sleepSamples30);
+    const consistency = calculateSleepConsistency(sleepSamples30);
+
+    const durations = dailySleepDurations.map((d) => d.duration);
+    const avgDuration = calculateAverage(durations);
+
+    return {
+      duration: roundTo(avgDuration, 1),
+      efficiency: roundTo(efficiency, 1),
+      performance: roundTo((efficiency + consistency) / 2, 1),
+      consistency: roundTo(consistency, 1),
+    };
+  };
+
+  return {
+    last14Days: calculate14DayAverages(),
+    last30Days: calculate30DayAverages(),
+  };
 };

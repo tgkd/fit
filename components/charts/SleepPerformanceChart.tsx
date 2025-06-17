@@ -3,7 +3,7 @@ import { StyleSheet, View } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 
 import { Colors } from "@/constants/Colors";
-import { getPerformanceColor } from "@/lib/health";
+import { getPerformanceColor } from "@/lib/health/sleep";
 import i18n from "@/lib/i18n";
 import { ThemedText } from "../ThemedText";
 
@@ -22,7 +22,6 @@ export function SleepPerformanceChart({
   const circumference = 2 * Math.PI * radius;
   const strokeDasharray = circumference;
   const strokeDashoffset = circumference - (percentage / 100) * circumference;
-
   const performanceColor = getPerformanceColor(percentage);
 
   return (

@@ -2,11 +2,12 @@ import { fetchGeneralStats } from "./generalStats";
 import {
   calculateStressMetrics,
   fetchHeartStressStats,
+  fetchStressAverages,
   prepareStressChartDisplayData,
 } from "./heartAndStress";
 import { initializeHealthKit, isHealthKitAvailable } from "./permissions";
-import { calculateRecoveryScore } from "./recovery";
-import { fetchSleepStats } from "./sleep";
+import { calculateRecoveryScore, fetchRecoveryAverages } from "./recovery";
+import { fetchSleepAverages, fetchSleepStats } from "./sleep";
 import { calculateDayStrain } from "./strain";
 import {
   HealthData,
@@ -27,10 +28,13 @@ export const getAllHealthStats = async (
   try {
     const generalStats = await fetchGeneralStats();
 
-    const [workoutStats, sleepStats, heartStressStats] = await Promise.all([
+    const [workoutStats, sleepStats, heartStressStats, sleepAverages, stressAverages, recoveryAverages] = await Promise.all([
       fetchWorkoutStats(),
       fetchSleepStats(),
       fetchHeartStressStats(generalStats.age, defaults),
+      fetchSleepAverages(),
+      fetchStressAverages(defaults),
+      fetchRecoveryAverages(defaults),
     ]);
 
     let stressDetails: HealthData["stressDetails"] = null;
@@ -67,6 +71,9 @@ export const getAllHealthStats = async (
       strainScore,
       stressDetails,
       stressChartDisplayData,
+      sleepAverages,
+      stressAverages,
+      recoveryAverages,
     };
   } catch (error) {
     console.error("Error fetching health stats:", error);
@@ -76,13 +83,6 @@ export const getAllHealthStats = async (
   }
 };
 
-// Re-export all types and functions
-export * from "./generalStats";
-export * from "./heartAndStress";
-export * from "./permissions";
-export * from "./recovery";
-export * from "./sleep";
-export * from "./strain";
-export * from "./utils";
-export * from "./workouts";
+// Re-export specific types and functions as needed
+export type { HealthData, HealthDataDefaults, StressChartDisplayData } from "./types";
 

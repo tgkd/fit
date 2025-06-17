@@ -10,7 +10,7 @@ import { IconSymbol } from "@/components/ui/IconSymbol";
 import { ThemedScrollView } from "@/components/ui/ThemedScrollView";
 import { HealthDataContext } from "@/context/HealthDataContext";
 import { useThemeColor } from "@/hooks/useThemeColor";
-import { getStressColor } from "@/lib/health";
+import { getStressColor } from "@/lib/health/heartAndStress";
 import i18n from "@/lib/i18n";
 
 export default function StressScreen() {

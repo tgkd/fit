@@ -7,8 +7,14 @@ import {
   queryStatisticsForQuantity,
 } from "@kingstinct/react-native-healthkit";
 
-import { HealthDataDefaults } from "./types";
-import { getCurrentDateRanges, getExtendedDateRanges } from "./utils";
+import { HealthDataDefaults, RecoveryAverages } from "./types";
+import {
+  calculateAverage,
+  getCurrentDateRanges,
+  getDateRange,
+  getDatesArray,
+  getExtendedDateRanges,
+} from "./utils";
 
 export interface RecoveryCalculationOptions {
   defaults?: HealthDataDefaults;
@@ -285,3 +291,56 @@ LOG  🔄 Starting recovery score calculation...
   }
 }
 */
+
+/**
+ * Fetch recovery averages for 14 and 30 day periods
+ */
+export const fetchRecoveryAverages = async (
+  defaults?: HealthDataDefaults
+): Promise<{
+  last14Days: RecoveryAverages;
+  last30Days: RecoveryAverages;
+}> => {
+  const range14Days = getDateRange(14);
+  const range30Days = getDateRange(30);
+
+  const calculate14DayAverage = async () => {
+    const dates = getDatesArray(range14Days.from, range14Days.to);
+    const recoveryScores: number[] = [];
+
+    for (const date of dates) {
+      try {
+        // Calculate daily recovery score
+        const recoveryResult = await calculateRecoveryScore({ defaults });
+        recoveryScores.push(recoveryResult.totalScore);
+      } catch (error) {
+        console.warn(`Failed to calculate recovery for ${date}:`, error);
+      }
+    }
+
+    const avgScore = calculateAverage(recoveryScores);
+    return { score: Math.round(avgScore) };
+  };
+
+  const calculate30DayAverage = async () => {
+    const dates = getDatesArray(range30Days.from, range30Days.to);
+    const recoveryScores: number[] = [];
+
+    for (const date of dates) {
+      try {
+        const recoveryResult = await calculateRecoveryScore({ defaults });
+        recoveryScores.push(recoveryResult.totalScore);
+      } catch (error) {
+        console.warn(`Failed to calculate recovery for ${date}:`, error);
+      }
+    }
+
+    const avgScore = calculateAverage(recoveryScores);
+    return { score: Math.round(avgScore) };
+  };
+
+  return {
+    last14Days: await calculate14DayAverage(),
+    last30Days: await calculate30DayAverage(),
+  };
+};

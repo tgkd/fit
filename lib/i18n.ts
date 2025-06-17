@@ -180,6 +180,9 @@ const translations = {
       stress: "Stress", // General term for stress
       avg: "Avg",
       peak: "Peak",
+      avg14Days: "14d Avg",
+      avg30Days: "30d Avg",
+      noData: "No stress data available",
       low: "Low",
       mild: "Mild",
       moderate: "Moderate",
