@@ -3,14 +3,12 @@ import { bucketBy, mean } from "@/utils/dates";
 import {
   getMostRecentQuantitySample,
   HKQuantityTypeIdentifier,
-  HKStatisticsOptions,
   HKUnits,
   queryQuantitySamples,
-  queryStatisticsForQuantity,
 } from "@kingstinct/react-native-healthkit";
 import {
   HeartStressStats,
-  HourlyHeartData, // Added
+  HourlyHeartData,
   StressChartDataPoint,
   StressChartDisplayData,
   StressMetrics,
@@ -23,22 +21,8 @@ import {
   formatTimeDisplay,
   getCurrentDateRanges,
   getExtendedDateRanges,
-  normalize,
   roundTo,
 } from "./utils";
-
-// Constants for normalization ranges
-const HRV_RANGE = { min: 20, max: 85 }; // Population-based HRV range in ms
-const RHR_RANGE = { min: 40, max: 100 }; // Resting heart rate range
-const RESP_RATE_RANGE = { min: 8, max: 20 }; // Respiratory rate range
-
-// Recovery score weights
-const RECOVERY_WEIGHTS = {
-  HRV: 0.5,
-  RHR: 0.25,
-  RESP: 0.125,
-  SLEEP: 0.125,
-};
 
 // Stress level calculation constants
 const STRESS_RATIO_BOUNDS = {
@@ -57,7 +41,7 @@ export const fetchHeartStressStats = async (
   age?: number | null,
   defaults?: any
 ): Promise<HeartStressStats> => {
-  const { now, startOfToday, oneWeekAgo } = getCurrentDateRanges();
+  const { now, oneWeekAgo } = getCurrentDateRanges();
 
   // Get resting heart rate (most recent)
   const restingHRSample = await getMostRecentQuantitySample(
@@ -75,16 +59,6 @@ export const fetchHeartStressStats = async (
 
   const { hrv7DayAvg, hrvMostRecent } = processHrv(hrvValues);
 
-  // Get respiratory rate for recovery calculation
-  const respStats = await queryStatisticsForQuantity(
-    HKQuantityTypeIdentifier.respiratoryRate,
-    [HKStatisticsOptions.discreteAverage],
-    startOfToday,
-    now
-  );
-  const respRate =
-    respStats?.averageQuantity?.quantity ?? defaults?.RESPIRATORY_RATE ?? 15;
-
   // Get blood oxygen saturation
   const spo2Sample = await getMostRecentQuantitySample(
     HKQuantityTypeIdentifier.oxygenSaturation,
@@ -94,15 +68,6 @@ export const fetchHeartStressStats = async (
     ? { value: spo2Sample.quantity, date: new Date(spo2Sample.endDate) }
     : null;
 
-  const recoveryScore = calculateRecoveryScore(
-    hrvValues,
-    restingHeartRate || (defaults?.RESTING_HEART_RATE ?? 60),
-    respRate,
-    defaults?.SLEEP_EFFICIENCY ?? 85,
-    hrv7DayAvg > 0 ? hrv7DayAvg : undefined,
-    restingHeartRate || undefined
-  );
-
   const stressLevel = calculateStressLevel(restingHeartRate, hrv7DayAvg);
 
   const result = {
@@ -110,7 +75,6 @@ export const fetchHeartStressStats = async (
     hrv7DayAvg,
     hrvMostRecent,
     hrvValues,
-    recoveryScore,
     stressLevel,
     bloodOxygen,
   };
@@ -138,64 +102,6 @@ OUTPUT:
 }
 
 */
-
-// Helper functions for dynamic range calculations
-const calculateDynamicHrvRange = (baselineHrv: number) => ({
-  min: Math.max(15, baselineHrv * 0.5), // At least 15ms, or 50% of baseline
-  max: baselineHrv * 1.5, // 150% of baseline
-});
-
-const calculateDynamicRhrRange = (baselineRhr: number) => ({
-  min: Math.max(30, baselineRhr * 0.7), // At least 30bpm, or 70% of baseline
-  max: baselineRhr * 1.3, // 130% of baseline
-});
-
-/**
- * Calculate recovery score with optional dynamic ranges
- * Weighted average of HRV, Resting HR (inverse), Resp Rate (inverse), and Sleep Efficiency
- */
-export const calculateRecoveryScore = (
-  hrv: number[], // ms SDNN over last night
-  restingHR: number, // bpm
-  respRate: number, // breaths/min
-  sleepEff: number, // %
-  baselineHrv?: number,
-  baselineRhr?: number
-): number => {
-  if (hrv.length === 0) {
-    return 0;
-  }
-
-  // Use 7-day HRV average instead of single value for more stable metric
-  const avgHRV = hrv.length > 0 ? mean(hrv) : 0;
-
-  // Always use personalized ranges when available
-  const hrvRange = baselineHrv
-    ? calculateDynamicHrvRange(baselineHrv)
-    : HRV_RANGE;
-
-  const rhrRange = baselineRhr
-    ? calculateDynamicRhrRange(baselineRhr)
-    : RHR_RANGE;
-
-  // Normalize values using appropriate ranges
-  const normHRV = normalize(avgHRV, hrvRange.min, hrvRange.max);
-  const normRHR = 100 - normalize(restingHR, rhrRange.min, rhrRange.max); // lower HR better
-  const normResp =
-    100 - normalize(respRate, RESP_RATE_RANGE.min, RESP_RATE_RANGE.max); // lower RR better
-  const normSleep = Math.max(0, Math.min(100, sleepEff)); // ensure 0-100 range
-
-  // Calculate weighted recovery score
-  const score =
-    normHRV * RECOVERY_WEIGHTS.HRV +
-    normRHR * RECOVERY_WEIGHTS.RHR +
-    normResp * RECOVERY_WEIGHTS.RESP +
-    normSleep * RECOVERY_WEIGHTS.SLEEP;
-
-  const finalScore = roundTo(score, 1);
-
-  return finalScore;
-};
 
 /**
  * Calculate stress level using RHR to HRV ratio
@@ -299,7 +205,8 @@ export const getBaselineRHR = async (defaultRHR?: number): Promise<number> => {
   );
 
   // Return average of daily averages
-  const baselineRHR = dailyAverages.length > 0 ? mean(dailyAverages) : defaultRHR ?? 60;
+  const baselineRHR =
+    dailyAverages.length > 0 ? mean(dailyAverages) : defaultRHR ?? 60;
   return baselineRHR;
 };
 

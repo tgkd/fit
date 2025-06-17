@@ -1,11 +1,11 @@
 import { fetchGeneralStats } from "./generalStats";
 import {
-  calculateRecoveryScore,
   calculateStressMetrics,
   fetchHeartStressStats,
   prepareStressChartDisplayData,
 } from "./heartAndStress";
 import { initializeHealthKit, isHealthKitAvailable } from "./permissions";
+import { calculateRecoveryScore } from "./recovery";
 import { fetchSleepStats } from "./sleep";
 import { calculateDayStrain } from "./strain";
 import {
@@ -40,26 +40,22 @@ export const getAllHealthStats = async (
     try {
       stressDetails = await calculateStressMetrics(defaults);
     } catch (error) {
-      console.warn(
-        "Stress calculation failed, using fallback:",
-        error
-      );
+      console.warn("Stress calculation failed, using fallback:", error);
     }
 
-    // Use the recovery score from heartStressStats (calculated with baselines)
-    // instead of recalculating without baselines
-    console.log('🔍 Recovery score comparison:');
-    console.log('- Heart stress stats recovery score (with baselines):', heartStressStats.recoveryScore);
+    // Calculate recovery score using the comprehensive recovery.ts function
+    // This fetches all biometric and lifestyle data directly from HealthKit
+    console.log("🔄 Starting recovery score calculation...");
+    const recoveryScore = await calculateRecoveryScore({
+      defaults,
+      sleepEfficiency: sleepStats.sleepEfficiency,
+    });
 
-    // Calculate what the score would be without baselines for debugging
-    const recoveryScoreWithoutBaselines = calculateRecoveryScore(
-      heartStressStats.hrvValues,
-      heartStressStats.restingHeartRate || (defaults?.RESTING_HEART_RATE ?? 60),
-      defaults?.RESPIRATORY_RATE ?? 15,
-      sleepStats.sleepEfficiency
+    console.log("✅ Recovery calculation completed successfully");
+    console.log(
+      "🔍 Recovery score breakdown",
+      JSON.stringify(recoveryScore, null, 2)
     );
-    console.log('- Recovery score without baselines:', recoveryScoreWithoutBaselines);
-    console.log('- Difference:', Math.abs(heartStressStats.recoveryScore - recoveryScoreWithoutBaselines).toFixed(1), 'points');
 
     const stressChartDisplayData: StressChartDisplayData =
       prepareStressChartDisplayData(
@@ -77,8 +73,8 @@ export const getAllHealthStats = async (
       ...generalStats,
       ...workoutStats,
       ...heartStressStats,
-      // Use the recovery score that was calculated with baseline values
-      recoveryScore: heartStressStats.recoveryScore,
+      // Use the recovery score calculated with the new method
+      recoveryScore: recoveryScore.totalScore,
       sleep: sleepStats,
       strainScore,
       stressDetails,
@@ -111,6 +107,7 @@ export const getUserStats = async () => {
 export * from "./generalStats";
 export * from "./heartAndStress";
 export * from "./permissions";
+export * from "./recovery";
 export * from "./sleep";
 export * from "./strain";
 export * from "./utils";

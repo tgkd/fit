@@ -114,7 +114,6 @@ export interface HeartStressStats {
   hrv7DayAvg: number;
   hrvMostRecent: number;
   hrvValues: number[];
-  recoveryScore: number;
   stressLevel: number;
   bloodOxygen: { value: number; date: Date | null } | null;
 }
@@ -164,6 +163,7 @@ export interface HealthData
     WorkoutStats,
     HeartStressStats {
   sleep: SleepStats;
+  recoveryScore: number;
   strainScore: number;
   stressDetails: StressMetrics | null;
   stressChartDisplayData?: StressChartDisplayData; // Added
@@ -217,6 +217,11 @@ export interface HealthDataDefaults {
   SLEEP_EFFICIENCY?: number;
   DEFAULT_STRESS_LEVEL?: number;
   HRV_BASELINE?: number;
+
+  // Nutritional defaults for recovery calculation
+  DAILY_WATER_INTAKE?: number; // ml
+  DAILY_ALCOHOL_DRINKS?: number; // number of drinks
+  DAILY_CALORIES_CONSUMED?: number; // kcal
 
   // Strain calculation defaults
   MAX_HEART_RATE?: number;

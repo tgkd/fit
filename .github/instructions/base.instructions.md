@@ -76,7 +76,7 @@ export type ThemedTextProps = TextProps & {
 ## Health Data
 
 - Data provider: **Apple Health**.
-- Adhere to the schema defined in `react-native-healthkit/src/native-types.ts` ([native-types.ts](https://github.com/kingstinct/react-native-healthkit/blob/master/src/native-types.ts)).
+- Adhere to the schema defined in `react-native-healthkit` ([native-types.ts](https://github.com/kingstinct/react-native-healthkit/blob/master/packages/react-native-healthkit/src/index.ts)).
 
 ## Import Organization
 
