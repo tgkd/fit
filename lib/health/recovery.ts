@@ -7,22 +7,15 @@ import {
   queryStatisticsForQuantity,
 } from "@kingstinct/react-native-healthkit";
 
+import { HealthDataDefaults } from "./types";
 import { getCurrentDateRanges, getExtendedDateRanges } from "./utils";
 
-// Updated interface to include defaults for fallback values
-interface RecoveryCalculationOptions {
-  defaults?: {
-    RESTING_HEART_RATE?: number;
-    RESPIRATORY_RATE?: number;
-    SLEEP_EFFICIENCY?: number;
-    DAILY_WATER_INTAKE?: number; // ml
-    DAILY_ALCOHOL_DRINKS?: number; // number of drinks
-    DAILY_CALORIES_CONSUMED?: number; // kcal
-  };
-  sleepEfficiency?: number; // Can be passed in if already calculated
+export interface RecoveryCalculationOptions {
+  defaults?: HealthDataDefaults;
+  sleepEfficiency?: number;
 }
 
-interface RecoveryScoreBreakdown {
+export interface RecoveryScoreBreakdown {
   biometrics: {
     HRV: number;
     RHR: number;
@@ -37,7 +30,7 @@ interface RecoveryScoreBreakdown {
   };
 }
 
-interface RecoveryScoreResult {
+export interface RecoveryScoreResult {
   totalScore: number; // Final 0–100 recovery score
   biometricScore: number; // Aggregate biometric sub-score (0–100)
   lifestyleScore: number; // Aggregate lifestyle sub-score (0–100)
@@ -57,13 +50,6 @@ export async function calculateRecoveryScore(
 ): Promise<RecoveryScoreResult> {
   const { now, startOfToday, oneWeekAgo } = getCurrentDateRanges();
   const { fourteenDaysAgo } = getExtendedDateRanges();
-
-  console.log("📅 Date ranges for recovery calculation:", {
-    now: now.toISOString(),
-    startOfToday: startOfToday.toISOString(),
-    oneWeekAgo: oneWeekAgo.toISOString(),
-    fourteenDaysAgo: fourteenDaysAgo.toISOString(),
-  });
 
   // Fetch all required health data in parallel
   const [
@@ -119,28 +105,21 @@ export async function calculateRecoveryScore(
   const hrvValues = hrvSamples.map((s) => s.quantity);
   // Warn if HRV data is sparse
   if (hrvValues.length < 7) {
-    console.warn(`⚠️ Limited HRV data: only ${hrvValues.length} samples in the last week`);
+    console.warn(
+      `⚠️ Limited HRV data: only ${hrvValues.length} samples in the last week`
+    );
   }
   const currentHrv = hrvValues.length > 0 ? mean(hrvValues) : 45; // Use 7-day average
 
   // Respiratory rate validation - handle null/empty response
   const hasRespiratoryData = respiratoryStats?.averageQuantity?.quantity;
-  const respiratoryRate = hasRespiratoryData || options.defaults?.RESPIRATORY_RATE || 15;
+  const respiratoryRate =
+    hasRespiratoryData || options.defaults?.RESPIRATORY_RATE || 15;
 
   const sleepEfficiency =
     options.sleepEfficiency || options.defaults?.SLEEP_EFFICIENCY || 85;
 
   const activeEnergyBurned = activeEnergyStats?.sumQuantity?.quantity || 0;
-
-  console.log("🩺 Processed recovery data:", {
-    restingHR: `${restingHR} bpm`,
-    currentHrv: `${currentHrv.toFixed(1)} ms (from ${hrvValues.length} samples)`,
-    respiratoryRate: `${respiratoryRate} breaths/min ${!hasRespiratoryData ? '(using default)' : ''}`,
-    sleepEfficiency: `${sleepEfficiency}% ${!options.sleepEfficiency ? '(using default)' : ''}`,
-    activeEnergyBurned: `${activeEnergyBurned.toFixed(1)} Cal`,
-    hrvSamplesCount: hrvValues.length,
-    respiratoryDataAvailable: !!hasRespiratoryData,
-  });
 
   // Calculate baselines for comparison
   const baselineHrvValues = baselineHrvSamples.map((s) => s.quantity);
@@ -151,17 +130,19 @@ export async function calculateRecoveryScore(
   const baselineRhr =
     baselineRhrValues.length > 0 ? mean(baselineRhrValues) : undefined;
 
-  console.log("📊 Baseline calculations:", {
-    baselineHrv: baselineHrv ? `${baselineHrv.toFixed(1)} ms (from ${baselineHrvValues.length} samples)` : 'No baseline data',
-    baselineRhr: baselineRhr ? `${baselineRhr.toFixed(1)} bpm (from ${baselineRhrValues.length} samples)` : 'No baseline data',
-    hrvBaseline14Day: baselineHrvValues.length > 0 ? baselineHrvValues : [],
-    rhrBaseline14Day: baselineRhrValues.length > 0 ? baselineRhrValues : [],
-  });
-
   // Use defaults for nutritional data (not available in current HealthKit library)
-  const waterIntake = options.defaults?.DAILY_WATER_INTAKE || 2000; // 2L default
-  const alcoholDrinks = options.defaults?.DAILY_ALCOHOL_DRINKS || 0; // No alcohol default
-  const caloriesConsumed = options.defaults?.DAILY_CALORIES_CONSUMED || 2000; // 2000 kcal default
+  const waterIntake = options.defaults?.DAILY_WATER_INTAKE || 2000;
+  const alcoholDrinks = options.defaults?.DAILY_ALCOHOL_DRINKS || 0;
+  const caloriesConsumed = options.defaults?.DAILY_CALORIES_CONSUMED || 2000;
+
+  // Extract configuration constants with fallbacks
+  const normativeHrv = options.defaults?.NORMATIVE_HRV || 45;
+  const waterTarget = options.defaults?.WATER_TARGET || 2500;
+  const calorieTarget = options.defaults?.CALORIE_TARGET || 1800;
+  const strainLow = options.defaults?.STRAIN_LOW_THRESHOLD || 500;
+  const strainHigh = options.defaults?.STRAIN_HIGH_THRESHOLD || 1000;
+  const respBase = options.defaults?.RESPIRATORY_BASELINE || 16;
+  const alcoholPenalty = options.defaults?.ALCOHOL_PENALTY_PER_DRINK || 50;
   // 1. Normalize biometric metrics with baseline references or healthy defaults
   const baselines = {
     hrv: baselineHrv,
@@ -172,12 +153,8 @@ export async function calculateRecoveryScore(
   const hrvBaseline = baselines.hrv ?? 50; // default 50ms if no baseline
   let hrvScore = (currentHrv / hrvBaseline) * 100;
 
-  // If baseline is from insufficient data (same as current), use a more conservative approach
   if (baselineHrvValues.length < 14 && Math.abs(currentHrv - hrvBaseline) < 1) {
-    // Use age-based normative data instead of personal baseline
-    const normativeHrv = 45; // Conservative normative value for adults
     hrvScore = (currentHrv / normativeHrv) * 100;
-    console.log(`ℹ️ Using normative HRV baseline (${normativeHrv}ms) due to insufficient personal data`);
   }
 
   if (currentHrv >= hrvBaseline) hrvScore = 100; // cap at baseline or above
@@ -190,14 +167,11 @@ export async function calculateRecoveryScore(
   rhrScore = clampPercent(rhrScore);
 
   // Respiratory Rate: lower (within normal range) is better.
-  const respBase = 16; // default 16 breaths/min
   let respiratoryScore = (respBase / respiratoryRate) * 100;
   if (respiratoryRate <= respBase) respiratoryScore = 100;
 
-  // Penalize if using default respiratory data (not actual measurement)
   if (!hasRespiratoryData) {
-    respiratoryScore = Math.min(respiratoryScore, 75); // Cap at 75% for default data
-    console.log("ℹ️ Respiratory score capped at 75% due to missing data");
+    respiratoryScore = Math.min(respiratoryScore, 75);
   }
 
   respiratoryScore = clampPercent(respiratoryScore);
@@ -209,24 +183,20 @@ export async function calculateRecoveryScore(
   sleepEffScore = clampPercent(sleepEffScore);
 
   // 2. Normalize lifestyle metrics against healthy thresholds
-  // Hydration (daily water) – compare to 2500ml target
-  const waterTarget = 2500; // 2.5 L
+  // Hydration (daily water) – compare to target
   let hydrationScore = (waterIntake / waterTarget) * 100;
   hydrationScore = clampPercent(hydrationScore);
 
-  // Alcohol – 0 drinks ideal. Deduct ~50 points per drink as a simple model.
-  let alcoholScore = 100 - alcoholDrinks * 50;
+  // Alcohol – 0 drinks ideal. Deduct points per drink as a simple model.
+  let alcoholScore = 100 - alcoholDrinks * alcoholPenalty;
   if (alcoholDrinks >= 2) alcoholScore = 0; // 2 or more drinks: 0%
   alcoholScore = clampPercent(alcoholScore);
 
-  // Nutrition (calories) – compare to minimum 1800 kcal
-  const calorieTarget = 1800;
+  // Nutrition (calories) – compare to minimum target
   let nutritionScore = (caloriesConsumed / calorieTarget) * 100;
   nutritionScore = clampPercent(nutritionScore);
 
-  // Strain (active energy) – full score if <=500 kcal, zero if >=1000 kcal, linear in between
-  const strainLow = 500,
-    strainHigh = 1000;
+  // Strain (active energy) – full score if <=low threshold, zero if >=high threshold, linear in between
   let strainScore: number;
   if (activeEnergyBurned <= strainLow) {
     strainScore = 100;
@@ -277,26 +247,6 @@ export async function calculateRecoveryScore(
       strain: Math.round(strainScore),
     },
   };
-
-  console.log("🎯 Recovery score calculations:", {
-    biometrics: {
-      HRV: `${Math.round(hrvScore)}% (${currentHrv.toFixed(1)}ms vs baseline ${hrvBaseline.toFixed(1)}ms)`,
-      RHR: `${Math.round(rhrScore)}% (${restingHR}bpm vs baseline ${rhrBaseline.toFixed(1)}bpm)`,
-      respiratory: `${Math.round(respiratoryScore)}% (${respiratoryRate} vs baseline 16)`,
-      sleep: `${Math.round(sleepEffScore)}% (${sleepEfficiency}%)`,
-    },
-    lifestyle: {
-      hydration: `${Math.round(hydrationScore)}% (${waterIntake}ml vs target 2500ml)`,
-      alcohol: `${Math.round(alcoholScore)}% (${alcoholDrinks} drinks)`,
-      nutrition: `${Math.round(nutritionScore)}% (${caloriesConsumed} vs target 1800 kcal)`,
-      strain: `${Math.round(strainScore)}% (${activeEnergyBurned.toFixed(1)} vs low 500 kcal)`,
-    },
-    totals: {
-      biometricScore: Math.round(biometricScore),
-      lifestyleScore: Math.round(lifestyleScore),
-      totalScore: Math.round(totalScore),
-    },
-  });
 
   return {
     totalScore: Math.round(totalScore),

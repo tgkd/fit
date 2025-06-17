@@ -4,6 +4,12 @@ import { I18n } from "i18n-js";
 // Set the key-value pairs for the different languages you want to support.
 const translations = {
   en: {
+    sleepChart: {
+      lastNight: "Last Night",
+      totalSleep: "Total Sleep",
+      efficiency: "Efficiency",
+      performance: "Performance",
+    },
     tabs: {
       home: "Home",
       stress: "Stress",
@@ -120,7 +126,8 @@ const translations = {
       calories: "Calories",
       totalWorkouts: "Total Workouts",
       avgCalories: "Avg Calories",
-      noWorkoutData: "No workout data available from HealthKit. Start a workout on your Apple Watch or iPhone to see data here.",
+      noWorkoutData:
+        "No workout data available from HealthKit. Start a workout on your Apple Watch or iPhone to see data here.",
       noWorkoutsLast7Days: "No workouts in the last 7 days",
       // Workout Details Screen
       quickStats: "Quick Stats",
@@ -173,6 +180,10 @@ const translations = {
       stress: "Stress", // General term for stress
       avg: "Avg",
       peak: "Peak",
+      low: "Low",
+      mild: "Mild",
+      moderate: "Moderate",
+      high: "High",
     },
 
     // StressMonitorCard.tsx
@@ -181,6 +192,8 @@ const translations = {
       lastUpdated: "Last updated {{time}}",
       loadingData: "Loading data...", // Added
       noData: "No data available.", // Added
+      dataRefreshing: "Data refreshing...",
+      enhancedStressAnalysis: "Enhanced Stress Analysis",
       levels: {
         low: "LOW",
         medium: "MEDIUM",
@@ -188,6 +201,7 @@ const translations = {
         critical: "CRITICAL",
       },
     },
+
     // HRV Screen (app/hrv.tsx)
     hrvScreen: {
       enhancedStressAnalysis: "Enhanced Stress Analysis",
@@ -200,6 +214,10 @@ const translations = {
         "Stress data unavailable. Using basic stress: {{stressLevel}}/100",
       requires14DaysData:
         "Requires 14 days of HRV and heart rate data for personal baselines.",
+      outOf3: "out of 3.0",
+      personalBaselines: "Personal Baselines",
+      hrvBaseline: "HRV Baseline",
+      rhrBaseline: "RHR Baseline",
     },
   },
   ru: {
@@ -304,7 +322,8 @@ const translations = {
       title: "Настройки",
       subtitle: "Настройте параметры приложения",
       healthDataTitle: "Данные о здоровье",
-      healthDataSubtitle: "Управляйте разрешениями для данных о здоровье в приложении Здоровье",
+      healthDataSubtitle:
+        "Управляйте разрешениями для данных о здоровье в приложении Здоровье",
     },
 
     // Workouts Screen (app/(tabs)/workouts.tsx)
@@ -319,7 +338,8 @@ const translations = {
       calories: "Калории",
       totalWorkouts: "Всего тренировок",
       avgCalories: "ср. калорий",
-      noWorkoutData: "Данных о тренировках нет в HealthKit. Начните тренировку на вашем Apple Watch или iPhone, чтобы увидеть данные здесь.",
+      noWorkoutData:
+        "Данных о тренировках нет в HealthKit. Начните тренировку на вашем Apple Watch или iPhone, чтобы увидеть данные здесь.",
       noWorkoutsLast7Days: "Тренировок не было за последние 7 дней",
       quickStats: "Быстрая статистика",
       duration: "Продолжительность",
@@ -370,6 +390,10 @@ const translations = {
       stress: "Стресс",
       avg: "Среднее",
       peak: "Пик",
+      low: "Низкий",
+      mild: "Легкий",
+      moderate: "Умеренный",
+      high: "Высокий",
     },
 
     // StressMonitorCard.tsx
@@ -378,6 +402,8 @@ const translations = {
       lastUpdated: "Обновлено {{time}}",
       loadingData: "Загрузка данных...",
       noData: "Данные отсутствуют.",
+      dataRefreshing: "Обновление данных...",
+      enhancedStressAnalysis: "Расширенный анализ стресса",
       levels: {
         low: "НИЗКИЙ",
         medium: "СРЕДНИЙ",
@@ -388,7 +414,8 @@ const translations = {
     // HRV Screen (app/hrv.tsx)
     hrvScreen: {
       enhancedStressAnalysis: "Расширенный анализ стресса",
-      basedOnPersonalBaselines: "На основе 14-дневных личных базовых показателей",
+      basedOnPersonalBaselines:
+        "На основе 14-дневных личных базовых показателей",
       totalDay: "Весь день",
       sleep: "Сон",
       daily: "Дневной",
@@ -397,6 +424,10 @@ const translations = {
         "Данные о стрессе недоступны. Используется базовый стресс: {{stressLevel}}/100",
       requires14DaysData:
         "Требуются данные о ВСР и частоте сердечных сокращений за 14 дней для определения личных базовых показателей.",
+      outOf3: "из 3.0",
+      personalBaselines: "Личные базовые показатели",
+      hrvBaseline: "Базовый уровень ВСР",
+      rhrBaseline: "Базовый уровень ЧСС покоя",
     },
   },
   ja: {
@@ -516,7 +547,8 @@ const translations = {
       calories: "カロリー",
       totalWorkouts: "総トレーニング",
       avgCalories: "平均カロリー",
-      noWorkoutData: "HealthKitからのトレーニングデータがありません。Apple WatchまたはiPhoneでトレーニングを開始してここにデータを表示します。",
+      noWorkoutData:
+        "HealthKitからのトレーニングデータがありません。Apple WatchまたはiPhoneでトレーニングを開始してここにデータを表示します。",
       noWorkoutsLast7Days: "過去7日間にトレーニングはありません",
       quickStats: "クイック統計",
       duration: "継続時間",
@@ -567,6 +599,10 @@ const translations = {
       stress: "ストレス",
       avg: "平均",
       peak: "ピーク",
+      low: "低い",
+      mild: "軽度",
+      moderate: "中程度",
+      high: "高い",
     },
 
     // StressMonitorCard.tsx
@@ -575,6 +611,8 @@ const translations = {
       lastUpdated: "最終更新 {{time}}",
       loadingData: "データを読み込み中...",
       noData: "利用可能なデータがありません。",
+      dataRefreshing: "データを更新中...",
+      enhancedStressAnalysis: "強化されたストレス分析",
       levels: {
         low: "低い",
         medium: "中程度",
@@ -594,6 +632,10 @@ const translations = {
         "ストレスデータが利用できません。基本的なストレスを使用しています: {{stressLevel}}/100",
       requires14DaysData:
         "個人的なベースラインには14日間のHRVと心拍数データが必要です。",
+      outOf3: "3.0のうち",
+      personalBaselines: "個人のベースライン",
+      hrvBaseline: "HRVベースライン",
+      rhrBaseline: "RHRベースライン",
     },
   },
 };

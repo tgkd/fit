@@ -40,27 +40,27 @@ export const Colors = {
     border: "#3A3A3C", // iOS dark gray border
   },
   charts: {
-    sleep: "#007AFF", // iOS blue
-    recovery: "#34C759", // iOS green
-    strain: "#FF9500", // iOS orange
-    stress: "#FF3B30", // iOS red
+    sleep: "#005BBB", // Darker blue for better contrast
+    recovery: "#2BA349", // Darker green
+    strain: "#CC7600", // Darker orange
+    stress: "#CC2F26", // Darker red
     chartBackground: "#F2F2F7", // iOS light gray background for charts
   },
   sleep: {
-    awake: "#666666",
-    light: "#A8C5E5",
-    deep: "#E91E63",
-    rem: "#9C27B0",
+    awake: "#4A4A4A", // Darker gray for better contrast
+    light: "#5B9BD5", // Darker blue
+    deep: "#C1185A", // Darker pink
+    rem: "#7B1FA2", // Darker purple
     performance: {
-      excellent: "#00E676",
-      good: "#FFEB3B",
-      poor: "#FF9800",
+      excellent: "#00C853", // Darker green
+      good: "#F9A825", // Darker yellow
+      poor: "#F57C00", // Darker orange
     },
   },
   hrv: {
-    excellent: "#00E676", // Green
-    good: "#FFEB3B", // Yellow
-    poor: "#FF9800", // Orange
-    veryPoor: "#F44336", // Red
+    excellent: "#00C853", // Darker green
+    good: "#F9A825", // Darker yellow
+    poor: "#F57C00", // Darker orange
+    veryPoor: "#D32F2F", // Darker red
   },
 };

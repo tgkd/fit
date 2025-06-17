@@ -41,7 +41,7 @@ export default function HomeScreen() {
       <StressMonitorCard
         healthData={data}
         onPress={() => {
-          router.push("/hrv");
+          router.push("/stress");
         }}
       />
 

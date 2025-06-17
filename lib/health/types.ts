@@ -223,6 +223,15 @@ export interface HealthDataDefaults {
   DAILY_ALCOHOL_DRINKS?: number; // number of drinks
   DAILY_CALORIES_CONSUMED?: number; // kcal
 
+  // Recovery calculation thresholds
+  NORMATIVE_HRV?: number; // ms - fallback HRV baseline
+  WATER_TARGET?: number; // ml - daily hydration target
+  CALORIE_TARGET?: number; // kcal - minimum daily calories
+  STRAIN_LOW_THRESHOLD?: number; // kcal - low strain threshold
+  STRAIN_HIGH_THRESHOLD?: number; // kcal - high strain threshold
+  RESPIRATORY_BASELINE?: number; // breaths/min - ideal respiratory rate
+  ALCOHOL_PENALTY_PER_DRINK?: number; // points deducted per drink
+
   // Strain calculation defaults
   MAX_HEART_RATE?: number;
   STRAIN_LOG_SCALE_FACTOR?: number;

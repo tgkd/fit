@@ -15,11 +15,8 @@ import {
 } from "./types";
 import { fetchWorkoutStats } from "./workouts";
 
-/**
- * Main health data aggregator function
- */
 export const getAllHealthStats = async (
-  defaults?: HealthDataDefaults // Use HealthDataDefaults type
+  defaults?: HealthDataDefaults
 ): Promise<HealthData> => {
   await initializeHealthKit();
 
@@ -43,22 +40,13 @@ export const getAllHealthStats = async (
       console.warn("Stress calculation failed, using fallback:", error);
     }
 
-    // Calculate recovery score using the comprehensive recovery.ts function
-    // This fetches all biometric and lifestyle data directly from HealthKit
-    console.log("🔄 Starting recovery score calculation...");
     const recoveryScore = await calculateRecoveryScore({
       defaults,
       sleepEfficiency: sleepStats.sleepEfficiency,
     });
 
-    console.log("✅ Recovery calculation completed successfully");
-    console.log(
-      "🔍 Recovery score breakdown",
-      JSON.stringify(recoveryScore, null, 2)
-    );
-
     const stressChartDisplayData: StressChartDisplayData =
-      prepareStressChartDisplayData(
+      await prepareStressChartDisplayData(
         heartStressStats.hrvValues,
         heartStressStats.restingHeartRate,
         heartStressStats.stressLevel,
@@ -86,21 +74,6 @@ export const getAllHealthStats = async (
       "Failed to fetch health data. Please check permissions and try again."
     );
   }
-};
-
-/**
- * Legacy compatibility function
- * @deprecated Use getAllHealthStats instead
- */
-export const getUserStats = async () => {
-  const healthData = await getAllHealthStats();
-  return {
-    moveKcal: healthData.moveKcal,
-    exerciseMins: healthData.exerciseMins,
-    standHours: healthData.standHours,
-    recoveryScore: healthData.recoveryScore,
-    strainScore: healthData.strainScore,
-  };
 };
 
 // Re-export all types and functions

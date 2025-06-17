@@ -1,10 +1,6 @@
 import React, { createContext, ReactNode, useEffect, useState } from "react";
 
-import {
-  calculateRecoveryScore,
-  getAllHealthStats,
-  isHealthKitAvailable,
-} from "@/lib/health";
+import { getAllHealthStats, isHealthKitAvailable } from "@/lib/health";
 import {
   HealthData as ModularHealthData,
   WriteHealthDataOptions as ModularWriteHealthDataOptions,
@@ -17,6 +13,16 @@ export const HEALTH_DEFAULTS = {
   SLEEP_EFFICIENCY: 85, // Default sleep efficiency percentage
   DEFAULT_STRESS_LEVEL: 2, // Default stress level when data missing
   HRV_BASELINE: 45, // Default HRV baseline when no data
+  DAILY_WATER_INTAKE: 2000, // ml - default daily water intake
+  DAILY_ALCOHOL_DRINKS: 0, // number of drinks - default no alcohol
+  DAILY_CALORIES_CONSUMED: 2000, // kcal - default daily calories
+  NORMATIVE_HRV: 45, // ms - fallback HRV baseline for adults
+  WATER_TARGET: 2500, // ml - daily hydration target
+  CALORIE_TARGET: 1800, // kcal - minimum daily calories
+  STRAIN_LOW_THRESHOLD: 500, // kcal - low strain threshold
+  STRAIN_HIGH_THRESHOLD: 1000, // kcal - high strain threshold
+  RESPIRATORY_BASELINE: 16, // breaths/min - ideal respiratory rate
+  ALCOHOL_PENALTY_PER_DRINK: 50, // points deducted per alcoholic drink
 };
 
 // Use the modular HealthData interface
@@ -177,12 +183,7 @@ function generateFakeHealthData(): HealthData {
     hrv7DayAvg: 45.7,
     hrvMostRecent: 50,
     hrvValues: fakeHrvValues,
-    recoveryScore: calculateRecoveryScore(
-      fakeHrvValues,
-      fakeRHR,
-      HEALTH_DEFAULTS.RESPIRATORY_RATE,
-      92 // sleep efficiency
-    ),
+    recoveryScore: 93, // Use static value for fake data
     strainScore: 65,
     stressLevel: 25,
     bloodOxygen: { value: 0.98, date: new Date() },
