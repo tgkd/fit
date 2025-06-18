@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import React, { use } from "react";
-import { Pressable, StyleSheet } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet } from "react-native";
 
 import { CircularProgressChart } from "@/components/charts/CircularProgressChart";
 import { StressMonitorCard } from "@/components/charts/StressMonitorCard";
@@ -13,10 +13,80 @@ import i18n from "@/lib/i18n";
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { data } = use(HealthDataContext);
+  const {
+    data,
+    date,
+    loading,
+    setPreviousDate,
+    setNextDate,
+    setToday,
+    isToday,
+    formatDate
+  } = use(HealthDataContext);
 
   return (
     <ThemedScrollView>
+      <Card style={styles.dateNavigationContainer}>
+        <Pressable
+          style={[
+            styles.dateButton,
+            loading && styles.dateButtonDisabled
+          ]}
+          onPress={setPreviousDate}
+          disabled={loading}
+        >
+          <ThemedText
+            type="defaultSemiBold"
+            size="lg"
+            lightColor={loading ? Colors.light.textSecondary : Colors.light.text}
+            darkColor={loading ? Colors.dark.textSecondary : Colors.dark.text}
+          >‹</ThemedText>
+        </Pressable>
+
+        <Pressable
+          style={[
+            styles.dateDisplayContainer,
+            loading && styles.dateButtonDisabled
+          ]}
+          onPress={setToday}
+          disabled={isToday() || loading}
+        >
+          {loading ? (
+            <ActivityIndicator
+              size="small"
+              color={Colors.light.tint}
+            />
+          ) : (
+            <ThemedText
+              type="defaultSemiBold"
+              size="md"
+              lightColor={isToday() ? Colors.light.text : Colors.light.tint}
+              darkColor={isToday() ? Colors.dark.text : Colors.dark.tint}
+            >
+              {formatDate(date)}
+            </ThemedText>
+          )}
+        </Pressable>
+
+        <Pressable
+          style={[
+            styles.dateButton,
+            (isToday() || loading) && styles.dateButtonDisabled
+          ]}
+          onPress={setNextDate}
+          disabled={isToday() || loading}
+        >
+          <ThemedText
+            type="defaultSemiBold"
+            size="lg"
+            lightColor={(isToday() || loading) ? Colors.light.textSecondary : Colors.light.text}
+            darkColor={(isToday() || loading) ? Colors.dark.textSecondary : Colors.dark.text}
+          >
+            ›
+          </ThemedText>
+        </Pressable>
+      </Card>
+
       <Card style={styles.circularChartsContainer}>
         <Pressable onPress={() => router.push("/sleep")}>
           <CircularProgressChart
@@ -119,5 +189,26 @@ const styles = StyleSheet.create({
     justifyContent: "space-around",
     alignItems: "center",
     gap: 12,
+  },
+  dateNavigationContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 16,
+  },
+  dateButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    minWidth: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dateButtonDisabled: {
+    opacity: 0.3,
+  },
+  dateDisplayContainer: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 8,
   },
 });

@@ -45,3 +45,4 @@ app-example
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+.aider*

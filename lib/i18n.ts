@@ -20,6 +20,8 @@ const translations = {
     },
     // HomeScreen (app/(tabs)/index.tsx)
     home: {
+      today: "Today",
+      yesterday: "Yesterday",
       screenTitle: "Today's Dashboard", // Was homeScreenTitle
       dailyStressTrends: "Daily Stress Trends",
       noStressData: "No stress data available.",
@@ -234,6 +236,8 @@ const translations = {
     },
     // HomeScreen (app/(tabs)/index.tsx)
     home: {
+      today: "Сегодня",
+      yesterday: "Вчера",
       screenTitle: "Сегодняшняя панель",
       dailyStressTrends: "Ежедневные тенденции стресса",
       noStressData: "Данные о стрессе недоступны.",
@@ -444,6 +448,8 @@ const translations = {
     },
     // HomeScreen (app/(tabs)/index.tsx)
     home: {
+      today: "今日",
+      yesterday: "昨日",
       screenTitle: "今日のダッシュボード",
       dailyStressTrends: "日次ストレス傾向",
       noStressData: "ストレスデータがありません。",

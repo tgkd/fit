@@ -17,29 +17,39 @@ import {
 import { fetchWorkoutStats } from "./workouts";
 
 export const getAllHealthStats = async (
+  date: Date,
   defaults?: HealthDataDefaults
 ): Promise<HealthData> => {
   await initializeHealthKit();
+
+  console.log("Fetching health stats for date:", date);
 
   if (!isHealthKitAvailable) {
     throw new Error("HealthKit is not available on this platform.");
   }
 
   try {
-    const generalStats = await fetchGeneralStats();
+    const generalStats = await fetchGeneralStats(date);
 
-    const [workoutStats, sleepStats, heartStressStats, sleepAverages, stressAverages, recoveryAverages] = await Promise.all([
-      fetchWorkoutStats(),
-      fetchSleepStats(),
-      fetchHeartStressStats(generalStats.age, defaults),
-      fetchSleepAverages(),
-      fetchStressAverages(defaults),
-      fetchRecoveryAverages(defaults),
+    const [
+      workoutStats,
+      sleepStats,
+      heartStressStats,
+      sleepAverages,
+      stressAverages,
+      recoveryAverages,
+    ] = await Promise.all([
+      fetchWorkoutStats(date),
+      fetchSleepStats(date),
+      fetchHeartStressStats(generalStats.age, defaults, date),
+      fetchSleepAverages(date),
+      fetchStressAverages(defaults, date),
+      fetchRecoveryAverages(defaults, date),
     ]);
 
     let stressDetails: HealthData["stressDetails"] = null;
     try {
-      stressDetails = await calculateStressMetrics(defaults);
+      stressDetails = await calculateStressMetrics(defaults, date);
     } catch (error) {
       console.warn("Stress calculation failed, using fallback:", error);
     }
@@ -47,6 +57,7 @@ export const getAllHealthStats = async (
     const recoveryScore = await calculateRecoveryScore({
       defaults,
       sleepEfficiency: sleepStats.sleepEfficiency,
+      targetDate: date,
     });
 
     const stressChartDisplayData: StressChartDisplayData =
@@ -55,11 +66,12 @@ export const getAllHealthStats = async (
         heartStressStats.restingHeartRate,
         heartStressStats.stressLevel,
         stressDetails,
-        defaults
+        defaults,
+        date
       );
 
-    // Calculate strain score for today
-    const strainScore = await calculateDayStrain(new Date(), defaults);
+    // Calculate strain score for the target date
+    const strainScore = await calculateDayStrain(date, defaults);
 
     return {
       ...generalStats,
@@ -84,5 +96,9 @@ export const getAllHealthStats = async (
 };
 
 // Re-export specific types and functions as needed
-export type { HealthData, HealthDataDefaults, StressChartDisplayData } from "./types";
+export type {
+  HealthData,
+  HealthDataDefaults,
+  StressChartDisplayData
+} from "./types";
 

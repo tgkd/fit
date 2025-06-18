@@ -12,6 +12,7 @@ import {
   calculateAverage,
   getCurrentDateRanges,
   getDateRange,
+  getDateRanges,
   getDatesArray,
   getExtendedDateRanges,
 } from "./utils";
@@ -19,6 +20,7 @@ import {
 export interface RecoveryCalculationOptions {
   defaults?: HealthDataDefaults;
   sleepEfficiency?: number;
+  targetDate?: Date;
 }
 
 export interface RecoveryScoreBreakdown {
@@ -51,11 +53,28 @@ const clampPercent = (num: number): number => Math.max(0, Math.min(100, num));
  * Includes biometric data (HRV, RHR, respiratory rate, sleep efficiency)
  * and lifestyle factors (hydration, alcohol, nutrition, strain)
  */
+
 export async function calculateRecoveryScore(
   options: RecoveryCalculationOptions = {}
 ): Promise<RecoveryScoreResult> {
-  const { now, startOfToday, oneWeekAgo } = getCurrentDateRanges();
-  const { fourteenDaysAgo } = getExtendedDateRanges();
+  const targetDate = options.targetDate;
+  let now: Date, startOfDay: Date, oneWeekAgo: Date, fourteenDaysAgo: Date;
+
+  if (targetDate) {
+    const ranges = getDateRanges(targetDate);
+    const extendedRanges = getExtendedDateRanges(targetDate);
+    now = ranges.endOfTargetDay;
+    startOfDay = ranges.startOfTargetDay;
+    oneWeekAgo = ranges.oneWeekAgo;
+    fourteenDaysAgo = extendedRanges.fourteenDaysAgo;
+  } else {
+    const ranges = getCurrentDateRanges();
+    const extendedRanges = getExtendedDateRanges();
+    now = ranges.now;
+    startOfDay = ranges.startOfToday;
+    oneWeekAgo = ranges.oneWeekAgo;
+    fourteenDaysAgo = extendedRanges.fourteenDaysAgo;
+  }
 
   // Fetch all required health data in parallel
   const [
@@ -76,21 +95,21 @@ export async function calculateRecoveryScore(
       from: oneWeekAgo,
       to: now,
     }),
-    // Today's respiratory rate (may not be available)
+    // Respiratory rate for the target day (may not be available)
     queryStatisticsForQuantity(
       HKQuantityTypeIdentifier.respiratoryRate,
       [HKStatisticsOptions.discreteAverage],
-      startOfToday,
+      startOfDay,
       now
     ).catch((error) => {
       console.warn("Respiratory rate data not available:", error);
       return null;
     }),
-    // Today's active energy burned
+    // Active energy burned for the target day
     queryStatisticsForQuantity(
       HKQuantityTypeIdentifier.activeEnergyBurned,
       [HKStatisticsOptions.cumulativeSum],
-      startOfToday,
+      startOfDay,
       now
     ),
     // 14-day HRV baseline
@@ -293,16 +312,17 @@ LOG  🔄 Starting recovery score calculation...
 */
 
 /**
- * Fetch recovery averages for 14 and 30 day periods
+ * Fetch recovery averages for 14 and 30 day periods relative to a target date
  */
 export const fetchRecoveryAverages = async (
-  defaults?: HealthDataDefaults
+  defaults?: HealthDataDefaults,
+  targetDate?: Date
 ): Promise<{
   last14Days: RecoveryAverages;
   last30Days: RecoveryAverages;
 }> => {
-  const range14Days = getDateRange(14);
-  const range30Days = getDateRange(30);
+  const range14Days = getDateRange(14, targetDate);
+  const range30Days = getDateRange(30, targetDate);
 
   const calculate14DayAverage = async () => {
     const dates = getDatesArray(range14Days.from, range14Days.to);
@@ -310,8 +330,11 @@ export const fetchRecoveryAverages = async (
 
     for (const date of dates) {
       try {
-        // Calculate daily recovery score
-        const recoveryResult = await calculateRecoveryScore({ defaults });
+        // Calculate daily recovery score for each specific date
+        const recoveryResult = await calculateRecoveryScore({
+          defaults,
+          targetDate: date
+        });
         recoveryScores.push(recoveryResult.totalScore);
       } catch (error) {
         console.warn(`Failed to calculate recovery for ${date}:`, error);
@@ -328,7 +351,10 @@ export const fetchRecoveryAverages = async (
 
     for (const date of dates) {
       try {
-        const recoveryResult = await calculateRecoveryScore({ defaults });
+        const recoveryResult = await calculateRecoveryScore({
+          defaults,
+          targetDate: date
+        });
         recoveryScores.push(recoveryResult.totalScore);
       } catch (error) {
         console.warn(`Failed to calculate recovery for ${date}:`, error);

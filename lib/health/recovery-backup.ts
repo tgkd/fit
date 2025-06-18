@@ -1,52 +1,30 @@
 // Shared utility functions for health modules
-import { endOfDay, format, startOfDay, subDays, subWeeks } from "date-fns";
+import { format, startOfDay, subDays, subWeeks, endOfDay } from "date-fns";
 
-/**
- * Get date ranges relative to a specific target date
- * This is the date-aware version for historical data queries
- */
-export const getDateRanges = (targetDate: Date) => {
-  const now = new Date(targetDate);
-  const startOfTargetDay = startOfDay(now);
-  const endOfTargetDay = endOfDay(now);
+export const getCurrentDateRanges = () => {
+  const now = new Date();
+  const startOfToday = startOfDay(now);
   const oneDayAgo = subDays(now, 1);
   const oneWeekAgo = subWeeks(now, 1);
 
   return {
     now,
-    startOfTargetDay,
-    endOfTargetDay,
+    startOfToday,
     oneDayAgo,
     oneWeekAgo,
   };
 };
 
-/**
- * Get current date ranges (for backward compatibility)
- */
-export const getCurrentDateRanges = () => {
-  const ranges = getDateRanges(new Date());
-  return {
-    now: ranges.now,
-    startOfToday: ranges.startOfTargetDay,
-    oneDayAgo: ranges.oneDayAgo,
-    oneWeekAgo: ranges.oneWeekAgo,
-  };
-};
-
 /** Get date ranges for longer periods */
-export const getExtendedDateRanges = (targetDate?: Date) => {
-  const now = targetDate ? new Date(targetDate) : new Date();
-  const startOfTargetDay = startOfDay(now);
-  const endOfTargetDay = endOfDay(now);
+export const getExtendedDateRanges = () => {
+  const now = new Date();
+  const startOfToday = startOfDay(now);
   const fourteenDaysAgo = subDays(now, 14);
   const oneMonthAgo = subDays(now, 30);
 
   return {
     now,
-    startOfToday: startOfTargetDay,
-    startOfTargetDay,
-    endOfTargetDay,
+    startOfToday,
     fourteenDaysAgo,
     oneMonthAgo,
   };
@@ -127,11 +105,11 @@ export const calculateHRMax = (age: number | null): number => {
 };
 
 /**
- * Get date range for specified number of days from a target date
+ * Get date range for specified number of days from today
  */
-export const getDateRange = (days: number, targetDate?: Date): { from: Date; to: Date } => {
-  const to = targetDate ? new Date(targetDate) : new Date();
-  const from = subDays(to, days - 1); // Include target day
+export const getDateRange = (days: number): { from: Date; to: Date } => {
+  const to = new Date();
+  const from = subDays(to, days - 1); // Include today
   return { from: startOfDay(from), to };
 };
 
@@ -157,4 +135,57 @@ export const calculateAverage = (values: (number | null | undefined)[]): number 
   const validValues = values.filter((v): v is number => v != null && !isNaN(v));
   if (validValues.length === 0) return 0;
   return validValues.reduce((sum, val) => sum + val, 0) / validValues.length;
+};
+
+/**
+ * Get date ranges relative to a specific target date
+ * This is the date-aware version of getCurrentDateRanges
+ */
+export const getDateRanges = (targetDate: Date) => {
+  const now = new Date(targetDate);
+  const startOfTargetDay = startOfDay(now);
+  const endOfTargetDay = endOfDay(now);
+  const oneDayAgo = subDays(now, 1);
+  const oneWeekAgo = subWeeks(now, 1);
+
+  return {
+    now,
+    startOfTargetDay,
+    endOfTargetDay,
+    oneDayAgo,
+    oneWeekAgo,
+  };
+};
+
+/**
+ * Get extended date ranges relative to a specific target date
+ */
+export const getExtendedDateRanges = (targetDate?: Date) => {
+  const now = targetDate ? new Date(targetDate) : new Date();
+  const startOfTargetDay = startOfDay(now);
+  const endOfTargetDay = endOfDay(now);
+  const fourteenDaysAgo = subDays(now, 14);
+  const oneMonthAgo = subDays(now, 30);
+
+  return {
+    now,
+    startOfTargetDay,
+    endOfTargetDay,
+    fourteenDaysAgo,
+    oneMonthAgo,
+  };
+};
+
+// Keep original functions for backward compatibility
+export const getCurrentDateRanges = () => {
+  return getDateRanges(new Date());
+};
+
+/**
+ * Get date range for specified number of days from a target date
+ */
+export const getDateRange = (days: number, targetDate?: Date): { from: Date; to: Date } => {
+  const to = targetDate ? new Date(targetDate) : new Date();
+  const from = subDays(to, days - 1); // Include target day
+  return { from: startOfDay(from), to };
 };

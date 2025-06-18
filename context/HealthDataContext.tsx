@@ -1,4 +1,4 @@
-import React, { createContext, ReactNode, useEffect, useState } from "react";
+import React, { createContext, ReactNode, useCallback, useEffect, useState } from "react";
 
 import { getAllHealthStats } from "@/lib/health";
 import { isHealthKitAvailable } from "@/lib/health/permissions";
@@ -6,6 +6,7 @@ import {
   HealthData as ModularHealthData,
   WriteHealthDataOptions as ModularWriteHealthDataOptions,
 } from "@/lib/health/types";
+import i18n from "@/lib/i18n";
 
 // Default values for health calculations when data is missing
 export const HEALTH_DEFAULTS = {
@@ -124,38 +125,108 @@ const defaultData: HealthData = {
 
 export const HealthDataContext = createContext<{
   data: HealthData;
+  date: Date;
+  loading: boolean;
   refresh: () => Promise<void>;
+  setDate: (date: Date) => void;
+  setPreviousDate: () => void;
+  setNextDate: () => void;
+  setToday: () => void;
+  isToday: () => boolean;
+  formatDate: (date: Date) => string;
 }>({
   data: defaultData,
+  date: new Date(),
+  loading: false,
   refresh: async () => {},
+  setDate: (date: Date) => {},
+  setPreviousDate: () => {},
+  setNextDate: () => {},
+  setToday: () => {},
+  isToday: () => false,
+  formatDate: (date: Date) => "",
 });
 
 const USE_FAKE_DATA = false;
 
 export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
   const [data, setData] = useState<HealthData>(defaultData);
+  const [date, setDate] = useState<Date>(new Date());
+  const [loading, setLoading] = useState<boolean>(false);
 
-  const initData = async () => {
-    if (USE_FAKE_DATA || !isHealthKitAvailable) {
-      console.log("Using fake data");
-      setData(generateFakeHealthData());
-    } else {
-      try {
-        const fetchedData = await getAllHealthStats(HEALTH_DEFAULTS);
-        setData(fetchedData);
-      } catch (error) {
-        console.error("getAllHealthStats failed:", error);
+  const initData = useCallback(async () => {
+    setLoading(true);
+    try {
+      if (USE_FAKE_DATA || !isHealthKitAvailable) {
+        console.log("Using fake data");
         setData(generateFakeHealthData());
+      } else {
+        console.log(`Fetching health data for: ${date.toDateString()}`);
+        const fetchedData = await getAllHealthStats(date, HEALTH_DEFAULTS);
+        setData(fetchedData);
       }
+    } catch (error) {
+      console.error("getAllHealthStats failed:", error);
+      setData(generateFakeHealthData());
+    } finally {
+      setLoading(false);
+    }
+  }, [date]);
+
+  const setPreviousDate = () => {
+    const previousDate = new Date(date);
+    previousDate.setDate(previousDate.getDate() - 1);
+    setDate(previousDate);
+  };
+
+  const setNextDate = () => {
+    const nextDate = new Date(date);
+    nextDate.setDate(nextDate.getDate() + 1);
+    setDate(nextDate);
+  };
+
+  const setToday = () => {
+    setDate(new Date());
+  };
+
+  const isToday = () => {
+    const today = new Date();
+    return date.toDateString() === today.toDateString();
+  };
+
+  const formatDate = (targetDate: Date) => {
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (targetDate.toDateString() === today.toDateString()) {
+      return i18n.t("home.today");
+    } else if (targetDate.toDateString() === yesterday.toDateString()) {
+      return i18n.t("home.yesterday");
+    } else {
+      return targetDate.toLocaleDateString();
     }
   };
 
   useEffect(() => {
     initData();
-  }, []);
+  }, [initData]);
 
   return (
-    <HealthDataContext.Provider value={{ data, refresh: initData }}>
+    <HealthDataContext.Provider
+      value={{
+        data,
+        date,
+        loading,
+        refresh: initData,
+        setDate,
+        setPreviousDate,
+        setNextDate,
+        setToday,
+        isToday,
+        formatDate
+      }}
+    >
       {children}
     </HealthDataContext.Provider>
   );

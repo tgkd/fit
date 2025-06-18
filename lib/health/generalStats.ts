@@ -6,20 +6,19 @@ import {
     queryStatisticsForQuantity,
 } from "@kingstinct/react-native-healthkit";
 import { GeneralStats } from "./types";
-import { getCurrentDateRanges } from "./utils";
+import { getCurrentDateRanges, getDateRanges } from "./utils";
 
 /**
- * Fetch general user statistics
+ * Fetch general user statistics for a specific date
  * - Age (from date of birth)
  * - Weight (most recent)
- * - Steps (today's total)
+ * - Steps (for the specific date)
  */
-export const fetchGeneralStats = async (): Promise<GeneralStats> => {
-  const { now, startOfToday } = getCurrentDateRanges();
-
+export const fetchGeneralStats = async (targetDate?: Date): Promise<GeneralStats> => {
   // Get age from date of birth
   const dob = await getDateOfBirth();
-  const age = dob ? now.getFullYear() - dob.getFullYear() : null;
+  const currentDate = new Date();
+  const age = dob ? currentDate.getFullYear() - dob.getFullYear() : null;
 
   // Get most recent weight
   const weightSample = await getMostRecentQuantitySample(
@@ -28,12 +27,23 @@ export const fetchGeneralStats = async (): Promise<GeneralStats> => {
   );
   const weightInKg = weightSample?.quantity ?? null;
 
-  // Get today's steps
+  // Get steps for the target date
+  let startDate: Date, endDate: Date;
+  if (targetDate) {
+    const ranges = getDateRanges(targetDate);
+    startDate = ranges.startOfTargetDay;
+    endDate = ranges.endOfTargetDay;
+  } else {
+    const ranges = getCurrentDateRanges();
+    startDate = ranges.startOfToday;
+    endDate = ranges.now;
+  }
+
   const stepsStat = await queryStatisticsForQuantity(
     HKQuantityTypeIdentifier.stepCount,
     [HKStatisticsOptions.cumulativeSum],
-    startOfToday,
-    now
+    startDate,
+    endDate
   );
   const steps = stepsStat?.sumQuantity?.quantity || 0;
 

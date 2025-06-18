@@ -1,17 +1,17 @@
 import {
-  EnergyUnit,
-  HKQuantityTypeIdentifier,
-  HKStatisticsOptions,
-  HKWorkout,
-  LengthUnit,
-  queryQuantitySamples,
-  queryStatisticsForQuantity,
-  queryWorkoutSamples,
+    EnergyUnit,
+    HKQuantityTypeIdentifier,
+    HKStatisticsOptions,
+    HKWorkout,
+    LengthUnit,
+    queryQuantitySamples,
+    queryStatisticsForQuantity,
+    queryWorkoutSamples,
 } from "@kingstinct/react-native-healthkit";
 
 import { WorkoutData } from "@/components/workouts/types";
 import { ActivitySample, WorkoutStats } from "./types";
-import { getCurrentDateRanges, getDurationMinutes } from "./utils";
+import { getCurrentDateRanges, getDateRanges, getDurationMinutes } from "./utils";
 
 // Constants from original healthStats.ts
 export const ACTIVITY_MULTIPLIERS = {
@@ -56,20 +56,30 @@ export interface ProcessedWorkoutData {
 }
 
 /**
- * Fetch workout and exercise statistics using Apple's native ring calculations
+ * Fetch workout and exercise statistics using Apple's native ring calculations for a specific date
  * - Exercise minutes from HealthKit's appleExerciseTime
  * - Stand hours from HealthKit's appleStandTime
  * - Move calories (active energy burned)
  * - Raw calorie samples
  * - Raw workout samples (last 30 days for workouts screen)
  */
-export const fetchWorkoutStats = async (): Promise<WorkoutStats> => {
-  const { now, startOfToday } = getCurrentDateRanges();
+export const fetchWorkoutStats = async (targetDate?: Date): Promise<WorkoutStats> => {
+  // Get date ranges for the target date
+  let startDate: Date, endDate: Date;
+  if (targetDate) {
+    const ranges = getDateRanges(targetDate);
+    startDate = ranges.startOfTargetDay;
+    endDate = ranges.endOfTargetDay;
+  } else {
+    const ranges = getCurrentDateRanges();
+    startDate = ranges.startOfToday;
+    endDate = ranges.now;
+  }
 
-  // Get active calories for today (Move ring)
+  // Get active calories for the target date (Move ring)
   const caloriesSamples = await queryQuantitySamples(
     HKQuantityTypeIdentifier.activeEnergyBurned,
-    { from: startOfToday, to: now }
+    { from: startDate, to: endDate }
   );
 
   const moveKcal = caloriesSamples.reduce(
@@ -81,8 +91,8 @@ export const fetchWorkoutStats = async (): Promise<WorkoutStats> => {
   const exerciseTimeStat = await queryStatisticsForQuantity(
     HKQuantityTypeIdentifier.appleExerciseTime,
     [HKStatisticsOptions.cumulativeSum],
-    startOfToday,
-    now
+    startDate,
+    endDate
   );
   const exerciseMins = Math.floor(exerciseTimeStat?.sumQuantity?.quantity || 0);
 
@@ -90,14 +100,16 @@ export const fetchWorkoutStats = async (): Promise<WorkoutStats> => {
   const standHoursStat = await queryStatisticsForQuantity(
     HKQuantityTypeIdentifier.appleStandTime,
     [HKStatisticsOptions.cumulativeSum],
-    startOfToday,
-    now
+    startDate,
+    endDate
   );
   const standHours = Math.min(12, Math.floor(standHoursStat?.sumQuantity?.quantity || 0));
 
   // Get workout samples from last 30 days for workouts screen
+  // Note: For workouts list, we always get the last 30 days relative to the current date
+  const now = new Date();
   const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  thirtyDaysAgo.setDate(now.getDate() - 30);
 
   const allWorkouts = await queryWorkoutSamples({
     from: thirtyDaysAgo,

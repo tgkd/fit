@@ -1,29 +1,29 @@
 import {
-  HKCategorySample,
-  HKCategoryTypeIdentifier,
-  HKCategoryValueSleepAnalysis,
-  HKQuantityTypeIdentifier,
-  queryCategorySamples,
-  queryQuantitySamples,
+    HKCategorySample,
+    HKCategoryTypeIdentifier,
+    HKCategoryValueSleepAnalysis,
+    HKQuantityTypeIdentifier,
+    queryCategorySamples,
+    queryQuantitySamples,
 } from "@kingstinct/react-native-healthkit";
 
 import { Colors } from "@/constants/Colors";
 import {
-  LastNightSleep,
-  SleepAverages,
-  SleepCluster,
-  SleepMetrics,
-  SleepNeed,
-  SleepPerformanceMetrics,
-  SleepStats,
+    LastNightSleep,
+    SleepAverages,
+    SleepCluster,
+    SleepMetrics,
+    SleepNeed,
+    SleepPerformanceMetrics,
+    SleepStats,
 } from "./types";
 import {
-  calculateAverage,
-  getCurrentDateRanges,
-  getDateRange,
-  msToHours,
-  msToMinutes,
-  roundTo,
+    calculateAverage,
+    getCurrentDateRanges,
+    getDateRange,
+    msToHours,
+    msToMinutes,
+    roundTo,
 } from "./utils";
 
 // Export types for external use
@@ -40,15 +40,26 @@ export const ACTUAL_SLEEP_VALUES = [
 ];
 
 /**
- * Fetch comprehensive sleep statistics
+ * Fetch comprehensive sleep statistics for a specific date
  * Enhanced version that uses the new sleep performance calculation
  */
-export const fetchSleepStats = async (): Promise<SleepStats> => {
-  const { oneWeekAgo, now } = getCurrentDateRanges();
+export const fetchSleepStats = async (targetDate?: Date): Promise<SleepStats> => {
+  // Get date ranges - if targetDate is provided, get sleep data leading up to that date
+  // Sleep data typically looks back from the target date to get recent patterns
+  let endDate: Date, startDate: Date;
+  if (targetDate) {
+    endDate = new Date(targetDate);
+    startDate = new Date(targetDate);
+    startDate.setDate(startDate.getDate() - 7); // Look back 7 days from target date
+  } else {
+    const { now, oneWeekAgo } = getCurrentDateRanges();
+    endDate = now;
+    startDate = oneWeekAgo;
+  }
 
   const sleepSamples = await queryCategorySamples(
     HKCategoryTypeIdentifier.sleepAnalysis,
-    { from: oneWeekAgo, to: now }
+    { from: startDate, to: endDate }
   );
 
   const { totalSleep, dailySleepDurations } = processSleepData(sleepSamples);
@@ -911,14 +922,14 @@ export const calculateSleepDebt = async (
 };
 
 /**
- * Fetch sleep averages for 14 and 30 day periods
+ * Fetch sleep averages for 14 and 30 day periods relative to a target date
  */
-export const fetchSleepAverages = async (): Promise<{
+export const fetchSleepAverages = async (targetDate?: Date): Promise<{
   last14Days: SleepAverages;
   last30Days: SleepAverages;
 }> => {
-  const range30Days = getDateRange(30);
-  const range14Days = getDateRange(14);
+  const range30Days = getDateRange(30, targetDate);
+  const range14Days = getDateRange(14, targetDate);
 
   // Fetch 30 days of data once and slice for 14 days
   const sleepSamples30 = await queryCategorySamples(
