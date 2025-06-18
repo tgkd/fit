@@ -34,11 +34,11 @@ export async function calculateDayStrain(
   const DEFAULT_RESTING_HR = defaults?.RESTING_HEART_RATE ?? 60;
   const DEFAULT_MAX_HR = defaults?.MAX_HEART_RATE ?? 190;
   const LOG_SCALE_FACTOR = defaults?.STRAIN_LOG_SCALE_FACTOR ?? 3;
-  const ZONE_WEIGHTS = defaults?.HEART_RATE_ZONE_WEIGHTS ?? [1, 2, 3, 4, 5];
-  const MUSCLE_PTS_PER_KCAL = defaults?.MUSCLE_POINTS_PER_KCAL ?? 100;
-  const MUSCLE_PTS_PER_MIN = defaults?.MUSCLE_POINTS_PER_MINUTE_DURATION ?? 10;
+  const ZONE_WEIGHTS = defaults?.HEART_RATE_ZONE_WEIGHTS ?? [0.5, 1, 2, 3, 4];
+  const MUSCLE_PTS_PER_KCAL = defaults?.MUSCLE_POINTS_PER_KCAL ?? 0.02;
+  const MUSCLE_PTS_PER_MIN = defaults?.MUSCLE_POINTS_PER_MINUTE_DURATION ?? 0.3;
   const HRR_ZONE_BOUNDS = defaults?.HRR_ZONE_LOWER_BOUND_PERCENTAGES ?? [
-    0.5, 0.6, 0.7, 0.8, 0.9,
+    0.6, 0.7, 0.8, 0.85, 0.95,
   ];
   const MIN_HRR_ADJUST = defaults?.MIN_HRR_FALLBACK_ADJUSTMENT ?? 30;
 
@@ -127,34 +127,84 @@ export async function calculateDayStrain(
   ];
 
   // 5. Calculate time in each zone from heart rate samples
+  // Only count heart rates that indicate sustained activity
+  const activityThreshold = restingHR + (HRR * 0.3); // Increased threshold to 30% HRR
   let zoneMinutes = [0, 0, 0, 0, 0];
+
   if (heartRateSamples.length > 0) {
-    heartRateSamples.sort(
+    // Filter for elevated heart rates that indicate actual activity
+    const activitySamples = heartRateSamples.filter(sample =>
+      typeof sample.quantity === "number" && sample.quantity > activityThreshold
+    );
+
+    console.log(`Found ${activitySamples.length} activity samples above ${activityThreshold.toFixed(0)} BPM`);
+
+    // Group samples into activity sessions (consecutive samples within 10 minutes)
+    const activitySessions: { start: Date; end: Date; avgHR: number }[] = [];
+
+    activitySamples.sort(
       (a, b) =>
         new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
     );
 
-    for (let i = 0; i < heartRateSamples.length; i++) {
-      const sample = heartRateSamples[i];
-      const hr = sample.quantity;
-      if (typeof hr !== "number" || hr <= 0) continue;
+    let currentSession: { samples: typeof activitySamples; start: Date; end: Date } | null = null;
 
-      const sampleStartTime = new Date(sample.startDate);
-      let intervalEndTimeCandidate;
-      if (i < heartRateSamples.length - 1) {
-        intervalEndTimeCandidate = new Date(heartRateSamples[i + 1].startDate);
+    for (const sample of activitySamples) {
+      const sampleTime = new Date(sample.startDate);
+
+      if (!currentSession ||
+          sampleTime.getTime() - currentSession.end.getTime() > 10 * 60 * 1000) {
+        // Start new session
+        if (currentSession && currentSession.samples.length >= 3) {
+          // Only count sessions with at least 3 samples (some sustained activity)
+          const avgHR = currentSession.samples.reduce((sum, s) =>
+            sum + (typeof s.quantity === "number" ? s.quantity : 0), 0) / currentSession.samples.length;
+          const duration = Math.min(60, // Cap at 60 minutes per session
+            (currentSession.end.getTime() - currentSession.start.getTime()) / (1000 * 60));
+
+          if (duration >= 2) { // Minimum 2 minutes of activity
+            activitySessions.push({
+              start: currentSession.start,
+              end: currentSession.end,
+              avgHR
+            });
+          }
+        }
+
+        currentSession = {
+          samples: [sample],
+          start: sampleTime,
+          end: sampleTime
+        };
       } else {
-        intervalEndTimeCandidate = dateTo;
+        // Add to current session
+        currentSession.samples.push(sample);
+        currentSession.end = sampleTime;
       }
-      const effectiveIntervalEndTime = new Date(
-        Math.min(intervalEndTimeCandidate.getTime(), dateTo.getTime())
-      );
-      if (effectiveIntervalEndTime.getTime() <= sampleStartTime.getTime())
-        continue;
-      let durationMin =
-        (effectiveIntervalEndTime.getTime() - sampleStartTime.getTime()) /
-        (1000 * 60);
-      if (durationMin <= 0) continue;
+    }
+
+    // Process final session
+    if (currentSession && currentSession.samples.length >= 3) {
+      const avgHR = currentSession.samples.reduce((sum, s) =>
+        sum + (typeof s.quantity === "number" ? s.quantity : 0), 0) / currentSession.samples.length;
+      const duration = Math.min(60,
+        (currentSession.end.getTime() - currentSession.start.getTime()) / (1000 * 60));
+
+      if (duration >= 2) {
+        activitySessions.push({
+          start: currentSession.start,
+          end: currentSession.end,
+          avgHR
+        });
+      }
+    }
+
+    console.log(`Processed ${activitySessions.length} activity sessions`);
+
+    // Calculate zone minutes from activity sessions
+    for (const session of activitySessions) {
+      const hr = session.avgHR;
+      const duration = (session.end.getTime() - session.start.getTime()) / (1000 * 60);
 
       let zoneIdx = -1;
       if (hr >= zonesThresholds[4]) zoneIdx = 4;
@@ -164,7 +214,8 @@ export async function calculateDayStrain(
       else if (hr >= zonesThresholds[0]) zoneIdx = 0;
 
       if (zoneIdx >= 0) {
-        zoneMinutes[zoneIdx] += durationMin;
+        zoneMinutes[zoneIdx] += duration;
+        console.log(`Session: ${duration.toFixed(1)}min at ${hr.toFixed(0)} BPM (Zone ${zoneIdx + 1})`);
       }
     }
   }
@@ -224,6 +275,21 @@ export async function calculateDayStrain(
   const totalLoad = cardioPoints + musclePoints;
   const strainScoreRaw = Math.log(Math.max(1, totalLoad + 1));
   let strainScore = LOG_SCALE_FACTOR * strainScoreRaw;
+
+  // Debug logging to understand calculation
+  console.log(`🏋️ Strain calculation for ${date.toDateString()}:`, {
+    heartRateSamples: heartRateSamples.length,
+    zoneMinutes,
+    cardioPoints,
+    muscleWorkouts: muscleWorkouts.length,
+    musclePoints,
+    totalLoad,
+    strainScoreRaw,
+    beforeCapping: strainScore,
+    restingHR,
+    maxHR,
+    zonesThresholds,
+  });
 
   // 10. Cap the strain score to the 0–21 range and round for clarity
   strainScore = Math.max(0, Math.min(21, strainScore));
