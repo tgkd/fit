@@ -25,10 +25,6 @@ interface StrainCalculationDefaults {
   ACTIVITY_THRESHOLD_PERCENTAGE?: number;
 }
 
-/**
- * Calculate the "Day Strain" score (0–21) for a given day using HealthKit data.
- * Combines cardiovascular load (from heart rate zones) and muscular load (from strength workouts).
- */
 export async function calculateDayStrain(
   date: Date,
   defaults?: StrainCalculationDefaults,
@@ -49,9 +45,7 @@ export async function calculateDayStrain(
 
   // 1. Define the time range for the day
   const dateFrom = startOfDay(date);
-  const dateTo = endOfDay(date);
-
-  // 2. Query heart rate samples for the day
+  const dateTo = endOfDay(date);  // 2. Query heart rate samples for the day
   let heartRateSamples: QuantitySample[] = [];
   try {
     heartRateSamples = (await queryQuantitySamples(
@@ -113,9 +107,11 @@ export async function calculateDayStrain(
       observedMaxHRInSamples = sample.quantity;
     }
   });
+
   if (observedMaxHRInSamples > maxHR) {
     maxHR = observedMaxHRInSamples;
   }
+
   if (maxHR <= restingHR) {
     maxHR = restingHR + MIN_HRR_ADJUST;
   }
@@ -140,12 +136,6 @@ export async function calculateDayStrain(
       (sample) =>
         typeof sample.quantity === "number" &&
         sample.quantity > activityThreshold
-    );
-
-    console.log(
-      `Processing ${
-        activeSamples.length
-      } samples above ${activityThreshold.toFixed(0)} BPM`
     );
 
     // Calculate duration for each sample
@@ -177,8 +167,10 @@ export async function calculateDayStrain(
   // 6. Compute cardiovascular strain points
   let cardioPoints = 0;
   for (let z = 0; z < ZONE_WEIGHTS.length; z++) {
-    // Ensure zoneMinutes has a value for this index, or default to 0
-    cardioPoints += (zoneMinutes[z] || 0) * ZONE_WEIGHTS[z];
+    const zoneTime = zoneMinutes[z] || 0;
+    const zoneWeight = ZONE_WEIGHTS[z];
+    const zonePoints = zoneTime * zoneWeight;
+    cardioPoints += zonePoints;
   }
 
   // 7. Query strength-type workouts for the day
@@ -188,11 +180,13 @@ export async function calculateDayStrain(
     WorkoutActivityType.crossTraining,
   ];
   let muscleWorkouts: WorkoutSample[] = [];
+
   try {
     const workoutsToday = await queryWorkoutSamples({
       filter: { startDate: dateFrom, endDate: dateTo },
       energyUnit: "kcal",
     });
+
     muscleWorkouts = workoutsToday.filter((w) =>
       strengthWorkoutTypes.includes(
         w.workoutActivityType as WorkoutActivityType
@@ -212,7 +206,6 @@ export async function calculateDayStrain(
       workout.metadata?.TotalWeightLifted &&
       typeof workout.metadata.TotalWeightLifted === "number"
     ) {
-      // Use user parameter instead of hardcoded value
       const weightMultiplier = MUSCLE_PTS_PER_KCAL * 2;
       workoutMusclePoints =
         workout.metadata.TotalWeightLifted * weightMultiplier;
@@ -223,30 +216,22 @@ export async function calculateDayStrain(
         typeof workout.totalEnergyBurned === "object"
           ? workout.totalEnergyBurned.quantity
           : workout.totalEnergyBurned;
-      // Higher multiplier for strength training calories vs cardio
-      workoutMusclePoints = energy * (MUSCLE_PTS_PER_KCAL * 2);
+      const energyMultiplier = MUSCLE_PTS_PER_KCAL * 2;
+      workoutMusclePoints = energy * energyMultiplier;
     }
     // Priority 3: Duration-based with intensity factor
     else if (typeof workout.duration === "number" && workout.duration > 0) {
       const durationMinutes = workout.duration / 60;
-      // Base points plus intensity bonus for strength training
-      workoutMusclePoints = durationMinutes * (MUSCLE_PTS_PER_MIN * 1.5);
+      const durationMultiplier = MUSCLE_PTS_PER_MIN * 1.5;
+      workoutMusclePoints = durationMinutes * durationMultiplier;
     }
 
     musclePoints += workoutMusclePoints;
-    console.log(
-      `Strength workout: ${workoutMusclePoints.toFixed(
-        1
-      )} muscle points (duration: ${
-        workout.duration ? (workout.duration.quantity / 60).toFixed(0) : "N/A"
-      } min)`
-    );
   }
 
   const totalLoad = cardioPoints + musclePoints;
 
   // Improved logarithmic scaling with better calibration
-  // Use a combination approach: log for base scaling + exponential for diminishing returns
   const baseStrain = Math.log(Math.max(1, totalLoad + 1)) * 3.2;
   const exponentialComponent =
     MAX_STRAIN * (1 - Math.exp(-SCALE_FACTOR * totalLoad * 0.7));
@@ -254,86 +239,9 @@ export async function calculateDayStrain(
   // Blend the two approaches for more realistic scaling
   let strainScore = Math.min(baseStrain, exponentialComponent);
 
-  // Enhanced debug logging with zone analysis
-  console.log(`🏋️ Strain calculation for ${date.toDateString()}:`, {
-    heartRateSamples: heartRateSamples.length,
-    zoneMinutes,
-    zoneDistribution: {
-      zone1: `${zoneMinutes[0]} min (${ZONE_WEIGHTS[0]}x)`,
-      zone2: `${zoneMinutes[1]} min (${ZONE_WEIGHTS[1]}x)`,
-      zone3: `${zoneMinutes[2]} min (${ZONE_WEIGHTS[2]}x)`,
-      zone4: `${zoneMinutes[3]} min (${ZONE_WEIGHTS[3]}x)`,
-      zone5: `${zoneMinutes[4]} min (${ZONE_WEIGHTS[4]}x)`,
-    },
-    cardioPoints,
-    muscleWorkouts: muscleWorkouts.length,
-    musclePoints,
-    totalLoad,
-    baseStrain: baseStrain.toFixed(1),
-    exponentialStrain: exponentialComponent.toFixed(1),
-    finalStrain: strainScore.toFixed(1),
-    restingHR,
-    maxHR,
-    zonesThresholds: zonesThresholds.map((z) => Math.round(z)),
-    scalingMethod: "hybrid",
-  });
-
   // 10. Validation and final adjustments
   strainScore = Math.max(0, Math.min(MAX_STRAIN, strainScore));
   strainScore = Math.round(strainScore * 10) / 10;
-
-  // Add calibration guidance with configurable thresholds
-  if (totalLoad > 0) {
-    let expectedRange = "Unknown";
-    const highIntensityMinutes = zoneMinutes[3] + zoneMinutes[4];
-    const moderateIntensityMinutes = zoneMinutes[2];
-    const totalActiveMinutes = zoneMinutes.reduce(
-      (sum, minutes) => sum + minutes,
-      0
-    );
-
-    // Use configurable guidance thresholds
-    const guidanceThresholds = userParams?.strainGuidanceThresholds || {
-      highIntensityMinutes: 20,
-      moderateIntensityMinutes: 30,
-      totalActiveMinutes: 60,
-      lightActivityThreshold: 30,
-    };
-
-    if (
-      highIntensityMinutes > guidanceThresholds.highIntensityMinutes ||
-      (highIntensityMinutes > 10 &&
-        moderateIntensityMinutes > guidanceThresholds.moderateIntensityMinutes)
-    ) {
-      expectedRange = "14-17 (High)";
-    } else if (
-      moderateIntensityMinutes > 20 ||
-      totalActiveMinutes > guidanceThresholds.totalActiveMinutes
-    ) {
-      expectedRange = "10-13 (Moderate)";
-    } else if (totalActiveMinutes > guidanceThresholds.lightActivityThreshold) {
-      expectedRange = "6-9 (Light-Moderate)";
-    } else {
-      expectedRange = "0-6 (Light)";
-    }
-
-    console.log(
-      `Expected strain range: ${expectedRange}, Actual: ${strainScore.toFixed(
-        1
-      )}`,
-      {
-        totalActiveMinutes,
-        highIntensityMinutes,
-        moderateIntensityMinutes,
-        analysis:
-          totalActiveMinutes > 60
-            ? "Long duration activity"
-            : highIntensityMinutes > 0
-            ? "Some high intensity"
-            : "Low-moderate intensity",
-      }
-    );
-  }
 
   return strainScore;
 }

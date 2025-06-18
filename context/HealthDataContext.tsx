@@ -8,13 +8,16 @@ import React, {
 } from "react";
 
 import { getAllHealthStats } from "@/lib/health";
-import { isHealthKitAvailable } from "@/lib/health/permissions";
+import { readPermissions } from "@/lib/health/permissions";
 import {
   HealthData as ModularHealthData,
   WriteHealthDataOptions as ModularWriteHealthDataOptions,
   UserParams,
 } from "@/lib/health/types";
 import i18n from "@/lib/i18n";
+import {
+  requestAuthorization
+} from "@kingstinct/react-native-healthkit";
 
 // Default values for health calculations when data is missing
 export const HEALTH_DEFAULTS = {
@@ -240,11 +243,10 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
   const initData = useCallback(async () => {
     setLoading(true);
     try {
-      if (USE_FAKE_DATA || !isHealthKitAvailable) {
+      if (USE_FAKE_DATA) {
         console.log("Using fake data");
         setData(generateFakeHealthData());
       } else {
-        console.log(`Fetching health data for: ${date.toDateString()}`);
         const fetchedData = await getAllHealthStats(
           date,
           HEALTH_DEFAULTS,
@@ -259,6 +261,25 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
     }
   }, [date, userParams]);
+
+  useEffect(() => {
+    initData();
+  }, [date, userParams]);
+
+  useEffect(() => {
+    requestAuthorization([], readPermissions)
+      .then((status) => () => {
+        if (status) {
+          console.log("HealthKit authorization granted");
+          initData();
+        } else {
+          console.warn("HealthKit authorization denied");
+        }
+      })
+      .catch((error) => {
+        console.error("HealthKit authorization error:", error);
+      });
+  }, []);
 
   const setPreviousDate = () => {
     const previousDate = new Date(date);
@@ -298,10 +319,6 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
   const updateUserParams = useCallback((params: Partial<UserParams>) => {
     setUserParams((prevParams) => ({ ...prevParams, ...params }));
   }, []);
-
-  useEffect(() => {
-    initData();
-  }, [initData]);
 
   return (
     <HealthDataContext.Provider

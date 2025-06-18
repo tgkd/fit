@@ -130,13 +130,7 @@ export async function calculateRecoveryScore(
     restingHRSample?.quantity || options.defaults?.RESTING_HEART_RATE || 60;
 
   const hrvValues = hrvSamples.map((s) => s.quantity);
-  // Use configurable minimum samples threshold
-  const minSamples = options.userParams?.hrvDataMinimumSamples || 7;
-  if (hrvValues.length < minSamples) {
-    console.warn(
-      `⚠️ Limited HRV data: only ${hrvValues.length} samples in the last week`
-    );
-  }
+
   const currentHrv =
     hrvValues.length > 0
       ? mean(hrvValues)

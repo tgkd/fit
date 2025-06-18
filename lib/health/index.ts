@@ -5,11 +5,10 @@ import {
   fetchStressAverages,
   prepareStressChartDisplayData,
 } from "./heartAndStress";
-import { initializeHealthKit, isHealthKitAvailable } from "./permissions";
 import {
   calculatePersonalizedRecovery,
   calculateRecoveryScore,
-  fetchRecoveryAverages
+  fetchRecoveryAverages,
 } from "./recovery";
 import { fetchSleepAverages, fetchSleepStats } from "./sleep";
 import { calculateDayStrain, calculatePersonalizedStrain } from "./strain";
@@ -26,13 +25,7 @@ export const getAllHealthStats = async (
   defaults?: HealthDataDefaults,
   userParams?: UserParams
 ): Promise<HealthData> => {
-  await initializeHealthKit();
-
   console.log("Fetching health stats for date:", date);
-
-  if (!isHealthKitAvailable) {
-    throw new Error("HealthKit is not available on this platform.");
-  }
 
   try {
     const generalStats = await fetchGeneralStats(date);
@@ -61,10 +54,13 @@ export const getAllHealthStats = async (
     }
 
     const recoveryScore = userParams
-      ? await calculatePersonalizedRecovery({
-          ...userParams,
-          sleepEfficiency: sleepStats.sleepEfficiency,
-        }, date)
+      ? await calculatePersonalizedRecovery(
+          {
+            ...userParams,
+            sleepEfficiency: sleepStats.sleepEfficiency,
+          },
+          date
+        )
       : await calculateRecoveryScore({
           defaults,
           sleepEfficiency: sleepStats.sleepEfficiency,
@@ -174,13 +170,6 @@ export type {
   UserParams
 } from "./types";
 
-export {
-  calculatePersonalizedStrain,
-  getStrainMetrics
-} from "./strain";
+export { calculatePersonalizedStrain, getStrainMetrics } from "./strain";
 
-export {
-  calculatePersonalizedRecovery,
-  getRecoveryMetrics
-} from "./recovery";
-
+export { calculatePersonalizedRecovery, getRecoveryMetrics } from "./recovery";

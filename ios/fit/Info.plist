@@ -50,9 +50,9 @@
 		<true/>
 	</dict>
 	<key>NSHealthShareUsageDescription</key>
-	<string>Read and understand health data.</string>
+	<string>Access workout data to provide personalized fitness experiences.</string>
 	<key>NSHealthUpdateUsageDescription</key>
-	<string>Share workout data with other apps.</string>
+	<string>Update workout data to keep your fitness records accurate.</string>
 	<key>NSUserActivityTypes</key>
 	<array>
 		<string>$(PRODUCT_BUNDLE_IDENTIFIER).expo.index_route</string>
