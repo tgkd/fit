@@ -5,13 +5,13 @@ import {
   WorkoutSample
 } from "@kingstinct/react-native-healthkit";
 
-import { WorkoutData } from "@/components/workouts/types";
 import { ActivitySample, WorkoutStats } from "./types";
 import {
   getCurrentDateRanges,
   getDateRanges,
   getDurationMinutes,
 } from "./utils";
+import { WorkoutData } from "../workouts/config";
 
 // Constants from original healthStats.ts
 export const ACTIVITY_MULTIPLIERS = {

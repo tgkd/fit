@@ -1,12 +1,10 @@
 import { WorkoutActivityType } from "@kingstinct/react-native-healthkit";
 
-import { formatDateForWorkout, formatDuration } from "@/lib/formatters";
-
-// Re-export formatters for backward compatibility
-export { formatDateForWorkout, formatDuration };
-
 export const getWorkoutTypeColor = (type: WorkoutActivityType) => {
-  if (type === WorkoutActivityType.running || type === WorkoutActivityType.cycling) {
+  if (
+    type === WorkoutActivityType.running ||
+    type === WorkoutActivityType.cycling
+  ) {
     return "#FF6B8A";
   } else if (type === WorkoutActivityType.functionalStrengthTraining) {
     return "#FFB347";

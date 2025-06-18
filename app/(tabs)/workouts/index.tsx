@@ -5,11 +5,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/ui/Card";
 import { WorkoutItem } from "@/components/workouts";
-import { WorkoutData } from "@/components/workouts/types";
 import { HealthDataContext } from "@/context/HealthDataContext";
 import { formatDurationHHMM } from "@/lib/formatters";
 import { processWorkoutData } from "@/lib/health/workouts";
 import i18n from "@/lib/i18n";
+import { WorkoutData } from "@/lib/workouts/config";
 
 export default function WorkoutsScreen() {
   const { data } = useContext(HealthDataContext);

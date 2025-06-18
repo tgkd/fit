@@ -436,36 +436,6 @@ export async function calculateRecoveryScore(
   };
 }
 
-/*
-
-LOG  🔄 Starting recovery score calculation...
- LOG  📅 Date ranges for recovery calculation: {"fourteenDaysAgo": "2025-06-03T08:54:34.287Z", "now": "2025-06-17T08:54:34.287Z", "oneWeekAgo": "2025-06-10T08:54:34.287Z", "startOfToday": "2025-06-16T22:00:00.000Z"}
- WARN  ⚠️ Limited HRV data: only 4 samples in the last week
- LOG  🩺 Processed recovery data: {"activeEnergyBurned": "509.7 Cal", "currentHrv": "42.3 ms (from 4 samples)", "hrvSamplesCount": 4, "respiratoryDataAvailable": false, "respiratoryRate": "15 breaths/min (using default)", "restingHR": "58 bpm", "sleepEfficiency": "88% "}
- LOG  📊 Baseline calculations: {"baselineHrv": "42.3 ms (from 4 samples)", "baselineRhr": "59.9 bpm (from 13 samples)", "hrvBaseline14Day": [41, 41, 43, 44], "rhrBaseline14Day": [61, 59, 60, 60, 63, 61, 61, 59, 59, 60, 59, 59, 58]}
- LOG  🎯 Recovery score calculations: {"biometrics": {"HRV": "100% (42.3ms vs baseline 42.3ms)", "RHR": "100% (58bpm vs baseline 59.9bpm)", "respiratory": "100% (15 vs baseline 16)", "sleep": "88% (88%)"}, "lifestyle": {"alcohol": "100% (0 drinks)", "hydration": "80% (2000ml vs target 2500ml)", "nutrition": "100% (2000 vs target 1800 kcal)", "strain": "98% (509.7 vs low 500 kcal)"}, "totals": {"biometricScore": 97, "lifestyleScore": 95, "totalScore": 96}}
- LOG  ✅ Recovery calculation completed successfully
- LOG  🔍 Recovery score breakdown {
-  "totalScore": 96,
-  "biometricScore": 97,
-  "lifestyleScore": 95,
-  "breakdown": {
-    "biometrics": {
-      "HRV": 100,
-      "RHR": 100,
-      "respiratoryRate": 100,
-      "sleepEfficiency": 88
-    },
-    "lifestyle": {
-      "hydration": 80,
-      "alcohol": 100,
-      "nutrition": 100,
-      "strain": 98
-    }
-  }
-}
-*/
-
 /**
  * Fetch recovery averages for 14 and 30 day periods relative to a target date
  */

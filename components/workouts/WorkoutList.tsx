@@ -3,8 +3,8 @@ import { StyleSheet, View } from "react-native";
 import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/ui/Card";
 import i18n from "@/lib/i18n";
+import { WorkoutData } from "@/lib/workouts/config";
 import { WorkoutItem } from "./WorkoutItem";
-import { WorkoutData } from "./types";
 
 interface WorkoutListProps {
   workouts: WorkoutData[];
