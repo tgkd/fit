@@ -1,6 +1,5 @@
 import {
-  HKQuantityTypeIdentifier,
-  queryQuantitySamples,
+    queryQuantitySamples,
 } from "@kingstinct/react-native-healthkit";
 import { differenceInMinutes, endOfDay, startOfDay } from "date-fns";
 
@@ -23,10 +22,9 @@ export async function fetchDailyHeartMetrics(
   const end = endOfDay(day);
 
   const hrSamples = await queryQuantitySamples(
-    HKQuantityTypeIdentifier.heartRate,
+    'HKQuantityTypeIdentifierHeartRate',
     {
-      from: start,
-      to: end,
+      filter: { startDate: start, endDate: end },
       unit: "count/min",
       limit: 1000,
     }

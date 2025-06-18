@@ -12,7 +12,6 @@ import { localizedWorkoutName } from "@/lib/workouts/config";
 export default function WorkoutDetailsScreen() {
   const { workout, config, dateTimeRange, isLoading, error } =
     useWorkoutDetails();
-  const borderColor = useThemeColor({}, "border");
   const cardBackground = useThemeColor({}, "cardBackground");
 
   if (error) {

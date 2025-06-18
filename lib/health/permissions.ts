@@ -1,35 +1,32 @@
 import {
-    HKCategoryTypeIdentifier,
-    HKCharacteristicTypeIdentifier,
-    HKQuantityTypeIdentifier,
-    HKWorkoutTypeIdentifier,
-    isHealthDataAvailable,
-    requestAuthorization,
+  isHealthDataAvailable,
+  requestAuthorization,
+  type ObjectTypeIdentifier,
 } from "@kingstinct/react-native-healthkit";
 import { Platform } from "react-native";
 
-export const readPermissions = [
-  HKQuantityTypeIdentifier.heartRate,
-  HKCategoryTypeIdentifier.sleepAnalysis,
-  HKQuantityTypeIdentifier.restingHeartRate,
-  HKQuantityTypeIdentifier.stepCount,
-  HKQuantityTypeIdentifier.activeEnergyBurned,
-  HKQuantityTypeIdentifier.oxygenSaturation,
-  HKQuantityTypeIdentifier.heartRateVariabilitySDNN,
-  HKQuantityTypeIdentifier.bodyMass,
-  HKQuantityTypeIdentifier.height,
-  HKQuantityTypeIdentifier.bodyFatPercentage,
-  HKQuantityTypeIdentifier.respiratoryRate,
-  HKCharacteristicTypeIdentifier.dateOfBirth,
-  HKCharacteristicTypeIdentifier.biologicalSex,
-  HKCharacteristicTypeIdentifier.bloodType,
-  HKQuantityTypeIdentifier.vo2Max,
-  HKQuantityTypeIdentifier.workoutEffortScore,
-  HKWorkoutTypeIdentifier,
+export const readPermissions: ObjectTypeIdentifier[] = [
+  'HKQuantityTypeIdentifierHeartRate',
+  'HKCategoryTypeIdentifierSleepAnalysis',
+  'HKQuantityTypeIdentifierRestingHeartRate',
+  'HKQuantityTypeIdentifierStepCount',
+  'HKQuantityTypeIdentifierActiveEnergyBurned',
+  'HKQuantityTypeIdentifierOxygenSaturation',
+  'HKQuantityTypeIdentifierHeartRateVariabilitySDNN',
+  'HKQuantityTypeIdentifierBodyMass',
+  'HKQuantityTypeIdentifierHeight',
+  'HKQuantityTypeIdentifierBodyFatPercentage',
+  'HKQuantityTypeIdentifierRespiratoryRate',
+  'HKCharacteristicTypeIdentifierDateOfBirth',
+  'HKCharacteristicTypeIdentifierBiologicalSex',
+  'HKCharacteristicTypeIdentifierBloodType',
+  'HKQuantityTypeIdentifierVO2Max',
+  'HKQuantityTypeIdentifierWorkoutEffortScore',
+  'HKWorkoutTypeIdentifier',
   // Add new permissions for Apple Ring data
-  HKQuantityTypeIdentifier.appleExerciseTime,
-  HKQuantityTypeIdentifier.appleStandTime,
-  HKCategoryTypeIdentifier.appleStandHour,
+  'HKQuantityTypeIdentifierAppleExerciseTime',
+  'HKQuantityTypeIdentifierAppleStandTime',
+  'HKCategoryTypeIdentifierAppleStandHour',
 ];
 
 export const isHealthKitAvailable = Platform.OS === "ios";
@@ -41,7 +38,7 @@ export const initializeHealthKit = async (): Promise<boolean> => {
       const isAvailable = await isHealthDataAvailable();
 
       if (isAvailable) {
-        await requestAuthorization(readPermissions, []);
+        await requestAuthorization([], readPermissions);
         healthKitInitialized = true;
         return true;
       }

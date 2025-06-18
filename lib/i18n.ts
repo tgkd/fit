@@ -157,6 +157,7 @@ const translations = {
       functionalStrengthTraining: "Functional Strength Training",
       yoga: "Yoga",
       soccer: "Soccer",
+      tennis: "Tennis",
     },
 
     common: {
@@ -322,6 +323,7 @@ const translations = {
       sleepConsistencyDesc: "Регулярность времени сна/пробуждения",
       sleepEfficiencyDesc: "Время сна против времени в постели",
       sleepStressDesc: "Качество и непрерывность сна",
+      asleepUnspecified: "Сон (неопределенный)",
     },
 
     // Settings Screen (app/(tabs)/settings.tsx)
@@ -373,6 +375,7 @@ const translations = {
       functionalStrengthTraining: "Функциональная сила",
       yoga: "Йога",
       soccer: "Футбол",
+      tennis: "Теннис",
     },
 
     common: {
@@ -534,6 +537,7 @@ const translations = {
       sleepConsistencyDesc: "就寝・起床時間の規則性",
       sleepEfficiencyDesc: "就寝時間に対する睡眠時間",
       sleepStressDesc: "睡眠の質と中断されない睡眠",
+      asleepUnspecified: "睡眠（未指定）",
     },
 
     // Settings Screen (app/(tabs)/settings.tsx)

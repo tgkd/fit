@@ -1,8 +1,5 @@
 import { bucketBy, mean, sd } from "@/utils/dates";
-import {
-  HKQuantityTypeIdentifier,
-  queryQuantitySamples,
-} from "@kingstinct/react-native-healthkit";
+import { queryQuantitySamples } from "@kingstinct/react-native-healthkit";
 import { sub } from "date-fns";
 
 export interface BaselineVitals {
@@ -16,10 +13,11 @@ export async function getBaselineVitals(): Promise<BaselineVitals> {
   const end = new Date();
   const start = sub(end, { days: 14 });
 
-  /* -------- resting HR: lowest 20 % per night -------------------------- */
   const hrSamples = await queryQuantitySamples(
-    HKQuantityTypeIdentifier.heartRate,
-    { from: start, to: end }
+    "HKQuantityTypeIdentifierHeartRate",
+    {
+      filter: { startDate: start, endDate: end },
+    }
   );
 
   const restfulHr: number[] = [];
@@ -34,11 +32,9 @@ export async function getBaselineVitals(): Promise<BaselineVitals> {
 
   /* -------- HRV (overnight SDNN) -------------------------------------- */
   const hrvSamples = await queryQuantitySamples(
-    HKQuantityTypeIdentifier.heartRateVariabilitySDNN,
+    "HKQuantityTypeIdentifierHeartRateVariabilitySDNN",
     {
-      from: start,
-      to: end,
-      unit: "ms",
+      filter: { startDate: start, endDate: end },
     }
   );
 

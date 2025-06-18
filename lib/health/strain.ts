@@ -1,13 +1,11 @@
 import {
-  HKQuantitySample,
-  HKQuantityTypeIdentifier,
-  HKWorkout,
-  HKWorkoutActivityType,
-  UnitOfEnergy,
   getDateOfBirth,
   getMostRecentQuantitySample,
+  QuantitySample,
   queryQuantitySamples,
   queryWorkoutSamples,
+  WorkoutActivityType,
+  WorkoutSample,
 } from "@kingstinct/react-native-healthkit";
 import { endOfDay, startOfDay } from "date-fns";
 
@@ -54,16 +52,15 @@ export async function calculateDayStrain(
   const dateTo = endOfDay(date);
 
   // 2. Query heart rate samples for the day
-  let heartRateSamples: HKQuantitySample[] = [];
+  let heartRateSamples: QuantitySample[] = [];
   try {
     heartRateSamples = (await queryQuantitySamples(
-      HKQuantityTypeIdentifier.heartRate,
+      "HKQuantityTypeIdentifierHeartRate",
       {
+        filter: { startDate: dateFrom, endDate: dateTo },
         unit: "count/min",
-        from: dateFrom,
-        to: dateTo,
       }
-    )) as HKQuantitySample[];
+    )) as QuantitySample[];
   } catch (error) {
     console.warn("Could not query heart rate samples:", error);
   }
@@ -72,7 +69,7 @@ export async function calculateDayStrain(
   let restingHR = DEFAULT_RESTING_HR;
   try {
     const restingSample = await getMostRecentQuantitySample(
-      HKQuantityTypeIdentifier.restingHeartRate,
+      "HKQuantityTypeIdentifierRestingHeartRate",
       "count/min"
     );
     if (
@@ -186,20 +183,19 @@ export async function calculateDayStrain(
 
   // 7. Query strength-type workouts for the day
   const strengthWorkoutTypes = [
-    HKWorkoutActivityType.functionalStrengthTraining,
-    HKWorkoutActivityType.traditionalStrengthTraining,
-    HKWorkoutActivityType.crossTraining,
+    WorkoutActivityType.functionalStrengthTraining,
+    WorkoutActivityType.traditionalStrengthTraining,
+    WorkoutActivityType.crossTraining,
   ];
-  let muscleWorkouts: HKWorkout[] = [];
+  let muscleWorkouts: WorkoutSample[] = [];
   try {
     const workoutsToday = await queryWorkoutSamples({
-      from: dateFrom,
-      to: dateTo,
-      energyUnit: UnitOfEnergy.Kilocalories,
+      filter: { startDate: dateFrom, endDate: dateTo },
+      energyUnit: "kcal",
     });
     muscleWorkouts = workoutsToday.filter((w) =>
       strengthWorkoutTypes.includes(
-        w.workoutActivityType as HKWorkoutActivityType
+        w.workoutActivityType as WorkoutActivityType
       )
     );
   } catch (error) {
@@ -218,7 +214,8 @@ export async function calculateDayStrain(
     ) {
       // Use user parameter instead of hardcoded value
       const weightMultiplier = MUSCLE_PTS_PER_KCAL * 2;
-      workoutMusclePoints = workout.metadata.TotalWeightLifted * weightMultiplier;
+      workoutMusclePoints =
+        workout.metadata.TotalWeightLifted * weightMultiplier;
     }
     // Priority 2: Energy burned with muscle multiplier
     else if (workout.totalEnergyBurned) {
@@ -238,7 +235,11 @@ export async function calculateDayStrain(
 
     musclePoints += workoutMusclePoints;
     console.log(
-      `Strength workout: ${workoutMusclePoints.toFixed(1)} muscle points (duration: ${workout.duration ? (workout.duration / 60).toFixed(0) : 'N/A'} min)`
+      `Strength workout: ${workoutMusclePoints.toFixed(
+        1
+      )} muscle points (duration: ${
+        workout.duration ? (workout.duration.quantity / 60).toFixed(0) : "N/A"
+      } min)`
     );
   }
 
@@ -247,7 +248,8 @@ export async function calculateDayStrain(
   // Improved logarithmic scaling with better calibration
   // Use a combination approach: log for base scaling + exponential for diminishing returns
   const baseStrain = Math.log(Math.max(1, totalLoad + 1)) * 3.2;
-  const exponentialComponent = MAX_STRAIN * (1 - Math.exp(-SCALE_FACTOR * totalLoad * 0.7));
+  const exponentialComponent =
+    MAX_STRAIN * (1 - Math.exp(-SCALE_FACTOR * totalLoad * 0.7));
 
   // Blend the two approaches for more realistic scaling
   let strainScore = Math.min(baseStrain, exponentialComponent);
@@ -272,7 +274,7 @@ export async function calculateDayStrain(
     finalStrain: strainScore.toFixed(1),
     restingHR,
     maxHR,
-    zonesThresholds: zonesThresholds.map(z => Math.round(z)),
+    zonesThresholds: zonesThresholds.map((z) => Math.round(z)),
     scalingMethod: "hybrid",
   });
 
@@ -285,7 +287,10 @@ export async function calculateDayStrain(
     let expectedRange = "Unknown";
     const highIntensityMinutes = zoneMinutes[3] + zoneMinutes[4];
     const moderateIntensityMinutes = zoneMinutes[2];
-    const totalActiveMinutes = zoneMinutes.reduce((sum, minutes) => sum + minutes, 0);
+    const totalActiveMinutes = zoneMinutes.reduce(
+      (sum, minutes) => sum + minutes,
+      0
+    );
 
     // Use configurable guidance thresholds
     const guidanceThresholds = userParams?.strainGuidanceThresholds || {
@@ -295,10 +300,16 @@ export async function calculateDayStrain(
       lightActivityThreshold: 30,
     };
 
-    if (highIntensityMinutes > guidanceThresholds.highIntensityMinutes ||
-        (highIntensityMinutes > 10 && moderateIntensityMinutes > guidanceThresholds.moderateIntensityMinutes)) {
+    if (
+      highIntensityMinutes > guidanceThresholds.highIntensityMinutes ||
+      (highIntensityMinutes > 10 &&
+        moderateIntensityMinutes > guidanceThresholds.moderateIntensityMinutes)
+    ) {
       expectedRange = "14-17 (High)";
-    } else if (moderateIntensityMinutes > 20 || totalActiveMinutes > guidanceThresholds.totalActiveMinutes) {
+    } else if (
+      moderateIntensityMinutes > 20 ||
+      totalActiveMinutes > guidanceThresholds.totalActiveMinutes
+    ) {
       expectedRange = "10-13 (Moderate)";
     } else if (totalActiveMinutes > guidanceThresholds.lightActivityThreshold) {
       expectedRange = "6-9 (Light-Moderate)";
@@ -307,13 +318,19 @@ export async function calculateDayStrain(
     }
 
     console.log(
-      `Expected strain range: ${expectedRange}, Actual: ${strainScore.toFixed(1)}`,
+      `Expected strain range: ${expectedRange}, Actual: ${strainScore.toFixed(
+        1
+      )}`,
       {
         totalActiveMinutes,
         highIntensityMinutes,
         moderateIntensityMinutes,
-        analysis: totalActiveMinutes > 60 ? "Long duration activity" :
-                  highIntensityMinutes > 0 ? "Some high intensity" : "Low-moderate intensity"
+        analysis:
+          totalActiveMinutes > 60
+            ? "Long duration activity"
+            : highIntensityMinutes > 0
+            ? "Some high intensity"
+            : "Low-moderate intensity",
       }
     );
   }
@@ -372,9 +389,9 @@ export async function calculatePersonalizedStrain(
   let maxHR = userParams?.maxHeartRate;
   if (!maxHR && userParams?.age) {
     // Use configurable formula for max HR calculation
-    const formula = userParams?.maxHrFormula || 'tanaka';
+    const formula = userParams?.maxHrFormula || "tanaka";
 
-    if (formula === 'tanaka') {
+    if (formula === "tanaka") {
       // Tanaka formula: 208 - (0.7 × age) - more accurate than 220-age
       const coefficient = userParams?.maxHrAgeCoefficient || 0.7;
       const constant = userParams?.maxHrConstant || 208;

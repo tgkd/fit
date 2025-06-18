@@ -1,4 +1,4 @@
-import { HKWorkoutActivityType } from "@kingstinct/react-native-healthkit";
+import { WorkoutActivityType } from "@kingstinct/react-native-healthkit";
 import i18n from "../i18n";
 
 export interface WorkoutMetric {
@@ -11,7 +11,7 @@ export interface WorkoutMetric {
 
 export interface WorkoutData {
   id: string;
-  type: HKWorkoutActivityType;
+  type: WorkoutActivityType;
   duration: number; // in minutes
   date: Date;
   calories: number;
@@ -76,29 +76,29 @@ const baseMetrics: WorkoutMetric[] = [
   },
 ];
 
-export const localizedWorkoutName = (type: HKWorkoutActivityType): string => {
+export const localizedWorkoutName = (type: WorkoutActivityType): string => {
   switch (type) {
-    case HKWorkoutActivityType.tennis:
+    case WorkoutActivityType.tennis:
       return i18n.t('workouts.tennis');
-    case HKWorkoutActivityType.running:
+    case WorkoutActivityType.running:
       return i18n.t('workouts.running');
-    case HKWorkoutActivityType.cycling:
+    case WorkoutActivityType.cycling:
       return i18n.t('workouts.cycling');
-    case HKWorkoutActivityType.swimming:
+    case WorkoutActivityType.swimming:
       return i18n.t('workouts.swimming');
-    case HKWorkoutActivityType.functionalStrengthTraining:
+    case WorkoutActivityType.functionalStrengthTraining:
       return i18n.t('workouts.functionalStrengthTraining');
-    case HKWorkoutActivityType.yoga:
+    case WorkoutActivityType.yoga:
       return i18n.t('workouts.yoga');
-    case HKWorkoutActivityType.soccer:
+    case WorkoutActivityType.soccer:
       return i18n.t('workouts.soccer');
   }
   return type.toString();
 };
 
 // Workout-specific configurations
-export const workoutConfigs: Partial<Record<HKWorkoutActivityType, WorkoutConfig>> = {
-  [HKWorkoutActivityType.tennis]: {
+export const workoutConfigs: Partial<Record<WorkoutActivityType, WorkoutConfig>> = {
+  [WorkoutActivityType.tennis]: {
     metrics: [
       ...baseMetrics,
       {
@@ -115,7 +115,7 @@ export const workoutConfigs: Partial<Record<HKWorkoutActivityType, WorkoutConfig
       },
     ],
   },
-  [HKWorkoutActivityType.running]: {
+  [WorkoutActivityType.running]: {
     metrics: [
       {
         key: 'distance',
@@ -132,7 +132,7 @@ export const workoutConfigs: Partial<Record<HKWorkoutActivityType, WorkoutConfig
       ...baseMetrics,
     ],
   },
-  [HKWorkoutActivityType.cycling]: {
+  [WorkoutActivityType.cycling]: {
     metrics: [
       {
         key: 'distance',
@@ -149,7 +149,7 @@ export const workoutConfigs: Partial<Record<HKWorkoutActivityType, WorkoutConfig
       ...baseMetrics,
     ],
   },
-  [HKWorkoutActivityType.swimming]: {
+  [WorkoutActivityType.swimming]: {
     metrics: [
       {
         key: 'distance',
@@ -166,7 +166,7 @@ export const workoutConfigs: Partial<Record<HKWorkoutActivityType, WorkoutConfig
       ...baseMetrics,
     ],
   },
-  [HKWorkoutActivityType.functionalStrengthTraining]: {
+  [WorkoutActivityType.functionalStrengthTraining]: {
     metrics: [
       ...baseMetrics,
       {
@@ -183,7 +183,7 @@ export const workoutConfigs: Partial<Record<HKWorkoutActivityType, WorkoutConfig
       },
     ],
   },
-  [HKWorkoutActivityType.yoga]: {
+  [WorkoutActivityType.yoga]: {
     metrics: [
       ...baseMetrics,
       {
@@ -194,7 +194,7 @@ export const workoutConfigs: Partial<Record<HKWorkoutActivityType, WorkoutConfig
       },
     ],
   },
-  [HKWorkoutActivityType.soccer]: {
+  [WorkoutActivityType.soccer]: {
     metrics: [
       {
         key: 'distance',
@@ -214,7 +214,7 @@ export const workoutConfigs: Partial<Record<HKWorkoutActivityType, WorkoutConfig
 };
 
 // Default config for unlisted workout types
-export const getWorkoutConfig = (type: HKWorkoutActivityType): WorkoutConfig => {
+export const getWorkoutConfig = (type: WorkoutActivityType): WorkoutConfig => {
   return workoutConfigs[type] || {
     metrics: baseMetrics,
   };

@@ -1,8 +1,6 @@
 import { mean } from "@/utils/dates";
 import {
   getMostRecentQuantitySample,
-  HKQuantityTypeIdentifier,
-  HKStatisticsOptions,
   queryQuantitySamples,
   queryStatisticsForQuantity,
 } from "@kingstinct/react-native-healthkit";
@@ -88,40 +86,43 @@ export async function calculateRecoveryScore(
   ] = await Promise.all([
     // Current resting heart rate
     getMostRecentQuantitySample(
-      HKQuantityTypeIdentifier.restingHeartRate,
+      "HKQuantityTypeIdentifierRestingHeartRate",
       "count/min"
     ),
     // HRV data for last week (for current value)
-    queryQuantitySamples(HKQuantityTypeIdentifier.heartRateVariabilitySDNN, {
-      from: oneWeekAgo,
-      to: now,
+    queryQuantitySamples("HKQuantityTypeIdentifierHeartRateVariabilitySDNN", {
+      filter: { startDate: oneWeekAgo, endDate: now },
+      unit: "ms",
     }),
     // Respiratory rate for the target day (may not be available)
     queryStatisticsForQuantity(
-      HKQuantityTypeIdentifier.respiratoryRate,
-      [HKStatisticsOptions.discreteAverage],
-      startOfDay,
-      now
+      "HKQuantityTypeIdentifierRespiratoryRate",
+      ["discreteAverage"],
+      {
+        filter: { startDate: startOfDay, endDate: now },
+      }
     ).catch((error) => {
       console.warn("Respiratory rate data not available:", error);
       return null;
     }),
     // Active energy burned for the target day
     queryStatisticsForQuantity(
-      HKQuantityTypeIdentifier.activeEnergyBurned,
-      [HKStatisticsOptions.cumulativeSum],
-      startOfDay,
-      now
+      "HKQuantityTypeIdentifierActiveEnergyBurned",
+      ["cumulativeSum"],
+      {
+        filter: { startDate: startOfDay, endDate: now },
+        unit: "cal",
+      }
     ),
     // 14-day HRV baseline
-    queryQuantitySamples(HKQuantityTypeIdentifier.heartRateVariabilitySDNN, {
-      from: fourteenDaysAgo,
-      to: now,
+    queryQuantitySamples("HKQuantityTypeIdentifierHeartRateVariabilitySDNN", {
+      filter: { startDate: fourteenDaysAgo, endDate: now },
+      unit: "ms",
     }),
     // 14-day RHR baseline
-    queryQuantitySamples(HKQuantityTypeIdentifier.restingHeartRate, {
-      from: fourteenDaysAgo,
-      to: now,
+    queryQuantitySamples("HKQuantityTypeIdentifierRestingHeartRate", {
+      filter: { startDate: fourteenDaysAgo, endDate: now },
+      unit: "count/min",
     }),
   ]);
   // Validate and process fetched data
@@ -136,7 +137,10 @@ export async function calculateRecoveryScore(
       `⚠️ Limited HRV data: only ${hrvValues.length} samples in the last week`
     );
   }
-  const currentHrv = hrvValues.length > 0 ? mean(hrvValues) : (options.defaults?.HRV_BASELINE || 45); // Use configurable default
+  const currentHrv =
+    hrvValues.length > 0
+      ? mean(hrvValues)
+      : options.defaults?.HRV_BASELINE || 45; // Use configurable default
 
   // Respiratory rate validation - handle null/empty response
   const hasRespiratoryData = respiratoryStats?.averageQuantity?.quantity;
@@ -177,17 +181,23 @@ export async function calculateRecoveryScore(
     if (userParams?.weight && userParams?.height && userParams?.age) {
       // Configurable BMR calculation (Mifflin-St Jeor equation)
       const genderAdjustment = userParams?.bmrGenderAdjustment || 5; // +5 for males, -161 for females
-      const bmr = 10 * userParams.weight + 6.25 * userParams.height - 5 * userParams.age + genderAdjustment;
+      const bmr =
+        10 * userParams.weight +
+        6.25 * userParams.height -
+        5 * userParams.age +
+        genderAdjustment;
 
       // Use configurable activity multipliers
       const defaultMultipliers = {
-        'beginner': 1.2,
-        'intermediate': 1.375,
-        'advanced': 1.55,
-        'elite': 1.725,
+        beginner: 1.2,
+        intermediate: 1.375,
+        advanced: 1.55,
+        elite: 1.725,
       };
-      const activityMultipliers = userParams?.bmrActivityMultipliers || defaultMultipliers;
-      const activityMultiplier = activityMultipliers[userParams.fitnessLevel || 'intermediate'];
+      const activityMultipliers =
+        userParams?.bmrActivityMultipliers || defaultMultipliers;
+      const activityMultiplier =
+        activityMultipliers[userParams.fitnessLevel || "intermediate"];
 
       // Use configurable caloric deficit percentage
       const deficitPercentage = userParams?.caloricDeficitPercentage || 0.85;
@@ -200,17 +210,23 @@ export async function calculateRecoveryScore(
     // Use configurable strain thresholds based on fitness level
     const getStrainThresholds = (level: string) => {
       const defaultThresholds = {
-        'elite': { low: 700, high: 1400 },
-        'advanced': { low: 600, high: 1200 },
-        'intermediate': { low: 500, high: 1000 },
-        'beginner': { low: 400, high: 800 },
+        elite: { low: 700, high: 1400 },
+        advanced: { low: 600, high: 1200 },
+        intermediate: { low: 500, high: 1000 },
+        beginner: { low: 400, high: 800 },
       };
 
-      const configuredThresholds = userParams?.strainThresholds || defaultThresholds;
-      return configuredThresholds[level as keyof typeof configuredThresholds] || defaultThresholds.intermediate;
+      const configuredThresholds =
+        userParams?.strainThresholds || defaultThresholds;
+      return (
+        configuredThresholds[level as keyof typeof configuredThresholds] ||
+        defaultThresholds.intermediate
+      );
     };
 
-    const strainThresholds = getStrainThresholds(userParams?.fitnessLevel || 'intermediate');
+    const strainThresholds = getStrainThresholds(
+      userParams?.fitnessLevel || "intermediate"
+    );
 
     return {
       waterTarget,
@@ -223,13 +239,18 @@ export async function calculateRecoveryScore(
   const targets = getUserSpecificTargets();
 
   // Use configurable water intake assumption when no data available
-  const waterIntakeAssumption = options.userParams?.waterIntakeAssumption || 0.8;
-  const waterIntake = options.defaults?.DAILY_WATER_INTAKE || targets.waterTarget * waterIntakeAssumption;
+  const waterIntakeAssumption =
+    options.userParams?.waterIntakeAssumption || 0.8;
+  const waterIntake =
+    options.defaults?.DAILY_WATER_INTAKE ||
+    targets.waterTarget * waterIntakeAssumption;
   const alcoholDrinks = options.defaults?.DAILY_ALCOHOL_DRINKS || 0;
-  const caloriesConsumed = options.defaults?.DAILY_CALORIES_CONSUMED || targets.calorieTarget;
+  const caloriesConsumed =
+    options.defaults?.DAILY_CALORIES_CONSUMED || targets.calorieTarget;
 
   // Extract configuration constants with user-specific fallbacks
-  const normativeHrv = options.userParams?.baselineHRV || options.defaults?.NORMATIVE_HRV || 45;
+  const normativeHrv =
+    options.userParams?.baselineHRV || options.defaults?.NORMATIVE_HRV || 45;
   const waterTarget = targets.waterTarget;
   const calorieTarget = targets.calorieTarget;
   const strainLow = targets.strainLow;
@@ -237,7 +258,10 @@ export async function calculateRecoveryScore(
   const respBase = options.defaults?.RESPIRATORY_BASELINE || 16;
 
   // Use configurable alcohol penalty based on user weight
-  let alcoholPenalty = options.userParams?.alcoholPenaltyPerDrink || options.defaults?.ALCOHOL_PENALTY_PER_DRINK || 50;
+  let alcoholPenalty =
+    options.userParams?.alcoholPenaltyPerDrink ||
+    options.defaults?.ALCOHOL_PENALTY_PER_DRINK ||
+    50;
   if (options.userParams?.weight) {
     // Use configurable weight sensitivity for alcohol
     const sensitivity = options.userParams?.alcoholWeightSensitivity || {
@@ -248,7 +272,10 @@ export async function calculateRecoveryScore(
 
     const weightFactor = Math.max(
       sensitivity.minMultiplier,
-      Math.min(sensitivity.maxMultiplier, sensitivity.baseWeight / options.userParams.weight)
+      Math.min(
+        sensitivity.maxMultiplier,
+        sensitivity.baseWeight / options.userParams.weight
+      )
     );
     alcoholPenalty = Math.round(alcoholPenalty * weightFactor);
   }
@@ -265,7 +292,10 @@ export async function calculateRecoveryScore(
   if (!baselines.hrv && options.userParams?.age) {
     // Use configurable HRV age decline rate
     const declineRate = options.userParams?.hrvAgeDeclineRate || 0.5; // per year above 25
-    const ageAdjustedHRV = Math.max(25, 60 - (options.userParams.age - 25) * declineRate);
+    const ageAdjustedHRV = Math.max(
+      25,
+      60 - (options.userParams.age - 25) * declineRate
+    );
     hrvBaseline = ageAdjustedHRV;
   }
 
@@ -273,7 +303,10 @@ export async function calculateRecoveryScore(
 
   // Use configurable baseline comparison threshold
   const baselineMinSamples = options.userParams?.hrvDataMinimumSamples || 14;
-  if (baselineHrvValues.length < baselineMinSamples && Math.abs(currentHrv - hrvBaseline) < 1) {
+  if (
+    baselineHrvValues.length < baselineMinSamples &&
+    Math.abs(currentHrv - hrvBaseline) < 1
+  ) {
     hrvScore = (currentHrv / normativeHrv) * 100;
   }
 
@@ -287,17 +320,21 @@ export async function calculateRecoveryScore(
   if (!baselines.restingHR && options.userParams?.age) {
     const baseRHR = options.userParams?.hrBaselineValue || 60; // configurable baseline for reference age
     const referenceAge = options.userParams?.hrBaselineAgeReference || 30;
-    const ageAdjustment = (options.userParams.age - referenceAge) * (options.userParams?.rhrAgeIncreaseRate || 0.2);
+    const ageAdjustment =
+      (options.userParams.age - referenceAge) *
+      (options.userParams?.rhrAgeIncreaseRate || 0.2);
 
     // Use configurable fitness level adjustments
     const defaultFitnessAdjustments = {
-      'elite': -15,
-      'advanced': -10,
-      'intermediate': -5,
-      'beginner': 0,
+      elite: -15,
+      advanced: -10,
+      intermediate: -5,
+      beginner: 0,
     };
-    const fitnessAdjustments = options.userParams?.fitnessRhrAdjustments || defaultFitnessAdjustments;
-    const fitnessAdjustment = fitnessAdjustments[options.userParams?.fitnessLevel || 'intermediate'];
+    const fitnessAdjustments =
+      options.userParams?.fitnessRhrAdjustments || defaultFitnessAdjustments;
+    const fitnessAdjustment =
+      fitnessAdjustments[options.userParams?.fitnessLevel || "intermediate"];
 
     rhrBaseline = Math.max(40, baseRHR + ageAdjustment + fitnessAdjustment);
   }
@@ -311,7 +348,8 @@ export async function calculateRecoveryScore(
   if (respiratoryRate <= respBase) respiratoryScore = 100;
 
   if (!hasRespiratoryData) {
-    const penaltyPercent = options.userParams?.respiratoryPenaltyForMissing || 75;
+    const penaltyPercent =
+      options.userParams?.respiratoryPenaltyForMissing || 75;
     respiratoryScore = Math.min(respiratoryScore, penaltyPercent);
   }
 
@@ -450,7 +488,7 @@ export const fetchRecoveryAverages = async (
         // Calculate daily recovery score for each specific date
         const recoveryResult = await calculateRecoveryScore({
           defaults,
-          targetDate: date
+          targetDate: date,
         });
         recoveryScores.push(recoveryResult.totalScore);
       } catch (error) {
@@ -470,7 +508,7 @@ export const fetchRecoveryAverages = async (
       try {
         const recoveryResult = await calculateRecoveryScore({
           defaults,
-          targetDate: date
+          targetDate: date,
         });
         recoveryScores.push(recoveryResult.totalScore);
       } catch (error) {
@@ -533,20 +571,27 @@ export async function getRecoveryMetrics(
     recommendation = "Limited recovery. Focus on light activity and rest.";
   } else {
     category = "Very Low";
-    recommendation = "Poor recovery. Prioritize sleep, hydration, and complete rest.";
+    recommendation =
+      "Poor recovery. Prioritize sleep, hydration, and complete rest.";
   }
 
   // Generate specific insights based on breakdown
   const { breakdown } = recovery;
 
   if (breakdown.biometrics.HRV < 70) {
-    insights.push("HRV below optimal - consider stress management and better sleep");
+    insights.push(
+      "HRV below optimal - consider stress management and better sleep"
+    );
   }
   if (breakdown.biometrics.RHR < 70) {
-    insights.push("Elevated resting heart rate - may indicate incomplete recovery");
+    insights.push(
+      "Elevated resting heart rate - may indicate incomplete recovery"
+    );
   }
   if (breakdown.biometrics.sleepEfficiency < 80) {
-    insights.push("Sleep efficiency could be improved - focus on sleep hygiene");
+    insights.push(
+      "Sleep efficiency could be improved - focus on sleep hygiene"
+    );
   }
   if (breakdown.lifestyle.hydration < 80) {
     insights.push("Increase water intake for better recovery");
@@ -555,7 +600,9 @@ export async function getRecoveryMetrics(
     insights.push("High strain yesterday - extra recovery time needed");
   }
   if (breakdown.lifestyle.alcohol < 90) {
-    insights.push("Alcohol consumption affecting recovery - consider reducing intake");
+    insights.push(
+      "Alcohol consumption affecting recovery - consider reducing intake"
+    );
   }
 
   return {

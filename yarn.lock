@@ -1806,13 +1806,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@kingstinct/react-native-healthkit@npm:^8.7.1":
-  version: 8.7.2
-  resolution: "@kingstinct/react-native-healthkit@npm:8.7.2"
+"@kingstinct/react-native-healthkit@npm:^9.0.6":
+  version: 9.0.6
+  resolution: "@kingstinct/react-native-healthkit@npm:9.0.6"
   peerDependencies:
     react: "*"
     react-native: "*"
-  checksum: 10c0/5088ed61750eadfd96f76ae0f9a24cd2494034d7b2ea40552940516127e310a0c9ce449e193c3ce1b7a471f4fb77e6af22f03636c31c97a535e22f18ebcf03a1
+    react-native-nitro-modules: "*"
+  checksum: 10c0/1ee10dc4ff315f303fca8f0eba6c5740687bf3b15e4c4edb909cb5926d1b2a2bf8bad80b5fe596ff56df42991e7c0fe0b027a8892609626faa4d2df4837221ce
   languageName: node
   linkType: hard
 
@@ -5333,7 +5334,7 @@ __metadata:
   dependencies:
     "@babel/core": "npm:^7.25.2"
     "@expo/vector-icons": "npm:^14.1.0"
-    "@kingstinct/react-native-healthkit": "npm:^8.7.1"
+    "@kingstinct/react-native-healthkit": "npm:^9.0.6"
     "@react-navigation/bottom-tabs": "npm:^7.3.10"
     "@react-navigation/elements": "npm:^2.3.8"
     "@react-navigation/native": "npm:^7.1.6"
@@ -5362,6 +5363,7 @@ __metadata:
     react-dom: "npm:19.0.0"
     react-native: "npm:0.79.3"
     react-native-gesture-handler: "npm:~2.24.0"
+    react-native-nitro-modules: "npm:^0.26.2"
     react-native-reanimated: "npm:~3.17.4"
     react-native-safe-area-context: "npm:5.4.0"
     react-native-screens: "npm:~4.11.1"
@@ -8172,6 +8174,16 @@ __metadata:
     react: "*"
     react-native: "*"
   checksum: 10c0/b7a37437f439b1e27a4d980de01994aa71b9091dc3ed00c21172d5505fb11978cd5ed3a43f97c89d502a3a08cf26e5cea6435b8d6e93d3557a92dd43563f7021
+  languageName: node
+  linkType: hard
+
+"react-native-nitro-modules@npm:^0.26.2":
+  version: 0.26.2
+  resolution: "react-native-nitro-modules@npm:0.26.2"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+  checksum: 10c0/e4d1f00c4628d7ea48f84aea6b36f48e11f38ecad0431106f3878387b8b49be1a2f158c3220841bc057b0e9f7bf2da8b6b0171244c9e695c337b744d1da8f548
   languageName: node
   linkType: hard
 

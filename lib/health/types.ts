@@ -1,9 +1,6 @@
 import {
-  EnergyUnit,
-  HKQuantitySample,
-  HKQuantityTypeIdentifier,
-  HKWorkout,
-  LengthUnit,
+  QuantitySample,
+  WorkoutSample
 } from "@kingstinct/react-native-healthkit";
 
 // Shared interfaces for all health modules
@@ -33,8 +30,8 @@ export interface WorkoutStats {
   exerciseMins: number;
   standHours: number;
   moveKcal: number;
-  rawCalories: readonly HKQuantitySample<HKQuantityTypeIdentifier.activeEnergyBurned>[];
-  workouts: readonly HKWorkout<EnergyUnit, LengthUnit>[]; // Using any[] for now since the exact type from queryWorkoutSamples is not exported
+  rawCalories: readonly QuantitySample[];
+  workouts: readonly WorkoutSample[];
 }
 
 export interface SleepMetrics {
@@ -273,7 +270,7 @@ export interface UserParams {
   age?: number;
   weight?: number; // kg
   height?: number; // cm
-  fitnessLevel?: 'beginner' | 'intermediate' | 'advanced' | 'elite';
+  fitnessLevel?: "beginner" | "intermediate" | "advanced" | "elite";
   restingHeartRate?: number;
   maxHeartRate?: number;
   baselineHRV?: number;
@@ -317,7 +314,7 @@ export interface UserParams {
   };
 
   // Heart rate calculation parameters
-  maxHrFormula?: 'classic' | 'tanaka'; // 220-age vs 208-(0.7*age)
+  maxHrFormula?: "classic" | "tanaka"; // 220-age vs 208-(0.7*age)
   maxHrAgeCoefficient?: number; // coefficient for age in max HR calculation
   maxHrConstant?: number; // base constant for max HR formula
 

@@ -13,10 +13,8 @@ import i18n from "@/lib/i18n";
 
 export default function WorkoutsScreen() {
   const { data } = useContext(HealthDataContext);
-
-  // Process workout data using utility functions
   const { allWorkouts, last7DaysWorkouts, monthStats } = processWorkoutData(
-    data.workouts || []
+    data.workouts
   );
 
   // Format stats for display

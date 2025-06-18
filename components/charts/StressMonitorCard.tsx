@@ -3,7 +3,7 @@ import React from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { Area, CartesianChart } from "victory-native";
 
-import hiFont from "@/assets/fonts/Hikasami-Regular.ttf";
+// import hiFont from "@/assets/fonts/Hikasami-Regular.ttf";
 import { ThemedText } from "@/components/ThemedText";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { useThemeColor } from "@/hooks/useThemeColor";
@@ -87,7 +87,7 @@ function StressVisualization({
   yDomain,
   xAxisDataType,
 }: StressVisualizationProps) {
-  const font = useFont(hiFont, 12);
+  const font = useFont(require("@/assets/fonts/Hikasami-Regular.ttf"), 12);
   const themedTextColor = useThemeColor({}, "text");
   const themedLineColor = useThemeColor({}, "tint");
   const themedGridColor = useThemeColor({}, "textSecondary");

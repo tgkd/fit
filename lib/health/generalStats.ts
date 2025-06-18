@@ -1,9 +1,7 @@
 import {
-    getDateOfBirth,
-    getMostRecentQuantitySample,
-    HKQuantityTypeIdentifier,
-    HKStatisticsOptions,
-    queryStatisticsForQuantity,
+  getDateOfBirth,
+  getMostRecentQuantitySample,
+  queryStatisticsForQuantity,
 } from "@kingstinct/react-native-healthkit";
 import { GeneralStats } from "./types";
 import { getCurrentDateRanges, getDateRanges } from "./utils";
@@ -14,7 +12,9 @@ import { getCurrentDateRanges, getDateRanges } from "./utils";
  * - Weight (most recent)
  * - Steps (for the specific date)
  */
-export const fetchGeneralStats = async (targetDate?: Date): Promise<GeneralStats> => {
+export const fetchGeneralStats = async (
+  targetDate?: Date
+): Promise<GeneralStats> => {
   // Get age from date of birth
   const dob = await getDateOfBirth();
   const currentDate = new Date();
@@ -22,7 +22,7 @@ export const fetchGeneralStats = async (targetDate?: Date): Promise<GeneralStats
 
   // Get most recent weight
   const weightSample = await getMostRecentQuantitySample(
-    HKQuantityTypeIdentifier.bodyMass,
+    "HKQuantityTypeIdentifierBodyMass",
     "kg"
   );
   const weightInKg = weightSample?.quantity ?? null;
@@ -40,10 +40,12 @@ export const fetchGeneralStats = async (targetDate?: Date): Promise<GeneralStats
   }
 
   const stepsStat = await queryStatisticsForQuantity(
-    HKQuantityTypeIdentifier.stepCount,
-    [HKStatisticsOptions.cumulativeSum],
-    startDate,
-    endDate
+    "HKQuantityTypeIdentifierStepCount",
+    ["cumulativeSum"],
+    {
+      filter: { startDate, endDate },
+      unit: "count",
+    }
   );
   const steps = stepsStat?.sumQuantity?.quantity || 0;
 
