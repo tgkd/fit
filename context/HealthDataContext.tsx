@@ -1,10 +1,18 @@
-import React, { createContext, ReactNode, useCallback, useEffect, useState } from "react";
+import React, {
+  createContext,
+  ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 
 import { getAllHealthStats } from "@/lib/health";
 import { isHealthKitAvailable } from "@/lib/health/permissions";
 import {
   HealthData as ModularHealthData,
   WriteHealthDataOptions as ModularWriteHealthDataOptions,
+  UserParams,
 } from "@/lib/health/types";
 import i18n from "@/lib/i18n";
 
@@ -25,6 +33,76 @@ export const HEALTH_DEFAULTS = {
   STRAIN_HIGH_THRESHOLD: 1000, // kcal - high strain threshold
   RESPIRATORY_BASELINE: 16, // breaths/min - ideal respiratory rate
   ALCOHOL_PENALTY_PER_DRINK: 50, // points deducted per alcoholic drink
+};
+
+// Default user parameters for personalized health calculations
+export const DEFAULT_USER_PARAMS: UserParams = {
+  // Basic user profile
+  age: 30,
+  weight: 70, // kg
+  height: 175, // cm
+  fitnessLevel: "intermediate",
+
+  // Heart rate parameters
+  maxHrFormula: "tanaka", // More accurate than classic formula
+  maxHrAgeCoefficient: 0.7,
+  maxHrConstant: 208,
+
+  // Recovery configuration
+  alcoholPenaltyPerDrink: 50,
+  waterIntakePerKg: 35, // ml per kg body weight
+  caloricDeficitPercentage: 0.85, // 15% deficit for weight management
+
+  // BMR activity multipliers
+  bmrActivityMultipliers: {
+    beginner: 1.2,
+    intermediate: 1.375,
+    advanced: 1.55,
+    elite: 1.725,
+  },
+
+  // Strain thresholds by fitness level
+  strainThresholds: {
+    beginner: { low: 400, high: 800 },
+    intermediate: { low: 500, high: 1000 },
+    advanced: { low: 600, high: 1200 },
+    elite: { low: 700, high: 1400 },
+  },
+
+  // Age and fitness adjustments
+  hrvAgeDeclineRate: 0.5, // HRV decline per year above 25
+  rhrAgeIncreaseRate: 0.2, // RHR increase per year above 30
+  fitnessRhrAdjustments: {
+    beginner: 0,
+    intermediate: -5,
+    advanced: -10,
+    elite: -15,
+  },
+
+  // Weight-based alcohol sensitivity
+  alcoholWeightSensitivity: {
+    baseWeight: 70, // kg (reference weight for baseline penalty)
+    minMultiplier: 0.5,
+    maxMultiplier: 1.5,
+  },
+
+  // Strain calculation guidance thresholds
+  strainGuidanceThresholds: {
+    highIntensityMinutes: 20,
+    moderateIntensityMinutes: 30,
+    totalActiveMinutes: 60,
+    lightActivityThreshold: 30,
+  },
+
+  // Recovery calculation constants
+  hrvDataMinimumSamples: 7,
+  hrBaselineAgeReference: 30,
+  hrBaselineValue: 60,
+  hrvBaslineValue: 60,
+  maxAlcoholForZeroScore: 2,
+  respiratoryPenaltyForMissing: 75,
+  waterIntakeAssumption: 0.8,
+  bmrGenderAdjustment: 5, // +5 for males, -161 for females
 };
 
 // Use the modular HealthData interface
@@ -127,6 +205,7 @@ export const HealthDataContext = createContext<{
   data: HealthData;
   date: Date;
   loading: boolean;
+  userParams: UserParams;
   refresh: () => Promise<void>;
   setDate: (date: Date) => void;
   setPreviousDate: () => void;
@@ -134,10 +213,12 @@ export const HealthDataContext = createContext<{
   setToday: () => void;
   isToday: () => boolean;
   formatDate: (date: Date) => string;
+  updateUserParams: (params: Partial<UserParams>) => void;
 }>({
   data: defaultData,
   date: new Date(),
   loading: false,
+  userParams: DEFAULT_USER_PARAMS,
   refresh: async () => {},
   setDate: (date: Date) => {},
   setPreviousDate: () => {},
@@ -145,6 +226,7 @@ export const HealthDataContext = createContext<{
   setToday: () => {},
   isToday: () => false,
   formatDate: (date: Date) => "",
+  updateUserParams: (params: Partial<UserParams>) => {},
 });
 
 const USE_FAKE_DATA = false;
@@ -153,6 +235,7 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
   const [data, setData] = useState<HealthData>(defaultData);
   const [date, setDate] = useState<Date>(new Date());
   const [loading, setLoading] = useState<boolean>(false);
+  const [userParams, setUserParams] = useState<UserParams>(DEFAULT_USER_PARAMS);
 
   const initData = useCallback(async () => {
     setLoading(true);
@@ -162,7 +245,11 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
         setData(generateFakeHealthData());
       } else {
         console.log(`Fetching health data for: ${date.toDateString()}`);
-        const fetchedData = await getAllHealthStats(date, HEALTH_DEFAULTS);
+        const fetchedData = await getAllHealthStats(
+          date,
+          HEALTH_DEFAULTS,
+          userParams
+        );
         setData(fetchedData);
       }
     } catch (error) {
@@ -171,7 +258,7 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setLoading(false);
     }
-  }, [date]);
+  }, [date, userParams]);
 
   const setPreviousDate = () => {
     const previousDate = new Date(date);
@@ -208,6 +295,10 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const updateUserParams = useCallback((params: Partial<UserParams>) => {
+    setUserParams((prevParams) => ({ ...prevParams, ...params }));
+  }, []);
+
   useEffect(() => {
     initData();
   }, [initData]);
@@ -218,18 +309,29 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
         data,
         date,
         loading,
+        userParams,
         refresh: initData,
         setDate,
         setPreviousDate,
         setNextDate,
         setToday,
         isToday,
-        formatDate
+        formatDate,
+        updateUserParams,
       }}
     >
       {children}
     </HealthDataContext.Provider>
   );
+};
+
+// Custom hook for easier context usage
+export const useHealthData = () => {
+  const context = useContext(HealthDataContext);
+  if (!context) {
+    throw new Error("useHealthData must be used within a HealthDataProvider");
+  }
+  return context;
 };
 
 // --- FAKE DATA GENERATOR (For Development) ---

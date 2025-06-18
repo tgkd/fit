@@ -267,3 +267,75 @@ export interface HealthDataDefaults {
   HRR_ZONE_LOWER_BOUND_PERCENTAGES?: number[];
   MIN_HRR_FALLBACK_ADJUSTMENT?: number;
 }
+
+// UserParams interface for personalized health calculations
+export interface UserParams {
+  age?: number;
+  weight?: number; // kg
+  height?: number; // cm
+  fitnessLevel?: 'beginner' | 'intermediate' | 'advanced' | 'elite';
+  restingHeartRate?: number;
+  maxHeartRate?: number;
+  baselineHRV?: number;
+  baselineRHR?: number;
+  dailyWaterTarget?: number; // ml
+  dailyCalorieTarget?: number;
+  sleepEfficiency?: number;
+
+  // Recovery-specific configuration
+  alcoholPenaltyPerDrink?: number; // points deducted per alcoholic drink
+  waterIntakePerKg?: number; // ml per kg body weight for hydration target
+  bmrActivityMultipliers?: {
+    beginner: number;
+    intermediate: number;
+    advanced: number;
+    elite: number;
+  };
+  caloricDeficitPercentage?: number; // percentage (e.g., 0.85 for 15% deficit)
+  strainThresholds?: {
+    beginner: { low: number; high: number };
+    intermediate: { low: number; high: number };
+    advanced: { low: number; high: number };
+    elite: { low: number; high: number };
+  };
+
+  // Age and fitness adjustments
+  hrvAgeDeclineRate?: number; // HRV decline per year above 25
+  rhrAgeIncreaseRate?: number; // RHR increase per year above 30
+  fitnessRhrAdjustments?: {
+    beginner: number;
+    intermediate: number;
+    advanced: number;
+    elite: number;
+  };
+
+  // Weight-based alcohol sensitivity
+  alcoholWeightSensitivity?: {
+    baseWeight: number; // kg (reference weight for baseline penalty)
+    minMultiplier: number; // minimum weight factor
+    maxMultiplier: number; // maximum weight factor
+  };
+
+  // Heart rate calculation parameters
+  maxHrFormula?: 'classic' | 'tanaka'; // 220-age vs 208-(0.7*age)
+  maxHrAgeCoefficient?: number; // coefficient for age in max HR calculation
+  maxHrConstant?: number; // base constant for max HR formula
+
+  // Strain calculation guidance thresholds
+  strainGuidanceThresholds?: {
+    highIntensityMinutes: number;
+    moderateIntensityMinutes: number;
+    totalActiveMinutes: number;
+    lightActivityThreshold: number;
+  };
+
+  // Recovery calculation constants
+  hrvDataMinimumSamples?: number; // minimum HRV samples for reliable baseline
+  hrBaselineAgeReference?: number; // reference age for RHR baseline (e.g., 30)
+  hrBaselineValue?: number; // baseline RHR for reference age
+  hrvBaslineValue?: number; // baseline HRV for age calculations
+  maxAlcoholForZeroScore?: number; // number of drinks that results in 0% alcohol score
+  respiratoryPenaltyForMissing?: number; // percentage cap when respiratory data missing
+  waterIntakeAssumption?: number; // percentage of target assumed when no data (e.g., 0.8)
+  bmrGenderAdjustment?: number; // BMR adjustment for gender (+5 for males, -161 for females)
+}
