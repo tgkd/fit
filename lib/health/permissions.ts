@@ -119,7 +119,7 @@ const AllCharacteristicTypeIdentifierInApp: CharacteristicTypeIdentifier[] = [
   "HKCharacteristicTypeIdentifierActivityMoveMode",
 ];
 
-const AllSampleTypesInApp: SampleTypeIdentifierWriteable[] = [
+export const AllSampleTypesInApp: SampleTypeIdentifierWriteable[] = [
   "HKWorkoutTypeIdentifier",
   "HKWorkoutRouteTypeIdentifier",
   "HKDataTypeIdentifierHeartbeatSeries",
@@ -131,7 +131,7 @@ const AllSampleTypesInApp: SampleTypeIdentifierWriteable[] = [
     'HKQuantityTypeIdentifierWalkingHeartRateAverage'*/
 ];
 
-const AllObjectTypesInApp: ObjectTypeIdentifier[] = [
+export const AllObjectTypesInApp: ObjectTypeIdentifier[] = [
   ...AllSampleTypesInApp,
   ...AllCharacteristicTypeIdentifierInApp,
   // 'HKQuantityTypeIdentifierHeartRateVariabilitySDNN',
