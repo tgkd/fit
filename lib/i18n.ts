@@ -149,7 +149,6 @@ const translations = {
       m: "m",
       km: "km",
       bpm: "bpm",
-      hours: "Hours",
       activeCal: "Active Cal",
       running: "Running",
       cycling: "Cycling",
@@ -157,6 +156,7 @@ const translations = {
       functionalStrengthTraining: "Functional Strength Training",
       yoga: "Yoga",
       soccer: "Soccer",
+      tennis: "Tennis",
     },
 
     common: {

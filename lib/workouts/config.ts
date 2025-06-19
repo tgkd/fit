@@ -64,7 +64,7 @@ const formatDurationHMS = (minutes: number): string => {
 const baseMetrics: WorkoutMetric[] = [
   {
     key: 'duration',
-    label: i18n.t('workouts.hours'),
+    label: i18n.t('workouts.duration'),
     getValue: (data) => formatDurationHMS(data.duration),
     isAlwaysVisible: true,
   },
