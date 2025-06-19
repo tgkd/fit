@@ -117,6 +117,7 @@ export const workoutConfigs: Partial<Record<HKWorkoutActivityType, WorkoutConfig
   },
   [HKWorkoutActivityType.running]: {
     metrics: [
+      ...baseMetrics,
       {
         key: 'distance',
         label: i18n.t('workouts.distance'),
@@ -129,11 +130,11 @@ export const workoutConfigs: Partial<Record<HKWorkoutActivityType, WorkoutConfig
         getValue: (data) => data.averagePace ? formatPace(data.averagePace) : 'N/A',
         unit: i18n.t('workouts.km'),
       },
-      ...baseMetrics,
     ],
   },
   [HKWorkoutActivityType.cycling]: {
     metrics: [
+      ...baseMetrics,
       {
         key: 'distance',
         label: i18n.t('workouts.distance'),
@@ -146,7 +147,6 @@ export const workoutConfigs: Partial<Record<HKWorkoutActivityType, WorkoutConfig
         getValue: (data) => data.averagePace ? formatPace(data.averagePace) : 'N/A',
         unit: i18n.t('workouts.km'),
       },
-      ...baseMetrics,
     ],
   },
   [HKWorkoutActivityType.swimming]: {
@@ -196,6 +196,7 @@ export const workoutConfigs: Partial<Record<HKWorkoutActivityType, WorkoutConfig
   },
   [HKWorkoutActivityType.soccer]: {
     metrics: [
+      ...baseMetrics,
       {
         key: 'distance',
         label: i18n.t('workouts.distance'),
@@ -208,7 +209,6 @@ export const workoutConfigs: Partial<Record<HKWorkoutActivityType, WorkoutConfig
         getValue: (data) => data.averageHeartRate ? Math.round(data.averageHeartRate).toString() : 'N/A',
         unit: i18n.t('workouts.bpm'),
       },
-      ...baseMetrics,
     ],
   },
 };
