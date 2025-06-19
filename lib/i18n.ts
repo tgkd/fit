@@ -373,6 +373,7 @@ const translations = {
       functionalStrengthTraining: "Функциональная сила",
       yoga: "Йога",
       soccer: "Футбол",
+      tennis: "Теннис",
     },
 
     common: {
