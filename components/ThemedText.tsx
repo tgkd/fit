@@ -38,7 +38,6 @@ export function ThemedText({
       case "title":
         return "AlegreyaSC-Regular";
       case "monospace":
-        return "BarlowCondensed-Regular";
       case "default":
       case "defaultSemiBold":
       case "subtitle":
@@ -140,7 +139,9 @@ const styles = StyleSheet.create({
   },
   monospace: {
     fontSize: 15,
-    letterSpacing: 0.5,
+    fontWeight: "700", // Bold weight
+    letterSpacing: -0.5, // Compressed/condensed spacing
+    fontVariant: ["tabular-nums"],
   },
   footnote: {
     fontSize: 14,

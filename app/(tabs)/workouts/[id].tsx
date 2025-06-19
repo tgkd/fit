@@ -12,7 +12,6 @@ import { localizedWorkoutName } from "@/lib/workouts/config";
 export default function WorkoutDetailsScreen() {
   const { workout, config, dateTimeRange, isLoading, error } =
     useWorkoutDetails();
-  const borderColor = useThemeColor({}, "border");
   const cardBackground = useThemeColor({}, "cardBackground");
 
   if (error) {
@@ -51,8 +50,8 @@ export default function WorkoutDetailsScreen() {
             <ThemedText type="monospace" size="xxl">
               {metric.getValue(workout)}
               {metric.unit && (
-                <ThemedText type="secondary" size="xs">
-                  {metric.unit}
+                <ThemedText type="footnote" size="xs">
+                  {' ' + metric.unit}
                 </ThemedText>
               )}
             </ThemedText>
