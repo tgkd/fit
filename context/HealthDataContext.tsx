@@ -20,9 +20,9 @@ import {
 import i18n from "@/lib/i18n";
 import {
   authorizationStatusFor,
-  isHealthDataAvailable,
+  isHealthDataAvailableAsync,
   requestAuthorization,
-} from "@kingstinct/react-native-healthkit";
+} from "@kingstinct/react-native-healthkit/lib/commonjs/index.ios.js";
 
 // Default values for health calculations when data is missing
 export const HEALTH_DEFAULTS = {
@@ -252,7 +252,7 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
     const checkHealthKitAvailability = async () => {
       try {
         console.log("Checking HealthKit availability...");
-        const available = await isHealthDataAvailable();
+        const available = await isHealthDataAvailableAsync();
         setIsHealthKitAvailable(available);
         console.log("HealthKit available:", available);
       } catch (error) {
