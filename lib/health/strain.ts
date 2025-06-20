@@ -4,7 +4,7 @@ import {
   WorkoutSample,
 } from "@kingstinct/react-native-healthkit";
 import {
-  getDateOfBirth,
+  getDateOfBirthAsync,
   getMostRecentQuantitySample,
   queryQuantitySamples,
   queryWorkoutSamples,
@@ -81,7 +81,7 @@ export async function calculateDayStrain(
 
   let maxHR = DEFAULT_MAX_HR;
   try {
-    const birthDateISO = await getDateOfBirth();
+    const birthDateISO = await getDateOfBirthAsync();
     if (birthDateISO) {
       const birthDate = new Date(birthDateISO);
       if (!isNaN(birthDate.getTime())) {
@@ -185,8 +185,14 @@ export async function calculateDayStrain(
 
   try {
     const workoutsToday = await queryWorkoutSamples({
-      filter: { startDate: dateFrom, endDate: dateTo },
+      filter: {
+        startDate: dateFrom,
+        endDate: dateTo,
+      },
       energyUnit: "kcal",
+      distanceUnit: "m",
+      ascending: false,
+      limit: 100,
     });
 
     muscleWorkouts = workoutsToday.filter((w) =>

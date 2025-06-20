@@ -66,74 +66,110 @@ export interface ProcessedWorkoutData {
 export const fetchWorkoutStats = async (
   targetDate?: Date
 ): Promise<WorkoutStats> => {
-  // Get date ranges for the target date
-  let startDate: Date, endDate: Date;
-  if (targetDate) {
-    const ranges = getDateRanges(targetDate);
-    startDate = ranges.startOfTargetDay;
-    endDate = ranges.endOfTargetDay;
-  } else {
-    const ranges = getCurrentDateRanges();
-    startDate = ranges.startOfToday;
-    endDate = ranges.now;
+  try {
+    // Get date ranges for the target date
+    let startDate: Date, endDate: Date;
+    if (targetDate) {
+      const ranges = getDateRanges(targetDate);
+      startDate = ranges.startOfTargetDay;
+      endDate = ranges.endOfTargetDay;
+    } else {
+      const ranges = getCurrentDateRanges();
+      startDate = ranges.startOfToday;
+      endDate = ranges.now;
+    }
+
+    // Get active calories for the target date (Move ring)
+    const caloriesSamples = await queryQuantitySamples(
+      "HKQuantityTypeIdentifierActiveEnergyBurned",
+      {
+        filter: { startDate, endDate },
+        unit: "kcal"
+      }
+    ).catch((error: any) => {
+      console.log("❌ Active energy query failed:", error);
+      throw error;
+    });
+
+    const moveKcal = caloriesSamples.reduce(
+      (sum: number, record: any) => sum + record.quantity,
+      0
+    );
+
+    // Use HealthKit's exercise time directly (Exercise ring)
+    let exerciseMins = 0;
+    try {
+      const exerciseTimeStat = await queryStatisticsForQuantity(
+        "HKQuantityTypeIdentifierAppleExerciseTime",
+        ["cumulativeSum"],
+        {
+          filter: { startDate, endDate },
+          unit: "min",
+        }
+      );
+      exerciseMins = Math.floor(exerciseTimeStat?.sumQuantity?.quantity || 0);
+    } catch (error: any) {
+      console.log("❌ Exercise time query failed:", error);
+      exerciseMins = 0;
+    }
+
+    // Use HealthKit's stand hours directly (Stand ring)
+    let standHours = 0;
+    try {
+      const standHoursStat = await queryStatisticsForQuantity(
+        "HKQuantityTypeIdentifierAppleStandTime",
+        ["cumulativeSum"],
+        {
+          filter: { startDate, endDate },
+          unit: "hr",
+        }
+      );
+      standHours = Math.min(
+        12,
+        Math.floor(standHoursStat?.sumQuantity?.quantity || 0)
+      );
+    } catch (error: any) {
+      console.log("❌ Stand hours query failed, using fallback of 0:", error);
+      standHours = 0;
+    }
+
+    // Get workout samples from last 30 days for workouts screen
+    // Note: For workouts list, we always get the last 30 days relative to the current date
+    const now = new Date();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(now.getDate() - 30);
+
+    const allWorkouts = await queryWorkoutSamples({
+      filter: {
+        startDate: thirtyDaysAgo,
+        endDate: now,
+      },
+      energyUnit: "kcal",
+      distanceUnit: "m",
+      ascending: false,
+      limit: 100,
+    }).catch((error: any) => {
+      console.log("❌ Workout samples query failed, returning empty array:", error);
+      return [];
+    });
+
+    return {
+      exerciseMins,
+      standHours,
+      moveKcal,
+      rawCalories: caloriesSamples,
+      workouts: allWorkouts,
+    };
+  } catch (error) {
+    console.log("❌ fetchWorkoutStats failed, returning fallback values:", error);
+    return {
+      exerciseMins: 0,
+      standHours: 0,
+      moveKcal: 0,
+      rawCalories: [],
+      workouts: [],
+    };
   }
-
-  // Get active calories for the target date (Move ring)
-  const caloriesSamples = await queryQuantitySamples(
-    "HKQuantityTypeIdentifierActiveEnergyBurned",
-    { filter: { startDate, endDate } }
-  );
-
-  const moveKcal = caloriesSamples.reduce(
-    (sum: number, record) => sum + record.quantity,
-    0
-  );
-
-  // Use HealthKit's exercise time directly (Exercise ring)
-  const exerciseTimeStat = await queryStatisticsForQuantity(
-    "HKQuantityTypeIdentifierAppleExerciseTime",
-    ["cumulativeSum"],
-    {
-      filter: { startDate, endDate },
-      unit: "min",
-    }
-  );
-  const exerciseMins = Math.floor(exerciseTimeStat?.sumQuantity?.quantity || 0);
-
-  // Use HealthKit's stand hours directly (Stand ring)
-  const standHoursStat = await queryStatisticsForQuantity(
-    "HKQuantityTypeIdentifierAppleStandTime",
-    ["cumulativeSum"],
-    {
-      filter: { startDate, endDate },
-      unit: "hr",
-    }
-  );
-  const standHours = Math.min(
-    12,
-    Math.floor(standHoursStat?.sumQuantity?.quantity || 0)
-  );
-
-  // Get workout samples from last 30 days for workouts screen
-  // Note: For workouts list, we always get the last 30 days relative to the current date
-  const now = new Date();
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(now.getDate() - 30);
-
-  const allWorkouts = await queryWorkoutSamples({
-    filter: {
-      startDate: thirtyDaysAgo,
-      endDate: now,
-    },
-  });
-
-  return {
-    exerciseMins,
-    standHours,
-    moveKcal,
-    rawCalories: caloriesSamples,
-    workouts: allWorkouts,
-  };
 };
 
 /**
@@ -193,17 +229,17 @@ export const fetchWorkoutHeartRateData = async (
     }
 
     // Extract heart rate values
-    const hrValues = heartRateSamples.map((sample) => sample.quantity);
+    const hrValues = heartRateSamples.map((sample: any) => sample.quantity);
 
     // Calculate statistics
     const averageHeartRate = Math.round(
-      hrValues.reduce((sum, hr) => sum + hr, 0) / hrValues.length
+      hrValues.reduce((sum: number, hr: number) => sum + hr, 0) / hrValues.length
     );
     const maxHeartRate = Math.max(...hrValues);
     const minHeartRate = Math.min(...hrValues);
 
     // Format samples for chart display
-    const formattedSamples = heartRateSamples.map((sample) => ({
+    const formattedSamples = heartRateSamples.map((sample: any) => ({
       timestamp: new Date(sample.startDate),
       value: sample.quantity,
     }));

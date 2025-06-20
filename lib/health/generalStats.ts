@@ -1,5 +1,5 @@
 import {
-  getDateOfBirth,
+  getDateOfBirthAsync,
   getMostRecentQuantitySample,
   queryStatisticsForQuantity,
 } from "@kingstinct/react-native-healthkit/lib/commonjs/index.ios.js";
@@ -16,7 +16,7 @@ export const fetchGeneralStats = async (
   targetDate?: Date
 ): Promise<GeneralStats> => {
   // Get age from date of birth
-  const dob = await getDateOfBirth();
+  const dob = await getDateOfBirthAsync();
   const currentDate = new Date();
   const age = dob ? currentDate.getFullYear() - dob.getFullYear() : null;
 

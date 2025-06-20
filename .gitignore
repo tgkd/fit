@@ -46,3 +46,5 @@ app-example
 !.yarn/sdks
 !.yarn/versions
 .aider*
+
+opencode.json

@@ -76,9 +76,6 @@ export async function calculateRecoveryScore(
       fourteenDaysAgo = extendedRanges.fourteenDaysAgo;
     }
 
-    // Add logging to debug the error
-    console.log('📊 Starting recovery calculation for:', targetDate || 'today');
-
     // Fetch all required health data in parallel
     const [
       restingHRSample,
@@ -89,19 +86,11 @@ export async function calculateRecoveryScore(
       baselineRhrSamples,
     ] = await Promise.all([
       // Current resting heart rate
-      getMostRecentQuantitySample(
-        "HKQuantityTypeIdentifierRestingHeartRate",
-      ).catch((error: Error) => {
-        console.log('⚠️ Resting HR not available:', error.message);
-        return null;
-      }),
+      getMostRecentQuantitySample("HKQuantityTypeIdentifierRestingHeartRate"),
 
       // HRV data for last week (for current value)
       queryQuantitySamples("HKQuantityTypeIdentifierHeartRateVariabilitySDNN", {
         filter: { startDate: oneWeekAgo, endDate: now },
-      }).catch((error: Error) => {
-        console.log('⚠️ HRV samples not available:', error.message);
-        return [];
       }),
 
       // Respiratory rate for the target day (may not be available)
@@ -112,10 +101,7 @@ export async function calculateRecoveryScore(
           filter: { startDate: startOfDay, endDate: now },
           unit: "count/min",
         }
-      ).catch((error: Error) => {
-        console.warn("Respiratory rate data not available:", error);
-        return null;
-      }),
+      ),
 
       // Active energy burned for the target day
       queryStatisticsForQuantity(
@@ -125,35 +111,20 @@ export async function calculateRecoveryScore(
           filter: { startDate: startOfDay, endDate: now },
           unit: "kcal",
         }
-      ).catch((error: Error) => {
-        console.log('⚠️ Active energy not available:', error.message);
-        return null;
-      }),
+      ),
 
       // 14-day HRV baseline
       queryQuantitySamples("HKQuantityTypeIdentifierHeartRateVariabilitySDNN", {
         filter: { startDate: fourteenDaysAgo, endDate: now },
         unit: "ms",
-      }).catch((error: Error) => {
-        console.log('⚠️ Baseline HRV not available:', error.message);
-        return [];
       }),
 
       // 14-day RHR baseline
       queryQuantitySamples("HKQuantityTypeIdentifierRestingHeartRate", {
         filter: { startDate: fourteenDaysAgo, endDate: now },
         unit: "count/min",
-      }).catch((error: Error) => {
-        console.log('⚠️ Baseline RHR not available:', error.message);
-        return [];
       }),
     ]);
-
-    console.log('📊 Health data fetched successfully');
-    console.log('📊 Resting HR:', restingHRSample?.quantity);
-    console.log('📊 HRV samples:', hrvSamples.length);
-    console.log('📊 Respiratory rate:', respiratoryStats?.averageQuantity?.quantity);
-    console.log('📊 Active energy:', activeEnergyStats?.sumQuantity?.quantity);
 
     // Validate and process fetched data
     const restingHR =
@@ -176,8 +147,6 @@ export async function calculateRecoveryScore(
 
     const activeEnergyBurned = activeEnergyStats?.sumQuantity?.quantity || 0;
 
-    console.log('📊 Processed values - RHR:', restingHR, 'HRV:', currentHrv, 'Resp:', respiratoryRate, 'Energy:', activeEnergyBurned);
-
     // Calculate baselines for comparison
     const baselineHrvValues = baselineHrvSamples.map((s: any) => s.quantity);
     const baselineHrv =
@@ -187,283 +156,287 @@ export async function calculateRecoveryScore(
     const baselineRhr =
       baselineRhrValues.length > 0 ? mean(baselineRhrValues) : undefined;
 
-  // Calculate user-specific targets and baselines
-  const getUserSpecificTargets = () => {
-    const userParams = options.userParams;
+    // Calculate user-specific targets and baselines
+    const getUserSpecificTargets = () => {
+      const userParams = options.userParams;
 
-    // Calculate personalized water target based on weight and activity
-    let waterTarget = options.defaults?.WATER_TARGET || 2500;
-    if (userParams?.weight) {
-      // Configurable formula: ml per kg body weight
-      const waterPerKg = userParams?.waterIntakePerKg || 35;
-      waterTarget = Math.round(userParams.weight * waterPerKg);
-    }
-    if (userParams?.dailyWaterTarget) {
-      waterTarget = userParams.dailyWaterTarget;
-    }
+      // Calculate personalized water target based on weight and activity
+      let waterTarget = options.defaults?.WATER_TARGET || 2500;
+      if (userParams?.weight) {
+        // Configurable formula: ml per kg body weight
+        const waterPerKg = userParams?.waterIntakePerKg || 35;
+        waterTarget = Math.round(userParams.weight * waterPerKg);
+      }
+      if (userParams?.dailyWaterTarget) {
+        waterTarget = userParams.dailyWaterTarget;
+      }
 
-    // Calculate personalized calorie target based on user stats
-    let calorieTarget = options.defaults?.CALORIE_TARGET || 1800;
-    if (userParams?.weight && userParams?.height && userParams?.age) {
-      // Configurable BMR calculation (Mifflin-St Jeor equation)
-      const genderAdjustment = userParams?.bmrGenderAdjustment || 5; // +5 for males, -161 for females
-      const bmr =
-        10 * userParams.weight +
-        6.25 * userParams.height -
-        5 * userParams.age +
-        genderAdjustment;
+      // Calculate personalized calorie target based on user stats
+      let calorieTarget = options.defaults?.CALORIE_TARGET || 1800;
+      if (userParams?.weight && userParams?.height && userParams?.age) {
+        // Configurable BMR calculation (Mifflin-St Jeor equation)
+        const genderAdjustment = userParams?.bmrGenderAdjustment || 5; // +5 for males, -161 for females
+        const bmr =
+          10 * userParams.weight +
+          6.25 * userParams.height -
+          5 * userParams.age +
+          genderAdjustment;
 
-      // Use configurable activity multipliers
-      const defaultMultipliers = {
-        beginner: 1.2,
-        intermediate: 1.375,
-        advanced: 1.55,
-        elite: 1.725,
+        // Use configurable activity multipliers
+        const defaultMultipliers = {
+          beginner: 1.2,
+          intermediate: 1.375,
+          advanced: 1.55,
+          elite: 1.725,
+        };
+        const activityMultipliers =
+          userParams?.bmrActivityMultipliers || defaultMultipliers;
+        const activityMultiplier =
+          activityMultipliers[userParams.fitnessLevel || "intermediate"];
+
+        // Use configurable caloric deficit percentage
+        const deficitPercentage = userParams?.caloricDeficitPercentage || 0.85;
+        calorieTarget = Math.round(
+          bmr * activityMultiplier * deficitPercentage
+        );
+      }
+      if (userParams?.dailyCalorieTarget) {
+        calorieTarget = userParams.dailyCalorieTarget;
+      }
+
+      // Use configurable strain thresholds based on fitness level
+      const getStrainThresholds = (level: string) => {
+        const defaultThresholds = {
+          elite: { low: 700, high: 1400 },
+          advanced: { low: 600, high: 1200 },
+          intermediate: { low: 500, high: 1000 },
+          beginner: { low: 400, high: 800 },
+        };
+
+        const configuredThresholds =
+          userParams?.strainThresholds || defaultThresholds;
+        return (
+          configuredThresholds[level as keyof typeof configuredThresholds] ||
+          defaultThresholds.intermediate
+        );
       };
-      const activityMultipliers =
-        userParams?.bmrActivityMultipliers || defaultMultipliers;
-      const activityMultiplier =
-        activityMultipliers[userParams.fitnessLevel || "intermediate"];
 
-      // Use configurable caloric deficit percentage
-      const deficitPercentage = userParams?.caloricDeficitPercentage || 0.85;
-      calorieTarget = Math.round(bmr * activityMultiplier * deficitPercentage);
-    }
-    if (userParams?.dailyCalorieTarget) {
-      calorieTarget = userParams.dailyCalorieTarget;
-    }
-
-    // Use configurable strain thresholds based on fitness level
-    const getStrainThresholds = (level: string) => {
-      const defaultThresholds = {
-        elite: { low: 700, high: 1400 },
-        advanced: { low: 600, high: 1200 },
-        intermediate: { low: 500, high: 1000 },
-        beginner: { low: 400, high: 800 },
-      };
-
-      const configuredThresholds =
-        userParams?.strainThresholds || defaultThresholds;
-      return (
-        configuredThresholds[level as keyof typeof configuredThresholds] ||
-        defaultThresholds.intermediate
+      const strainThresholds = getStrainThresholds(
+        userParams?.fitnessLevel || "intermediate"
       );
+
+      return {
+        waterTarget,
+        calorieTarget,
+        strainLow: strainThresholds.low,
+        strainHigh: strainThresholds.high,
+      };
     };
 
-    const strainThresholds = getStrainThresholds(
-      userParams?.fitnessLevel || "intermediate"
-    );
+    const targets = getUserSpecificTargets();
+
+    // Use configurable water intake assumption when no data available
+    const waterIntakeAssumption =
+      options.userParams?.waterIntakeAssumption || 0.8;
+    const waterIntake =
+      options.defaults?.DAILY_WATER_INTAKE ||
+      targets.waterTarget * waterIntakeAssumption;
+    const alcoholDrinks = options.defaults?.DAILY_ALCOHOL_DRINKS || 0;
+    const caloriesConsumed =
+      options.defaults?.DAILY_CALORIES_CONSUMED || targets.calorieTarget;
+
+    // Extract configuration constants with user-specific fallbacks
+    const normativeHrv =
+      options.userParams?.baselineHRV || options.defaults?.NORMATIVE_HRV || 45;
+    const waterTarget = targets.waterTarget;
+    const calorieTarget = targets.calorieTarget;
+    const strainLow = targets.strainLow;
+    const strainHigh = targets.strainHigh;
+    const respBase = options.defaults?.RESPIRATORY_BASELINE || 16;
+
+    // Use configurable alcohol penalty based on user weight
+    let alcoholPenalty =
+      options.userParams?.alcoholPenaltyPerDrink ||
+      options.defaults?.ALCOHOL_PENALTY_PER_DRINK ||
+      50;
+    if (options.userParams?.weight) {
+      // Use configurable weight sensitivity for alcohol
+      const sensitivity = options.userParams?.alcoholWeightSensitivity || {
+        baseWeight: 70, // kg
+        minMultiplier: 0.5,
+        maxMultiplier: 1.5,
+      };
+
+      const weightFactor = Math.max(
+        sensitivity.minMultiplier,
+        Math.min(
+          sensitivity.maxMultiplier,
+          sensitivity.baseWeight / options.userParams.weight
+        )
+      );
+      alcoholPenalty = Math.round(alcoholPenalty * weightFactor);
+    }
+    // 1. Normalize biometric metrics with user-specific baselines
+    const baselines = {
+      hrv: options.userParams?.baselineHRV || baselineHrv,
+      restingHR: options.userParams?.baselineRHR || baselineRhr,
+    };
+
+    // HRV: higher is better. Use personal baseline if available, with age adjustment
+    let hrvBaseline = baselines.hrv ?? 50;
+
+    // Age-adjusted HRV baseline if user age is provided but no personal baseline
+    if (!baselines.hrv && options.userParams?.age) {
+      // Use configurable HRV age decline rate
+      const declineRate = options.userParams?.hrvAgeDeclineRate || 0.5; // per year above 25
+      const ageAdjustedHRV = Math.max(
+        25,
+        60 - (options.userParams.age - 25) * declineRate
+      );
+      hrvBaseline = ageAdjustedHRV;
+    }
+
+    let hrvScore = (currentHrv / hrvBaseline) * 100;
+
+    // Use configurable baseline comparison threshold
+    const baselineMinSamples = options.userParams?.hrvDataMinimumSamples || 14;
+    if (
+      baselineHrvValues.length < baselineMinSamples &&
+      Math.abs(currentHrv - hrvBaseline) < 1
+    ) {
+      hrvScore = (currentHrv / normativeHrv) * 100;
+    }
+
+    if (currentHrv >= hrvBaseline) hrvScore = 100;
+    hrvScore = clampPercent(hrvScore);
+
+    // Resting Heart Rate (RHR): lower is better, with age and fitness adjustments
+    let rhrBaseline = baselines.restingHR ?? 60;
+
+    // Age and fitness-adjusted RHR baseline if no personal baseline
+    if (!baselines.restingHR && options.userParams?.age) {
+      const baseRHR = options.userParams?.hrBaselineValue || 60; // configurable baseline for reference age
+      const referenceAge = options.userParams?.hrBaselineAgeReference || 30;
+      const ageAdjustment =
+        (options.userParams.age - referenceAge) *
+        (options.userParams?.rhrAgeIncreaseRate || 0.2);
+
+      // Use configurable fitness level adjustments
+      const defaultFitnessAdjustments = {
+        elite: -15,
+        advanced: -10,
+        intermediate: -5,
+        beginner: 0,
+      };
+      const fitnessAdjustments =
+        options.userParams?.fitnessRhrAdjustments || defaultFitnessAdjustments;
+      const fitnessAdjustment =
+        fitnessAdjustments[options.userParams?.fitnessLevel || "intermediate"];
+
+      rhrBaseline = Math.max(40, baseRHR + ageAdjustment + fitnessAdjustment);
+    }
+
+    let rhrScore = (rhrBaseline / restingHR) * 100;
+    if (restingHR <= rhrBaseline) rhrScore = 100;
+    rhrScore = clampPercent(rhrScore);
+
+    // Respiratory Rate: lower (within normal range) is better
+    let respiratoryScore = (respBase / respiratoryRate) * 100;
+    if (respiratoryRate <= respBase) respiratoryScore = 100;
+
+    if (!hasRespiratoryData) {
+      const penaltyPercent =
+        options.userParams?.respiratoryPenaltyForMissing || 75;
+      respiratoryScore = Math.min(respiratoryScore, penaltyPercent);
+    }
+
+    respiratoryScore = clampPercent(respiratoryScore);
+
+    // Sleep Efficiency: already a percentage. Compare to baseline or use directly.
+    const sleepEffBase = 100; // ideal 100%
+    let sleepEffScore = (sleepEfficiency / sleepEffBase) * 100;
+    if (sleepEfficiency >= sleepEffBase) sleepEffScore = 100;
+    sleepEffScore = clampPercent(sleepEffScore);
+
+    // 2. Normalize lifestyle metrics against healthy thresholds
+    // Hydration (daily water) – compare to target
+    let hydrationScore = (waterIntake / waterTarget) * 100;
+    hydrationScore = clampPercent(hydrationScore);
+
+    // Alcohol – 0 drinks ideal. Use configurable threshold for zero score.
+    let alcoholScore = 100 - alcoholDrinks * alcoholPenalty;
+    const maxAlcoholDrinks = options.userParams?.maxAlcoholForZeroScore || 2;
+    if (alcoholDrinks >= maxAlcoholDrinks) alcoholScore = 0;
+    alcoholScore = clampPercent(alcoholScore);
+
+    // Nutrition (calories) – compare to minimum target
+    let nutritionScore = (caloriesConsumed / calorieTarget) * 100;
+    nutritionScore = clampPercent(nutritionScore);
+
+    // Strain (active energy) – full score if <=low threshold, zero if >=high threshold, linear in between
+    let strainScore: number;
+    if (activeEnergyBurned <= strainLow) {
+      strainScore = 100;
+    } else if (activeEnergyBurned >= strainHigh) {
+      strainScore = 0;
+    } else {
+      // interpolate between low and high thresholds
+      const excess = activeEnergyBurned - strainLow;
+      strainScore = 100 - (excess / (strainHigh - strainLow)) * 100;
+    }
+    strainScore = clampPercent(strainScore);
+
+    // 3. Apply weighting to combine metrics
+    // Weights: 50% biometrics, 50% lifestyle (each metric equally weighted within its category here)
+    const biometricMetrics = [
+      hrvScore,
+      rhrScore,
+      respiratoryScore,
+      sleepEffScore,
+    ];
+    const lifestyleMetrics = [
+      hydrationScore,
+      alcoholScore,
+      nutritionScore,
+      strainScore,
+    ];
+    const biometricScore =
+      biometricMetrics.reduce((sum, val) => sum + val, 0) /
+      biometricMetrics.length;
+    const lifestyleScore =
+      lifestyleMetrics.reduce((sum, val) => sum + val, 0) /
+      lifestyleMetrics.length;
+    // Combine category scores (equal weight)
+    const totalScore = biometricScore * 0.5 + lifestyleScore * 0.5;
+
+    // 4. Prepare detailed breakdown with validation info
+    const breakdown: RecoveryScoreBreakdown = {
+      biometrics: {
+        HRV: Math.round(hrvScore),
+        RHR: Math.round(rhrScore),
+        respiratoryRate: Math.round(respiratoryScore),
+        sleepEfficiency: Math.round(sleepEffScore),
+      },
+      lifestyle: {
+        hydration: Math.round(hydrationScore),
+        alcohol: Math.round(alcoholScore),
+        nutrition: Math.round(nutritionScore),
+        strain: Math.round(strainScore),
+      },
+    };
 
     return {
-      waterTarget,
-      calorieTarget,
-      strainLow: strainThresholds.low,
-      strainHigh: strainThresholds.high,
+      totalScore: Math.round(totalScore),
+      biometricScore: Math.round(biometricScore),
+      lifestyleScore: Math.round(lifestyleScore),
+      breakdown,
     };
-  };
-
-  const targets = getUserSpecificTargets();
-
-  // Use configurable water intake assumption when no data available
-  const waterIntakeAssumption =
-    options.userParams?.waterIntakeAssumption || 0.8;
-  const waterIntake =
-    options.defaults?.DAILY_WATER_INTAKE ||
-    targets.waterTarget * waterIntakeAssumption;
-  const alcoholDrinks = options.defaults?.DAILY_ALCOHOL_DRINKS || 0;
-  const caloriesConsumed =
-    options.defaults?.DAILY_CALORIES_CONSUMED || targets.calorieTarget;
-
-  // Extract configuration constants with user-specific fallbacks
-  const normativeHrv =
-    options.userParams?.baselineHRV || options.defaults?.NORMATIVE_HRV || 45;
-  const waterTarget = targets.waterTarget;
-  const calorieTarget = targets.calorieTarget;
-  const strainLow = targets.strainLow;
-  const strainHigh = targets.strainHigh;
-  const respBase = options.defaults?.RESPIRATORY_BASELINE || 16;
-
-  // Use configurable alcohol penalty based on user weight
-  let alcoholPenalty =
-    options.userParams?.alcoholPenaltyPerDrink ||
-    options.defaults?.ALCOHOL_PENALTY_PER_DRINK ||
-    50;
-  if (options.userParams?.weight) {
-    // Use configurable weight sensitivity for alcohol
-    const sensitivity = options.userParams?.alcoholWeightSensitivity || {
-      baseWeight: 70, // kg
-      minMultiplier: 0.5,
-      maxMultiplier: 1.5,
-    };
-
-    const weightFactor = Math.max(
-      sensitivity.minMultiplier,
-      Math.min(
-        sensitivity.maxMultiplier,
-        sensitivity.baseWeight / options.userParams.weight
-      )
-    );
-    alcoholPenalty = Math.round(alcoholPenalty * weightFactor);
-  }
-  // 1. Normalize biometric metrics with user-specific baselines
-  const baselines = {
-    hrv: options.userParams?.baselineHRV || baselineHrv,
-    restingHR: options.userParams?.baselineRHR || baselineRhr,
-  };
-
-  // HRV: higher is better. Use personal baseline if available, with age adjustment
-  let hrvBaseline = baselines.hrv ?? 50;
-
-  // Age-adjusted HRV baseline if user age is provided but no personal baseline
-  if (!baselines.hrv && options.userParams?.age) {
-    // Use configurable HRV age decline rate
-    const declineRate = options.userParams?.hrvAgeDeclineRate || 0.5; // per year above 25
-    const ageAdjustedHRV = Math.max(
-      25,
-      60 - (options.userParams.age - 25) * declineRate
-    );
-    hrvBaseline = ageAdjustedHRV;
-  }
-
-  let hrvScore = (currentHrv / hrvBaseline) * 100;
-
-  // Use configurable baseline comparison threshold
-  const baselineMinSamples = options.userParams?.hrvDataMinimumSamples || 14;
-  if (
-    baselineHrvValues.length < baselineMinSamples &&
-    Math.abs(currentHrv - hrvBaseline) < 1
-  ) {
-    hrvScore = (currentHrv / normativeHrv) * 100;
-  }
-
-  if (currentHrv >= hrvBaseline) hrvScore = 100;
-  hrvScore = clampPercent(hrvScore);
-
-  // Resting Heart Rate (RHR): lower is better, with age and fitness adjustments
-  let rhrBaseline = baselines.restingHR ?? 60;
-
-  // Age and fitness-adjusted RHR baseline if no personal baseline
-  if (!baselines.restingHR && options.userParams?.age) {
-    const baseRHR = options.userParams?.hrBaselineValue || 60; // configurable baseline for reference age
-    const referenceAge = options.userParams?.hrBaselineAgeReference || 30;
-    const ageAdjustment =
-      (options.userParams.age - referenceAge) *
-      (options.userParams?.rhrAgeIncreaseRate || 0.2);
-
-    // Use configurable fitness level adjustments
-    const defaultFitnessAdjustments = {
-      elite: -15,
-      advanced: -10,
-      intermediate: -5,
-      beginner: 0,
-    };
-    const fitnessAdjustments =
-      options.userParams?.fitnessRhrAdjustments || defaultFitnessAdjustments;
-    const fitnessAdjustment =
-      fitnessAdjustments[options.userParams?.fitnessLevel || "intermediate"];
-
-    rhrBaseline = Math.max(40, baseRHR + ageAdjustment + fitnessAdjustment);
-  }
-
-  let rhrScore = (rhrBaseline / restingHR) * 100;
-  if (restingHR <= rhrBaseline) rhrScore = 100;
-  rhrScore = clampPercent(rhrScore);
-
-  // Respiratory Rate: lower (within normal range) is better
-  let respiratoryScore = (respBase / respiratoryRate) * 100;
-  if (respiratoryRate <= respBase) respiratoryScore = 100;
-
-  if (!hasRespiratoryData) {
-    const penaltyPercent =
-      options.userParams?.respiratoryPenaltyForMissing || 75;
-    respiratoryScore = Math.min(respiratoryScore, penaltyPercent);
-  }
-
-  respiratoryScore = clampPercent(respiratoryScore);
-
-  // Sleep Efficiency: already a percentage. Compare to baseline or use directly.
-  const sleepEffBase = 100; // ideal 100%
-  let sleepEffScore = (sleepEfficiency / sleepEffBase) * 100;
-  if (sleepEfficiency >= sleepEffBase) sleepEffScore = 100;
-  sleepEffScore = clampPercent(sleepEffScore);
-
-  // 2. Normalize lifestyle metrics against healthy thresholds
-  // Hydration (daily water) – compare to target
-  let hydrationScore = (waterIntake / waterTarget) * 100;
-  hydrationScore = clampPercent(hydrationScore);
-
-  // Alcohol – 0 drinks ideal. Use configurable threshold for zero score.
-  let alcoholScore = 100 - alcoholDrinks * alcoholPenalty;
-  const maxAlcoholDrinks = options.userParams?.maxAlcoholForZeroScore || 2;
-  if (alcoholDrinks >= maxAlcoholDrinks) alcoholScore = 0;
-  alcoholScore = clampPercent(alcoholScore);
-
-  // Nutrition (calories) – compare to minimum target
-  let nutritionScore = (caloriesConsumed / calorieTarget) * 100;
-  nutritionScore = clampPercent(nutritionScore);
-
-  // Strain (active energy) – full score if <=low threshold, zero if >=high threshold, linear in between
-  let strainScore: number;
-  if (activeEnergyBurned <= strainLow) {
-    strainScore = 100;
-  } else if (activeEnergyBurned >= strainHigh) {
-    strainScore = 0;
-  } else {
-    // interpolate between low and high thresholds
-    const excess = activeEnergyBurned - strainLow;
-    strainScore = 100 - (excess / (strainHigh - strainLow)) * 100;
-  }
-  strainScore = clampPercent(strainScore);
-
-  // 3. Apply weighting to combine metrics
-  // Weights: 50% biometrics, 50% lifestyle (each metric equally weighted within its category here)
-  const biometricMetrics = [
-    hrvScore,
-    rhrScore,
-    respiratoryScore,
-    sleepEffScore,
-  ];
-  const lifestyleMetrics = [
-    hydrationScore,
-    alcoholScore,
-    nutritionScore,
-    strainScore,
-  ];
-  const biometricScore =
-    biometricMetrics.reduce((sum, val) => sum + val, 0) /
-    biometricMetrics.length;
-  const lifestyleScore =
-    lifestyleMetrics.reduce((sum, val) => sum + val, 0) /
-    lifestyleMetrics.length;
-  // Combine category scores (equal weight)
-  const totalScore = biometricScore * 0.5 + lifestyleScore * 0.5;
-
-  // 4. Prepare detailed breakdown with validation info
-  const breakdown: RecoveryScoreBreakdown = {
-    biometrics: {
-      HRV: Math.round(hrvScore),
-      RHR: Math.round(rhrScore),
-      respiratoryRate: Math.round(respiratoryScore),
-      sleepEfficiency: Math.round(sleepEffScore),
-    },
-    lifestyle: {
-      hydration: Math.round(hydrationScore),
-      alcohol: Math.round(alcoholScore),
-      nutrition: Math.round(nutritionScore),
-      strain: Math.round(strainScore),
-    },
-  };
-
-  return {
-    totalScore: Math.round(totalScore),
-    biometricScore: Math.round(biometricScore),
-    lifestyleScore: Math.round(lifestyleScore),
-    breakdown,
-  };
-
   } catch (error) {
-    console.error('❌ Recovery calculation error:', error);
-    throw new Error(`Failed to calculate recovery: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(
+      `Failed to calculate recovery: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }`
+    );
   }
 }
 
@@ -492,8 +465,8 @@ export const fetchRecoveryAverages = async (
           targetDate: date,
         });
         recoveryScores.push(recoveryResult.totalScore);
-      } catch (error) {
-        console.warn(`Failed to calculate recovery for ${date}:`, error);
+      } catch {
+        // Skip failed calculations
       }
     }
 
@@ -512,8 +485,8 @@ export const fetchRecoveryAverages = async (
           targetDate: date,
         });
         recoveryScores.push(recoveryResult.totalScore);
-      } catch (error) {
-        console.warn(`Failed to calculate recovery for ${date}:`, error);
+      } catch {
+        // Skip failed calculations
       }
     }
 

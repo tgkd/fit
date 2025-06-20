@@ -3,7 +3,7 @@ import {
   CharacteristicTypeIdentifier,
   QuantityTypeIdentifierWriteable,
   SampleTypeIdentifierWriteable,
-  type ObjectTypeIdentifier
+  type ObjectTypeIdentifier,
 } from "@kingstinct/react-native-healthkit";
 
 export const readPermissions: ObjectTypeIdentifier[] = [
@@ -24,6 +24,8 @@ export const readPermissions: ObjectTypeIdentifier[] = [
   "HKQuantityTypeIdentifierVO2Max",
   "HKQuantityTypeIdentifierWorkoutEffortScore",
   "HKWorkoutTypeIdentifier",
+  "HKWorkoutRouteTypeIdentifier",
+  "HKDataTypeIdentifierHeartbeatSeries",
   "HKQuantityTypeIdentifierAppleExerciseTime",
   "HKQuantityTypeIdentifierAppleStandTime",
   "HKCategoryTypeIdentifierAppleStandHour",

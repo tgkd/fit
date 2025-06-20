@@ -9,9 +9,14 @@ import {
   calculatePersonalizedRecovery,
   calculateRecoveryScore,
   fetchRecoveryAverages,
+  getRecoveryMetrics,
 } from "./recovery";
 import { fetchSleepAverages, fetchSleepStats } from "./sleep";
-import { calculateDayStrain, calculatePersonalizedStrain } from "./strain";
+import {
+  calculateDayStrain,
+  calculatePersonalizedStrain,
+  getStrainMetrics,
+} from "./strain";
 import {
   HealthData,
   HealthDataDefaults,
@@ -30,14 +35,7 @@ export const getAllHealthStats = async (
   try {
     const generalStats = await fetchGeneralStats(date);
 
-    const [
-      workoutStats,
-      sleepStats,
-      heartStressStats,
-      sleepAverages,
-      stressAverages,
-      recoveryAverages,
-    ] = await Promise.all([
+    const healthDataResults = await Promise.allSettled([
       fetchWorkoutStats(date),
       fetchSleepStats(date),
       fetchHeartStressStats(generalStats.age, defaults, date),
@@ -46,11 +44,119 @@ export const getAllHealthStats = async (
       fetchRecoveryAverages(defaults, date),
     ]);
 
+    // Handle settled promises and provide fallbacks for failed ones
+    const [
+      workoutResult,
+      sleepResult,
+      heartStressResult,
+      sleepAveragesResult,
+      stressAveragesResult,
+      recoveryAveragesResult,
+    ] = healthDataResults;
+
+    if (workoutResult.status === 'rejected') {
+      console.error("❌ Workout stats failed:", workoutResult.reason);
+    }
+    if (sleepResult.status === 'rejected') {
+      console.error("❌ Sleep stats failed:", sleepResult.reason);
+    }
+    if (heartStressResult.status === 'rejected') {
+      console.error("❌ Heart stress stats failed:", heartStressResult.reason);
+    }
+    if (sleepAveragesResult.status === 'rejected') {
+      console.error("❌ Sleep averages failed:", sleepAveragesResult.reason);
+    }
+    if (stressAveragesResult.status === 'rejected') {
+      console.error("❌ Stress averages failed:", stressAveragesResult.reason);
+    }
+    if (recoveryAveragesResult.status === 'rejected') {
+      console.error("❌ Recovery averages failed:", recoveryAveragesResult.reason);
+    }
+
+    const workoutStats = workoutResult.status === 'fulfilled' ? workoutResult.value : {
+      exerciseMins: 0,
+      standHours: 0,
+      moveKcal: 0,
+      rawCalories: [],
+      workouts: [],
+    };
+
+    const sleepStats = sleepResult.status === 'fulfilled' ? sleepResult.value : {
+      sleepHours: 0,
+      sleepPerformance: 75,
+      sleepConsistency: 75,
+      sleepEfficiency: 85,
+      dailySleepDurations: [],
+      metrics: {
+        hoursVsNeeded: 100,
+        sleepConsistency: 75,
+        sleepEfficiency: 85,
+        sleepStress: 25,
+      },
+      lastNight: {
+        totalSleepTime: "0:00",
+        averageSleepTime: "0:00",
+        timeInBed: "0:00",
+        stages: {
+          awake: { percentage: 5, duration: 0, color: "#FF6B6B" },
+          light: { percentage: 50, duration: 0, color: "#4ECDC4" },
+          deep: { percentage: 25, duration: 0, color: "#45B7D1" },
+          rem: { percentage: 20, duration: 0, color: "#96CEB4" },
+        },
+        restorativeSleep: {
+          duration: "0:00",
+          averageDuration: "0:00",
+        },
+      },
+    };
+
+    const heartStressStats = heartStressResult.status === 'fulfilled' ? heartStressResult.value : {
+      restingHeartRate: 60,
+      hrv7DayAvg: 45,
+      hrvMostRecent: 45,
+      hrvValues: [],
+      stressLevel: 25,
+      bloodOxygen: null,
+    };
+
+    const sleepAverages = sleepAveragesResult.status === 'fulfilled' ? sleepAveragesResult.value : {
+      last14Days: {
+        duration: 7.5,
+        efficiency: 85,
+        performance: 75,
+        consistency: 75,
+      },
+      last30Days: {
+        duration: 7.5,
+        efficiency: 85,
+        performance: 75,
+        consistency: 75,
+      },
+    };
+
+    const stressAverages = stressAveragesResult.status === 'fulfilled' ? stressAveragesResult.value : {
+      last14Days: {
+        level: 25,
+        hrvAverage: 45,
+        restingHeartRate: 60,
+      },
+      last30Days: {
+        level: 25,
+        hrvAverage: 45,
+        restingHeartRate: 60,
+      },
+    };
+
+    const recoveryAverages = recoveryAveragesResult.status === 'fulfilled' ? recoveryAveragesResult.value : {
+      last14Days: { score: 75 },
+      last30Days: { score: 75 },
+    };
+
     let stressDetails: HealthData["stressDetails"] = null;
     try {
       stressDetails = await calculateStressMetrics(defaults, date);
     } catch (error) {
-      console.warn("Stress calculation failed, using fallback:", error);
+      console.warn("⚠️ Stress calculation failed, using fallback:", error);
     }
 
     const recoveryScore = userParams
@@ -60,11 +166,17 @@ export const getAllHealthStats = async (
             sleepEfficiency: sleepStats.sleepEfficiency,
           },
           date
-        )
+        ).catch(error => {
+          console.error("❌ Personalized recovery calculation failed:", error);
+          throw error;
+        })
       : await calculateRecoveryScore({
           defaults,
           sleepEfficiency: sleepStats.sleepEfficiency,
           targetDate: date,
+        }).catch(error => {
+          console.error("❌ Standard recovery calculation failed:", error);
+          throw error;
         });
 
     const stressChartDisplayData: StressChartDisplayData =
@@ -75,12 +187,20 @@ export const getAllHealthStats = async (
         stressDetails,
         defaults,
         date
-      );
+      ).catch(error => {
+        console.error("❌ Stress chart display data preparation failed:", error);
+        throw error;
+      });
 
-    // Calculate strain score using personalized calculation if user params available
     const strainScore = userParams
-      ? await calculatePersonalizedStrain(date, userParams)
-      : await calculateDayStrain(date, defaults, undefined);
+      ? await calculatePersonalizedStrain(date, userParams).catch(error => {
+          console.error("❌ Personalized strain calculation failed:", error);
+          throw error;
+        })
+      : await calculateDayStrain(date, defaults, undefined).catch(error => {
+          console.error("❌ Standard strain calculation failed:", error);
+          throw error;
+        });
 
     return {
       ...generalStats,
@@ -97,7 +217,7 @@ export const getAllHealthStats = async (
       recoveryAverages,
     };
   } catch (error) {
-    console.error("Error fetching health stats:", error);
+    console.error("❌ Error fetching health stats:", error);
     throw new Error(
       "Failed to fetch health data. Please check permissions and try again."
     );
@@ -142,7 +262,6 @@ export const getHealthMetricsWithInsights = async (
 
   if (userParams) {
     // Get detailed strain insights
-    const { getStrainMetrics } = await import("./strain");
     const strainMetrics = await getStrainMetrics(date, userParams);
     result.strainInsights = {
       category: strainMetrics.category,
@@ -150,7 +269,6 @@ export const getHealthMetricsWithInsights = async (
     };
 
     // Get detailed recovery insights
-    const { getRecoveryMetrics } = await import("./recovery");
     const recoveryMetrics = await getRecoveryMetrics(userParams, date);
     result.recoveryInsights = {
       category: recoveryMetrics.category,
@@ -161,15 +279,3 @@ export const getHealthMetricsWithInsights = async (
 
   return result;
 };
-
-// Re-export specific types and functions as needed
-export type {
-  HealthData,
-  HealthDataDefaults,
-  StressChartDisplayData,
-  UserParams
-} from "./types";
-
-export { calculatePersonalizedStrain, getStrainMetrics } from "./strain";
-
-export { calculatePersonalizedRecovery, getRecoveryMetrics } from "./recovery";
