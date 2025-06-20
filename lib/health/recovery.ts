@@ -3,7 +3,7 @@ import {
   getMostRecentQuantitySample,
   queryQuantitySamples,
   queryStatisticsForQuantity,
-} from "@kingstinct/react-native-healthkit";
+} from "@kingstinct/react-native-healthkit/lib/commonjs/index.ios.js";
 
 import { HealthDataDefaults, RecoveryAverages, UserParams } from "./types";
 import {
@@ -111,7 +111,6 @@ export async function calculateRecoveryScore(
       ["cumulativeSum"],
       {
         filter: { startDate: startOfDay, endDate: now },
-        unit: "cal",
       }
     ),
     // 14-day HRV baseline

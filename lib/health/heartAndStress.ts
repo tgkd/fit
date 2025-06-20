@@ -3,7 +3,7 @@ import { bucketBy, mean } from "@/utils/dates";
 import {
   getMostRecentQuantitySample,
   queryQuantitySamples,
-} from "@kingstinct/react-native-healthkit";
+} from "@kingstinct/react-native-healthkit/lib/commonjs/index.ios.js";
 import {
   HeartStressStats,
   HourlyHeartData,

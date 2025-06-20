@@ -1,17 +1,17 @@
+import { WorkoutSample } from "@kingstinct/react-native-healthkit";
 import {
   queryQuantitySamples,
   queryStatisticsForQuantity,
-  queryWorkoutSamples,
-  WorkoutSample
-} from "@kingstinct/react-native-healthkit";
+  queryWorkoutSamples
+} from "@kingstinct/react-native-healthkit/lib/commonjs/index.ios.js";
 
+import { WorkoutData } from "../workouts/config";
 import { ActivitySample, WorkoutStats } from "./types";
 import {
   getCurrentDateRanges,
   getDateRanges,
   getDurationMinutes,
 } from "./utils";
-import { WorkoutData } from "../workouts/config";
 
 // Constants from original healthStats.ts
 export const ACTIVITY_MULTIPLIERS = {
@@ -95,7 +95,6 @@ export const fetchWorkoutStats = async (
     ["cumulativeSum"],
     {
       filter: { startDate, endDate },
-      unit: "minute",
     }
   );
   const exerciseMins = Math.floor(exerciseTimeStat?.sumQuantity?.quantity || 0);

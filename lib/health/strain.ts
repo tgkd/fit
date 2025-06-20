@@ -1,12 +1,14 @@
 import {
-  getDateOfBirth,
-  getMostRecentQuantitySample,
   QuantitySample,
-  queryQuantitySamples,
-  queryWorkoutSamples,
   WorkoutActivityType,
   WorkoutSample,
 } from "@kingstinct/react-native-healthkit";
+import {
+  getDateOfBirth,
+  getMostRecentQuantitySample,
+  queryQuantitySamples,
+  queryWorkoutSamples,
+} from "@kingstinct/react-native-healthkit/lib/commonjs/index.ios.js";
 import { endOfDay, startOfDay } from "date-fns";
 
 import { UserParams } from "./types";
@@ -45,7 +47,7 @@ export async function calculateDayStrain(
 
   // 1. Define the time range for the day
   const dateFrom = startOfDay(date);
-  const dateTo = endOfDay(date);  // 2. Query heart rate samples for the day
+  const dateTo = endOfDay(date); // 2. Query heart rate samples for the day
   let heartRateSamples: QuantitySample[] = [];
   try {
     heartRateSamples = (await queryQuantitySamples(

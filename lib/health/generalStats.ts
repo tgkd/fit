@@ -2,7 +2,7 @@ import {
   getDateOfBirth,
   getMostRecentQuantitySample,
   queryStatisticsForQuantity,
-} from "@kingstinct/react-native-healthkit";
+} from "@kingstinct/react-native-healthkit/lib/commonjs/index.ios.js";
 import { GeneralStats } from "./types";
 import { getCurrentDateRanges, getDateRanges } from "./utils";
 
@@ -44,7 +44,6 @@ export const fetchGeneralStats = async (
     ["cumulativeSum"],
     {
       filter: { startDate, endDate },
-      unit: "count",
     }
   );
   const steps = stepsStat?.sumQuantity?.quantity || 0;

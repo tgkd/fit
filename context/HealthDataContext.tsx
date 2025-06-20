@@ -19,7 +19,6 @@ import {
 } from "@/lib/health/types";
 import i18n from "@/lib/i18n";
 import {
-  authorizationStatusFor,
   isHealthDataAvailableAsync,
   requestAuthorization,
 } from "@kingstinct/react-native-healthkit/lib/commonjs/index.ios.js";
@@ -247,14 +246,26 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
   const [isHealthKitAvailable, setIsHealthKitAvailable] =
     useState<boolean>(false);
 
-  // Check if HealthKit is available on device
   useEffect(() => {
     const checkHealthKitAvailability = async () => {
       try {
-        console.log("Checking HealthKit availability...");
         const available = await isHealthDataAvailableAsync();
         setIsHealthKitAvailable(available);
-        console.log("HealthKit available:", available);
+        if (available) {
+          console.log("HealthKit is available");
+
+          const status = await requestAuthorization(
+            AllSampleTypesInApp,
+            AllObjectTypesInApp
+          );
+          if (status) {
+            console.log("HealthKit authorization granted");
+          } else {
+            console.warn("HealthKit authorization denied");
+          }
+        } else {
+          console.warn("HealthKit is not available on this device");
+        }
       } catch (error) {
         console.error("Error checking HealthKit availability:", error);
         setIsHealthKitAvailable(false);
@@ -264,85 +275,10 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
     checkHealthKitAvailability();
   }, []);
 
-  const requestAuth = useCallback(async () => {
-    if (!isHealthKitAvailable) {
-      console.log("HealthKit not available on this device");
-      return;
-    }
-
-    try {
-      console.log("Requesting HealthKit authorization...");
-      const res = await requestAuthorization(
-        AllSampleTypesInApp,
-        AllObjectTypesInApp
-      );
-      console.log("HealthKit authorization response:", res);
-      return res;
-    } catch (error) {
-      console.error("Error requesting authorization:", error);
-      throw error;
-    }
-  }, [isHealthKitAvailable]);
-
-  const checkPermissionsAndRequestIfNeeded = useCallback(async () => {
-    if (!isHealthKitAvailable) {
-      return false;
-    }
-
-    try {
-      // Check authorization status for heart rate (key permission)
-      const heartRateStatus = await authorizationStatusFor(
-        "HKQuantityTypeIdentifierHeartRate"
-      );
-
-      console.log("Heart rate permission status:", heartRateStatus);
-
-      // According to native implementation: 0 = notDetermined, 1 = sharingDenied, 2 = sharingAuthorized
-      if (heartRateStatus === 0) {
-        console.log("Permissions not determined, requesting...");
-        await requestAuth();
-        return true;
-      }
-
-      // If denied, log but continue (user can enable in Settings)
-      if (heartRateStatus === 1) {
-        console.log(
-          "HealthKit permissions denied. User can enable in Settings app."
-        );
-        return false;
-      }
-
-      // If already authorized
-      if (heartRateStatus === 2) {
-        console.log("HealthKit permissions already granted");
-        return true;
-      }
-
-      return false;
-    } catch (error) {
-      console.error("Error checking permissions:", error);
-      // Try to request permissions anyway
-      console.log("Attempting to request permissions despite error...");
-      try {
-        await requestAuth();
-        return true;
-      } catch (authError) {
-        console.error(
-          "Failed to request auth after permission check error:",
-          authError
-        );
-        return false;
-      }
-    }
-  }, [isHealthKitAvailable, requestAuth]);
-
   const initData = useCallback(async () => {
     setLoading(true);
 
     try {
-      // First check and request permissions if needed
-      await checkPermissionsAndRequestIfNeeded();
-
       if (USE_FAKE_DATA || !isHealthKitAvailable) {
         console.log("Using fake data");
         setData(generateFakeHealthData());
@@ -362,12 +298,7 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setLoading(false);
     }
-  }, [
-    date,
-    userParams,
-    checkPermissionsAndRequestIfNeeded,
-    isHealthKitAvailable,
-  ]);
+  }, [date, userParams, isHealthKitAvailable]);
 
   useEffect(() => {
     // Only initialize data when HealthKit availability is determined

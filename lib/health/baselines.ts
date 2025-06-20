@@ -1,5 +1,5 @@
 import { bucketBy, mean, sd } from "@/utils/dates";
-import { queryQuantitySamples } from "@kingstinct/react-native-healthkit";
+import { queryQuantitySamples } from "@kingstinct/react-native-healthkit/lib/commonjs/index.ios.js";
 import { sub } from "date-fns";
 
 export interface BaselineVitals {
