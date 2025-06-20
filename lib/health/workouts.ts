@@ -95,6 +95,7 @@ export const fetchWorkoutStats = async (
     ["cumulativeSum"],
     {
       filter: { startDate, endDate },
+      unit: "min",
     }
   );
   const exerciseMins = Math.floor(exerciseTimeStat?.sumQuantity?.quantity || 0);
@@ -105,6 +106,7 @@ export const fetchWorkoutStats = async (
     ["cumulativeSum"],
     {
       filter: { startDate, endDate },
+      unit: "hr",
     }
   );
   const standHours = Math.min(

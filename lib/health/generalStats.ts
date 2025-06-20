@@ -44,7 +44,8 @@ export const fetchGeneralStats = async (
     ["cumulativeSum"],
     {
       filter: { startDate, endDate },
-    }
+      unit: "count",
+    },
   );
   const steps = stepsStat?.sumQuantity?.quantity || 0;
 

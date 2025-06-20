@@ -67,7 +67,7 @@ export const fetchHeartStressStats = async (
   // Get blood oxygen saturation
   const spo2Sample = await getMostRecentQuantitySample(
     "HKQuantityTypeIdentifierOxygenSaturation",
-    "percent"
+    "%"
   );
   const bloodOxygen = spo2Sample
     ? { value: spo2Sample.quantity, date: new Date(spo2Sample.endDate) }

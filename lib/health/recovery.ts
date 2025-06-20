@@ -56,103 +56,136 @@ const clampPercent = (num: number): number => Math.max(0, Math.min(100, num));
 export async function calculateRecoveryScore(
   options: RecoveryCalculationOptions = {}
 ): Promise<RecoveryScoreResult> {
-  const targetDate = options.targetDate;
-  let now: Date, startOfDay: Date, oneWeekAgo: Date, fourteenDaysAgo: Date;
+  try {
+    const targetDate = options.targetDate;
+    let now: Date, startOfDay: Date, oneWeekAgo: Date, fourteenDaysAgo: Date;
 
-  if (targetDate) {
-    const ranges = getDateRanges(targetDate);
-    const extendedRanges = getExtendedDateRanges(targetDate);
-    now = ranges.endOfTargetDay;
-    startOfDay = ranges.startOfTargetDay;
-    oneWeekAgo = ranges.oneWeekAgo;
-    fourteenDaysAgo = extendedRanges.fourteenDaysAgo;
-  } else {
-    const ranges = getCurrentDateRanges();
-    const extendedRanges = getExtendedDateRanges();
-    now = ranges.now;
-    startOfDay = ranges.startOfToday;
-    oneWeekAgo = ranges.oneWeekAgo;
-    fourteenDaysAgo = extendedRanges.fourteenDaysAgo;
-  }
+    if (targetDate) {
+      const ranges = getDateRanges(targetDate);
+      const extendedRanges = getExtendedDateRanges(targetDate);
+      now = ranges.endOfTargetDay;
+      startOfDay = ranges.startOfTargetDay;
+      oneWeekAgo = ranges.oneWeekAgo;
+      fourteenDaysAgo = extendedRanges.fourteenDaysAgo;
+    } else {
+      const ranges = getCurrentDateRanges();
+      const extendedRanges = getExtendedDateRanges();
+      now = ranges.now;
+      startOfDay = ranges.startOfToday;
+      oneWeekAgo = ranges.oneWeekAgo;
+      fourteenDaysAgo = extendedRanges.fourteenDaysAgo;
+    }
 
-  // Fetch all required health data in parallel
-  const [
-    restingHRSample,
-    hrvSamples,
-    respiratoryStats,
-    activeEnergyStats,
-    baselineHrvSamples,
-    baselineRhrSamples,
-  ] = await Promise.all([
-    // Current resting heart rate
-    getMostRecentQuantitySample(
-      "HKQuantityTypeIdentifierRestingHeartRate",
-      "count/min"
-    ),
-    // HRV data for last week (for current value)
-    queryQuantitySamples("HKQuantityTypeIdentifierHeartRateVariabilitySDNN", {
-      filter: { startDate: oneWeekAgo, endDate: now },
-      unit: "ms",
-    }),
-    // Respiratory rate for the target day (may not be available)
-    queryStatisticsForQuantity(
-      "HKQuantityTypeIdentifierRespiratoryRate",
-      ["discreteAverage"],
-      {
-        filter: { startDate: startOfDay, endDate: now },
-      }
-    ).catch((error) => {
-      console.warn("Respiratory rate data not available:", error);
-      return null;
-    }),
-    // Active energy burned for the target day
-    queryStatisticsForQuantity(
-      "HKQuantityTypeIdentifierActiveEnergyBurned",
-      ["cumulativeSum"],
-      {
-        filter: { startDate: startOfDay, endDate: now },
-      }
-    ),
-    // 14-day HRV baseline
-    queryQuantitySamples("HKQuantityTypeIdentifierHeartRateVariabilitySDNN", {
-      filter: { startDate: fourteenDaysAgo, endDate: now },
-      unit: "ms",
-    }),
-    // 14-day RHR baseline
-    queryQuantitySamples("HKQuantityTypeIdentifierRestingHeartRate", {
-      filter: { startDate: fourteenDaysAgo, endDate: now },
-      unit: "count/min",
-    }),
-  ]);
-  // Validate and process fetched data
-  const restingHR =
-    restingHRSample?.quantity || options.defaults?.RESTING_HEART_RATE || 60;
+    // Add logging to debug the error
+    console.log('📊 Starting recovery calculation for:', targetDate || 'today');
 
-  const hrvValues = hrvSamples.map((s) => s.quantity);
+    // Fetch all required health data in parallel
+    const [
+      restingHRSample,
+      hrvSamples,
+      respiratoryStats,
+      activeEnergyStats,
+      baselineHrvSamples,
+      baselineRhrSamples,
+    ] = await Promise.all([
+      // Current resting heart rate
+      getMostRecentQuantitySample(
+        "HKQuantityTypeIdentifierRestingHeartRate",
+      ).catch((error: Error) => {
+        console.log('⚠️ Resting HR not available:', error.message);
+        return null;
+      }),
 
-  const currentHrv =
-    hrvValues.length > 0
-      ? mean(hrvValues)
-      : options.defaults?.HRV_BASELINE || 45; // Use configurable default
+      // HRV data for last week (for current value)
+      queryQuantitySamples("HKQuantityTypeIdentifierHeartRateVariabilitySDNN", {
+        filter: { startDate: oneWeekAgo, endDate: now },
+      }).catch((error: Error) => {
+        console.log('⚠️ HRV samples not available:', error.message);
+        return [];
+      }),
 
-  // Respiratory rate validation - handle null/empty response
-  const hasRespiratoryData = respiratoryStats?.averageQuantity?.quantity;
-  const respiratoryRate =
-    hasRespiratoryData || options.defaults?.RESPIRATORY_RATE || 15;
+      // Respiratory rate for the target day (may not be available)
+      queryStatisticsForQuantity(
+        "HKQuantityTypeIdentifierRespiratoryRate",
+        ["discreteAverage"],
+        {
+          filter: { startDate: startOfDay, endDate: now },
+          unit: "count/min",
+        }
+      ).catch((error: Error) => {
+        console.warn("Respiratory rate data not available:", error);
+        return null;
+      }),
 
-  const sleepEfficiency =
-    options.sleepEfficiency || options.defaults?.SLEEP_EFFICIENCY || 85;
+      // Active energy burned for the target day
+      queryStatisticsForQuantity(
+        "HKQuantityTypeIdentifierActiveEnergyBurned",
+        ["cumulativeSum"],
+        {
+          filter: { startDate: startOfDay, endDate: now },
+          unit: "kcal",
+        }
+      ).catch((error: Error) => {
+        console.log('⚠️ Active energy not available:', error.message);
+        return null;
+      }),
 
-  const activeEnergyBurned = activeEnergyStats?.sumQuantity?.quantity || 0;
+      // 14-day HRV baseline
+      queryQuantitySamples("HKQuantityTypeIdentifierHeartRateVariabilitySDNN", {
+        filter: { startDate: fourteenDaysAgo, endDate: now },
+        unit: "ms",
+      }).catch((error: Error) => {
+        console.log('⚠️ Baseline HRV not available:', error.message);
+        return [];
+      }),
 
-  // Calculate baselines for comparison
-  const baselineHrvValues = baselineHrvSamples.map((s) => s.quantity);
-  const baselineHrv =
-    baselineHrvValues.length > 0 ? mean(baselineHrvValues) : undefined;
+      // 14-day RHR baseline
+      queryQuantitySamples("HKQuantityTypeIdentifierRestingHeartRate", {
+        filter: { startDate: fourteenDaysAgo, endDate: now },
+        unit: "count/min",
+      }).catch((error: Error) => {
+        console.log('⚠️ Baseline RHR not available:', error.message);
+        return [];
+      }),
+    ]);
 
-  const baselineRhrValues = baselineRhrSamples.map((s) => s.quantity);
-  const baselineRhr =
-    baselineRhrValues.length > 0 ? mean(baselineRhrValues) : undefined;
+    console.log('📊 Health data fetched successfully');
+    console.log('📊 Resting HR:', restingHRSample?.quantity);
+    console.log('📊 HRV samples:', hrvSamples.length);
+    console.log('📊 Respiratory rate:', respiratoryStats?.averageQuantity?.quantity);
+    console.log('📊 Active energy:', activeEnergyStats?.sumQuantity?.quantity);
+
+    // Validate and process fetched data
+    const restingHR =
+      restingHRSample?.quantity || options.defaults?.RESTING_HEART_RATE || 60;
+
+    const hrvValues = hrvSamples.map((s: any) => s.quantity);
+
+    const currentHrv =
+      hrvValues.length > 0
+        ? mean(hrvValues)
+        : options.defaults?.HRV_BASELINE || 45; // Use configurable default
+
+    // Respiratory rate validation - handle null/empty response
+    const hasRespiratoryData = respiratoryStats?.averageQuantity?.quantity;
+    const respiratoryRate =
+      hasRespiratoryData || options.defaults?.RESPIRATORY_RATE || 15;
+
+    const sleepEfficiency =
+      options.sleepEfficiency || options.defaults?.SLEEP_EFFICIENCY || 85;
+
+    const activeEnergyBurned = activeEnergyStats?.sumQuantity?.quantity || 0;
+
+    console.log('📊 Processed values - RHR:', restingHR, 'HRV:', currentHrv, 'Resp:', respiratoryRate, 'Energy:', activeEnergyBurned);
+
+    // Calculate baselines for comparison
+    const baselineHrvValues = baselineHrvSamples.map((s: any) => s.quantity);
+    const baselineHrv =
+      baselineHrvValues.length > 0 ? mean(baselineHrvValues) : undefined;
+
+    const baselineRhrValues = baselineRhrSamples.map((s: any) => s.quantity);
+    const baselineRhr =
+      baselineRhrValues.length > 0 ? mean(baselineRhrValues) : undefined;
 
   // Calculate user-specific targets and baselines
   const getUserSpecificTargets = () => {
@@ -427,6 +460,11 @@ export async function calculateRecoveryScore(
     lifestyleScore: Math.round(lifestyleScore),
     breakdown,
   };
+
+  } catch (error) {
+    console.error('❌ Recovery calculation error:', error);
+    throw new Error(`Failed to calculate recovery: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 }
 
 /**

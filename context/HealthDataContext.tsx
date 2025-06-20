@@ -9,8 +9,7 @@ import React, {
 
 import { getAllHealthStats } from "@/lib/health";
 import {
-  AllObjectTypesInApp,
-  AllSampleTypesInApp,
+  readPermissions
 } from "@/lib/health/permissions";
 import {
   HealthData as ModularHealthData,
@@ -254,10 +253,7 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
         if (available) {
           console.log("HealthKit is available");
 
-          const status = await requestAuthorization(
-            AllSampleTypesInApp,
-            AllObjectTypesInApp
-          );
+          const status = await requestAuthorization([], readPermissions);
           if (status) {
             console.log("HealthKit authorization granted");
           } else {
