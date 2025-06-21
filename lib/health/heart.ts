@@ -1,3 +1,4 @@
+import type { QuantitySample } from "@kingstinct/react-native-healthkit";
 import { queryQuantitySamples } from "@kingstinct/react-native-healthkit/lib/commonjs/index.ios.js";
 import { differenceInMinutes, endOfDay, startOfDay } from "date-fns";
 
@@ -34,17 +35,18 @@ export async function fetchDailyHeartMetrics(
   const zoneBounds = [0.5, 0.6, 0.7, 0.8, 1].map((p) => p * hrMax);
 
   return Object.entries(groups).map(([date, arr]) => {
-    const bpm = arr.map((s) => s.quantity);
+    const samples = arr as QuantitySample[];
+    const bpm = samples.map((s: QuantitySample) => s.quantity);
     const avg = mean(bpm);
     const min = Math.min(...bpm);
     const max = Math.max(...bpm);
 
     const resting =
-      arr.find((s) => s.metadata?.HKAverageMETs === 0)?.quantity ??
-      bpm[Math.floor(bpm.length * 0.05)];
+      samples.find((s: QuantitySample) => s.metadata?.HKAverageMETs === 0)
+        ?.quantity ?? bpm[Math.floor(bpm.length * 0.05)];
 
     const zoneMinutes = new Array(5).fill(0);
-    arr.forEach((s) => {
+    samples.forEach((s: QuantitySample) => {
       const zone = zoneBounds.findIndex((b) => s.quantity < b);
       const mins = differenceInMinutes(s.endDate, s.startDate);
       zoneMinutes[Math.max(zone, 0)] += mins;

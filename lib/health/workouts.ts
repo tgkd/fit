@@ -1,5 +1,6 @@
 import {
   QuantitySample,
+  QueryStatisticsResponse,
   WorkoutSample,
 } from "@kingstinct/react-native-healthkit";
 import {
@@ -83,7 +84,7 @@ export const fetchWorkoutStats = async (
     }
 
     // Get active calories for the target date (Move ring)
-    const caloriesSamples = await queryQuantitySamples(
+    const caloriesSamples: readonly QuantitySample[] = await queryQuantitySamples(
       "HKQuantityTypeIdentifierActiveEnergyBurned",
       {
         filter: { startDate, endDate },
@@ -102,7 +103,7 @@ export const fetchWorkoutStats = async (
     // Use HealthKit's exercise time directly (Exercise ring)
     let exerciseMins = 0;
     try {
-      const exerciseTimeStat = await queryStatisticsForQuantity(
+      const exerciseTimeStat: QueryStatisticsResponse = await queryStatisticsForQuantity(
         "HKQuantityTypeIdentifierAppleExerciseTime",
         ["cumulativeSum"],
         {
@@ -119,7 +120,7 @@ export const fetchWorkoutStats = async (
     // Use HealthKit's stand hours directly (Stand ring)
     let standHours = 0;
     try {
-      const standHoursStat = await queryStatisticsForQuantity(
+      const standHoursStat: QueryStatisticsResponse = await queryStatisticsForQuantity(
         "HKQuantityTypeIdentifierAppleStandTime",
         ["cumulativeSum"],
         {
@@ -142,7 +143,7 @@ export const fetchWorkoutStats = async (
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(now.getDate() - 30);
 
-    const allWorkouts = await queryWorkoutSamples({
+    const allWorkouts: readonly WorkoutSample[] = await queryWorkoutSamples({
       filter: {
         startDate: thirtyDaysAgo,
         endDate: now,

@@ -1,4 +1,8 @@
 import { mean } from "@/utils/dates";
+import type {
+  QuantitySample,
+  QueryStatisticsResponse,
+} from "@kingstinct/react-native-healthkit";
 import {
   getMostRecentQuantitySample,
   queryQuantitySamples,
@@ -84,6 +88,13 @@ export async function calculateRecoveryScore(
       activeEnergyStats,
       baselineHrvSamples,
       baselineRhrSamples,
+    ]: [
+      QuantitySample | undefined,
+      readonly QuantitySample[],
+      QueryStatisticsResponse,
+      QueryStatisticsResponse,
+      readonly QuantitySample[],
+      readonly QuantitySample[]
     ] = await Promise.all([
       // Current resting heart rate
       getMostRecentQuantitySample("HKQuantityTypeIdentifierRestingHeartRate"),
@@ -130,7 +141,9 @@ export async function calculateRecoveryScore(
     const restingHR =
       restingHRSample?.quantity || options.defaults?.RESTING_HEART_RATE || 60;
 
-    const hrvValues = hrvSamples.map((s: any) => s.quantity);
+    const hrvValues = (hrvSamples as QuantitySample[]).map(
+      (s: QuantitySample) => s.quantity
+    );
 
     const currentHrv =
       hrvValues.length > 0
@@ -148,11 +161,15 @@ export async function calculateRecoveryScore(
     const activeEnergyBurned = activeEnergyStats?.sumQuantity?.quantity || 0;
 
     // Calculate baselines for comparison
-    const baselineHrvValues = baselineHrvSamples.map((s: any) => s.quantity);
+    const baselineHrvValues = (baselineHrvSamples as QuantitySample[]).map(
+      (s: QuantitySample) => s.quantity
+    );
     const baselineHrv =
       baselineHrvValues.length > 0 ? mean(baselineHrvValues) : undefined;
 
-    const baselineRhrValues = baselineRhrSamples.map((s: any) => s.quantity);
+    const baselineRhrValues = (baselineRhrSamples as QuantitySample[]).map(
+      (s: QuantitySample) => s.quantity
+    );
     const baselineRhr =
       baselineRhrValues.length > 0 ? mean(baselineRhrValues) : undefined;
 
