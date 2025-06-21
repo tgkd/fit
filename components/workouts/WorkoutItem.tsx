@@ -4,14 +4,9 @@ import { useRouter } from "expo-router";
 
 import { ThemedText } from "@/components/ThemedText";
 import { useThemeColor } from "@/hooks/useThemeColor";
-import { localizedWorkoutName } from "@/lib/workouts/config";
-import { WorkoutData } from "./types";
-import {
-  formatDateForWorkout,
-  formatDuration,
-  getWorkoutTypeColor,
-  getWorkoutTypeIcon,
-} from "./utils";
+import { formatDateForWorkout, formatDuration } from "@/lib/formatters";
+import { localizedWorkoutName, WorkoutData } from "@/lib/workouts/config";
+import { getWorkoutTypeColor, getWorkoutTypeIcon } from "./utils";
 
 interface WorkoutItemProps {
   workout: WorkoutData;

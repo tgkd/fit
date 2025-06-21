@@ -1,62 +1,143 @@
 import {
-    HKCategoryTypeIdentifier,
-    HKCharacteristicTypeIdentifier,
-    HKQuantityTypeIdentifier,
-    HKWorkoutTypeIdentifier,
-    isHealthDataAvailable,
-    requestAuthorization,
+  CategoryTypeIdentifierWriteable,
+  CharacteristicTypeIdentifier,
+  QuantityTypeIdentifierWriteable,
+  SampleTypeIdentifierWriteable,
+  type ObjectTypeIdentifier,
 } from "@kingstinct/react-native-healthkit";
-import { Platform } from "react-native";
 
-export const readPermissions = [
-  HKQuantityTypeIdentifier.heartRate,
-  HKCategoryTypeIdentifier.sleepAnalysis,
-  HKQuantityTypeIdentifier.restingHeartRate,
-  HKQuantityTypeIdentifier.stepCount,
-  HKQuantityTypeIdentifier.activeEnergyBurned,
-  HKQuantityTypeIdentifier.oxygenSaturation,
-  HKQuantityTypeIdentifier.heartRateVariabilitySDNN,
-  HKQuantityTypeIdentifier.bodyMass,
-  HKQuantityTypeIdentifier.height,
-  HKQuantityTypeIdentifier.bodyFatPercentage,
-  HKQuantityTypeIdentifier.respiratoryRate,
-  HKCharacteristicTypeIdentifier.dateOfBirth,
-  HKCharacteristicTypeIdentifier.biologicalSex,
-  HKCharacteristicTypeIdentifier.bloodType,
-  HKQuantityTypeIdentifier.vo2Max,
-  HKQuantityTypeIdentifier.workoutEffortScore,
-  HKWorkoutTypeIdentifier,
-  // Add new permissions for Apple Ring data
-  HKQuantityTypeIdentifier.appleExerciseTime,
-  HKQuantityTypeIdentifier.appleStandTime,
-  HKCategoryTypeIdentifier.appleStandHour,
+export const readPermissions: ObjectTypeIdentifier[] = [
+  "HKQuantityTypeIdentifierHeartRate",
+  "HKCategoryTypeIdentifierSleepAnalysis",
+  "HKQuantityTypeIdentifierRestingHeartRate",
+  "HKQuantityTypeIdentifierStepCount",
+  "HKQuantityTypeIdentifierActiveEnergyBurned",
+  "HKQuantityTypeIdentifierOxygenSaturation",
+  "HKQuantityTypeIdentifierHeartRateVariabilitySDNN",
+  "HKQuantityTypeIdentifierBodyMass",
+  "HKQuantityTypeIdentifierHeight",
+  "HKQuantityTypeIdentifierBodyFatPercentage",
+  "HKQuantityTypeIdentifierRespiratoryRate",
+  "HKCharacteristicTypeIdentifierDateOfBirth",
+  "HKCharacteristicTypeIdentifierBiologicalSex",
+  "HKCharacteristicTypeIdentifierBloodType",
+  "HKQuantityTypeIdentifierVO2Max",
+  "HKQuantityTypeIdentifierWorkoutEffortScore",
+  "HKWorkoutTypeIdentifier",
+  "HKWorkoutRouteTypeIdentifier",
+  "HKDataTypeIdentifierHeartbeatSeries",
+  "HKQuantityTypeIdentifierAppleExerciseTime",
+  "HKQuantityTypeIdentifierAppleStandTime",
+  "HKCategoryTypeIdentifierAppleStandHour",
 ];
 
-export const isHealthKitAvailable = Platform.OS === "ios";
-let healthKitInitialized = false;
+const AllQuantityTypeIdentifierInApp: QuantityTypeIdentifierWriteable[] = [
+  "HKQuantityTypeIdentifierStepCount",
+  "HKQuantityTypeIdentifierDistanceCycling",
+  "HKQuantityTypeIdentifierActiveEnergyBurned",
+  "HKQuantityTypeIdentifierBasalEnergyBurned",
+  "HKQuantityTypeIdentifierFlightsClimbed",
+  "HKQuantityTypeIdentifierHeartRate",
+  "HKQuantityTypeIdentifierDistanceWalkingRunning",
+  "HKQuantityTypeIdentifierBodyMass",
+  "HKQuantityTypeIdentifierBloodGlucose",
+  "HKQuantityTypeIdentifierOxygenSaturation",
+  "HKQuantityTypeIdentifierHeartRateVariabilitySDNN",
+  // 'HKQuantityTypeIdentifierAtrialFibrillationBurden',
+  "HKQuantityTypeIdentifierBodyTemperature",
+  "HKQuantityTypeIdentifierBasalBodyTemperature",
+  "HKQuantityTypeIdentifierBodyFatPercentage",
+  "HKQuantityTypeIdentifierLeanBodyMass",
+  "HKQuantityTypeIdentifierDietaryEnergyConsumed",
+  "HKQuantityTypeIdentifierDietaryFatTotal",
+  "HKQuantityTypeIdentifierDietaryFatPolyunsaturated",
+  "HKQuantityTypeIdentifierDietaryFatMonounsaturated",
+  "HKQuantityTypeIdentifierDietaryFatSaturated",
+  "HKQuantityTypeIdentifierDietaryCholesterol",
+  "HKQuantityTypeIdentifierDietarySodium",
+  "HKQuantityTypeIdentifierDietaryCarbohydrates",
+  "HKQuantityTypeIdentifierDietaryFiber",
+  "HKQuantityTypeIdentifierDietarySugar",
+  "HKQuantityTypeIdentifierDietaryProtein",
+  "HKQuantityTypeIdentifierDietaryVitaminA",
+  "HKQuantityTypeIdentifierDietaryVitaminB6",
+  "HKQuantityTypeIdentifierDietaryVitaminB12",
+  "HKQuantityTypeIdentifierDietaryVitaminC",
+  "HKQuantityTypeIdentifierDietaryVitaminD",
+  "HKQuantityTypeIdentifierDietaryVitaminE",
+  "HKQuantityTypeIdentifierDietaryVitaminK",
+  "HKQuantityTypeIdentifierDietaryCalcium",
+  "HKQuantityTypeIdentifierDietaryIron",
+  "HKQuantityTypeIdentifierDietaryThiamin",
+  "HKQuantityTypeIdentifierDietaryRiboflavin",
+  "HKQuantityTypeIdentifierDietaryNiacin",
+  "HKQuantityTypeIdentifierDietaryFolate",
+  "HKQuantityTypeIdentifierDietaryBiotin",
+  "HKQuantityTypeIdentifierDietaryPantothenicAcid",
+  "HKQuantityTypeIdentifierDietaryPhosphorus",
+  "HKQuantityTypeIdentifierDietaryIodine",
+  "HKQuantityTypeIdentifierDietaryMagnesium",
+  "HKQuantityTypeIdentifierDietaryZinc",
+  "HKQuantityTypeIdentifierDietarySelenium",
+  "HKQuantityTypeIdentifierDietaryCopper",
+  "HKQuantityTypeIdentifierDietaryManganese",
+  "HKQuantityTypeIdentifierDietaryChromium",
+  "HKQuantityTypeIdentifierDietaryMolybdenum",
+  "HKQuantityTypeIdentifierDietaryChloride",
+  "HKQuantityTypeIdentifierDietaryPotassium",
+  "HKQuantityTypeIdentifierDietaryCaffeine",
+  "HKQuantityTypeIdentifierDietaryWater",
+  "HKQuantityTypeIdentifierInsulinDelivery",
+  "HKQuantityTypeIdentifierBloodPressureSystolic",
+  "HKQuantityTypeIdentifierBloodPressureDiastolic",
+  "HKQuantityTypeIdentifierRespiratoryRate",
+  "HKQuantityTypeIdentifierVO2Max",
 
-export const initializeHealthKit = async (): Promise<boolean> => {
-  if (isHealthKitAvailable && !healthKitInitialized) {
-    try {
-      const isAvailable = await isHealthDataAvailable();
+  // read-only:
+  //'HKQuantityTypeIdentifierWalkingHeartRateAverage',
+  // 'HKQuantityTypeIdentifierAppleExerciseTime',
+  // 'HKQuantityTypeIdentifierAppleStandTime',
+  // 'HKQuantityTypeIdentifierAppleWalkingSteadiness',
+];
 
-      if (isAvailable) {
-        await requestAuthorization(readPermissions, []);
-        healthKitInitialized = true;
-        return true;
-      }
-    } catch (error) {
-      console.log("[ERROR] Cannot grant HealthKit permissions!", error);
-      return false;
-    }
-  } else if (!isHealthKitAvailable) {
-    console.log("HealthKit not available on this platform");
-    return false;
-  }
+const AllCategorySampleTypeIdentifierInApp: CategoryTypeIdentifierWriteable[] =
+  [
+    "HKCategoryTypeIdentifierSleepAnalysis",
+    "HKCategoryTypeIdentifierSleepChanges",
+    "HKCategoryTypeIdentifierMindfulSession",
+    // read-only:
+    // 'HKCategoryTypeIdentifierAppleStandHour',
+    // 'HKCategoryTypeIdentifierLowHeartRateEvent',
+    // 'HKCategoryTypeIdentifierHighHeartRateEvent',
+    // 'HKCategoryTypeIdentifierHeadphoneAudioExposureEvent',
+  ];
 
-  return healthKitInitialized;
-};
+const AllCharacteristicTypeIdentifierInApp: CharacteristicTypeIdentifier[] = [
+  "HKCharacteristicTypeIdentifierBiologicalSex",
+  "HKCharacteristicTypeIdentifierBloodType",
+  "HKCharacteristicTypeIdentifierDateOfBirth",
+  "HKCharacteristicTypeIdentifierFitzpatrickSkinType",
+  "HKCharacteristicTypeIdentifierWheelchairUse",
+  "HKCharacteristicTypeIdentifierActivityMoveMode",
+];
 
-export const isHealthKitInitialized = (): boolean => {
-  return healthKitInitialized;
-};
+export const AllSampleTypesInApp: SampleTypeIdentifierWriteable[] = [
+  "HKWorkoutTypeIdentifier",
+  "HKWorkoutRouteTypeIdentifier",
+  "HKDataTypeIdentifierHeartbeatSeries",
+  // 'HKAudiogramSampleType',
+  ...AllCategorySampleTypeIdentifierInApp,
+  ...AllQuantityTypeIdentifierInApp,
+  /*'HKQuantityTypeIdentifierRespiratoryRate',
+    'HKQuantityTypeIdentifierVO2Max',
+    'HKQuantityTypeIdentifierWalkingHeartRateAverage'*/
+];
+
+export const AllObjectTypesInApp: ObjectTypeIdentifier[] = [
+  ...AllSampleTypesInApp,
+  ...AllCharacteristicTypeIdentifierInApp,
+  // 'HKQuantityTypeIdentifierHeartRateVariabilitySDNN',
+  /*'HKQuantityTypeIdentifierRespiratoryRate',
+    'HKQuantityTypeIdentifierVO2Max',
+    'HKQuantityTypeIdentifierWalkingHeartRateAverage'*/
+];

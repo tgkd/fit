@@ -3,7 +3,7 @@ import React from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { Area, CartesianChart } from "victory-native";
 
-import hiFont from "@/assets/fonts/Hikasami-Regular.ttf";
+// import hiFont from "@/assets/fonts/Hikasami-Regular.ttf";
 import { ThemedText } from "@/components/ThemedText";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { useThemeColor } from "@/hooks/useThemeColor";
@@ -54,7 +54,10 @@ export function StressMonitorCard({
       activeOpacity={0.8}
     >
       <View style={styles.header}>
-        <ThemedText size="md">{i18n.t("stressMonitor.title")}</ThemedText>
+        <View>
+          <ThemedText size="md">{i18n.t("stressMonitor.title")}</ThemedText>
+          <ThemedText size="xs" type="secondary">Last 24 Hours</ThemedText>
+        </View>
         <IconSymbol name="chevron.right" size={16} color={iconColorSecondary} />
       </View>
 
@@ -87,7 +90,7 @@ function StressVisualization({
   yDomain,
   xAxisDataType,
 }: StressVisualizationProps) {
-  const font = useFont(hiFont, 12);
+  const font = useFont(require("@/assets/fonts/Hikasami-Regular.ttf"), 12);
   const themedTextColor = useThemeColor({}, "text");
   const themedLineColor = useThemeColor({}, "tint");
   const themedGridColor = useThemeColor({}, "textSecondary");
@@ -113,12 +116,15 @@ function StressVisualization({
     originalTimestamp: item.timestamp, // Keep original for formatting
   }));
 
-  // Ensure xDomain is correctly calculated based on actual data points
+  // Calculate domain from actual data
   const xValues = chartData.map((p) => p.x);
-  const xDomain: [number, number] = [
-    Math.min(...xValues),
-    Math.max(...xValues),
-  ];
+  const minX = Math.min(...xValues);
+  const maxX = Math.max(...xValues);
+  const xDomain: [number, number] = [minX, maxX];
+
+  console.log("🔍 Chart Debug - Data points:", chartData.length);
+  console.log("🔍 Chart Debug - X domain:", xDomain);
+  console.log("🔍 Chart Debug - First few data points:", chartData.slice(0, 3));
 
   return (
     <View style={styles.chartVisualizationContainer}>
@@ -135,11 +141,12 @@ function StressVisualization({
             frame: "transparent",
           },
           tickCount: {
-            x: 4,
+            x: 3, // Show 3 time points for better readability
             y: 4,
           },
           formatXLabel: (value) => {
-            return new Date(value).toLocaleTimeString([], {
+            const date = new Date(value);
+            return date.toLocaleTimeString([], {
               hour: "2-digit",
               minute: undefined,
             });
@@ -176,7 +183,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start", // Changed from "center" to accommodate multiple lines
     marginBottom: 8,
   },
   chartOuterContainer: {

@@ -1,4 +1,4 @@
-import { HKWorkoutActivityType } from "@kingstinct/react-native-healthkit";
+import { WorkoutActivityType } from "@kingstinct/react-native-healthkit";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 
@@ -32,7 +32,7 @@ export const useWorkoutDetails = (): WorkoutDetailsHookResult => {
     try {
       const date = new Date(params.date as string);
       const duration = parseInt(params.duration as string, 10);
-      const type = parseInt(params.type as string, 10) as HKWorkoutActivityType;
+      const type = parseInt(params.type as string, 10) as WorkoutActivityType;
       const id = params.id as string;
       const calories = parseInt(params.calories as string, 10);
 
@@ -56,7 +56,7 @@ export const useWorkoutDetails = (): WorkoutDetailsHookResult => {
         workoutDate: new Date(),
         workoutEndDate: new Date(),
         workoutDuration: 0,
-        workoutType: HKWorkoutActivityType.other,
+        workoutType: WorkoutActivityType.other,
         workoutId: "",
         workoutCalories: 0,
       };
@@ -71,7 +71,7 @@ export const useWorkoutDetails = (): WorkoutDetailsHookResult => {
     date: workoutDate,
     calories: workoutCalories,
     // TODO: Calculate distance from HealthKit data based on workout type
-    distance: workoutType === HKWorkoutActivityType.tennis ? undefined : 3.5,
+    distance: workoutType === WorkoutActivityType.tennis ? undefined : 3.5,
     // Heart rate data from HealthKit
     averageHeartRate: heartRateData?.averageHeartRate ?? undefined,
     maxHeartRate: heartRateData?.maxHeartRate ?? undefined,
