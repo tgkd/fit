@@ -1,8 +1,11 @@
-import { WorkoutSample } from "@kingstinct/react-native-healthkit";
+import {
+  QuantitySample,
+  WorkoutSample,
+} from "@kingstinct/react-native-healthkit";
 import {
   queryQuantitySamples,
   queryStatisticsForQuantity,
-  queryWorkoutSamples
+  queryWorkoutSamples,
 } from "@kingstinct/react-native-healthkit/lib/commonjs/index.ios.js";
 
 import { WorkoutData } from "../workouts/config";
@@ -84,15 +87,15 @@ export const fetchWorkoutStats = async (
       "HKQuantityTypeIdentifierActiveEnergyBurned",
       {
         filter: { startDate, endDate },
-        unit: "kcal"
+        unit: "kcal",
       }
-    ).catch((error: any) => {
+    ).catch((error: unknown) => {
       console.log("❌ Active energy query failed:", error);
       throw error;
     });
 
-    const moveKcal = caloriesSamples.reduce(
-      (sum: number, record: any) => sum + record.quantity,
+    const moveKcal = (caloriesSamples as QuantitySample[]).reduce(
+      (sum: number, record: QuantitySample) => sum + record.quantity,
       0
     );
 
@@ -108,7 +111,7 @@ export const fetchWorkoutStats = async (
         }
       );
       exerciseMins = Math.floor(exerciseTimeStat?.sumQuantity?.quantity || 0);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.log("❌ Exercise time query failed:", error);
       exerciseMins = 0;
     }
@@ -128,7 +131,7 @@ export const fetchWorkoutStats = async (
         12,
         Math.floor(standHoursStat?.sumQuantity?.quantity || 0)
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.log("❌ Stand hours query failed, using fallback of 0:", error);
       standHours = 0;
     }
@@ -148,8 +151,11 @@ export const fetchWorkoutStats = async (
       distanceUnit: "m",
       ascending: false,
       limit: 100,
-    }).catch((error: any) => {
-      console.log("❌ Workout samples query failed, returning empty array:", error);
+    }).catch((error: unknown) => {
+      console.log(
+        "❌ Workout samples query failed, returning empty array:",
+        error
+      );
       return [];
     });
 
@@ -161,7 +167,10 @@ export const fetchWorkoutStats = async (
       workouts: allWorkouts,
     };
   } catch (error) {
-    console.log("❌ fetchWorkoutStats failed, returning fallback values:", error);
+    console.log(
+      "❌ fetchWorkoutStats failed, returning fallback values:",
+      error
+    );
     return {
       exerciseMins: 0,
       standHours: 0,
@@ -229,20 +238,25 @@ export const fetchWorkoutHeartRateData = async (
     }
 
     // Extract heart rate values
-    const hrValues = heartRateSamples.map((sample: any) => sample.quantity);
+    const hrValues = (heartRateSamples as QuantitySample[]).map(
+      (sample: QuantitySample) => sample.quantity
+    );
 
     // Calculate statistics
     const averageHeartRate = Math.round(
-      hrValues.reduce((sum: number, hr: number) => sum + hr, 0) / hrValues.length
+      hrValues.reduce((sum: number, hr: number) => sum + hr, 0) /
+        hrValues.length
     );
     const maxHeartRate = Math.max(...hrValues);
     const minHeartRate = Math.min(...hrValues);
 
     // Format samples for chart display
-    const formattedSamples = heartRateSamples.map((sample: any) => ({
-      timestamp: new Date(sample.startDate),
-      value: sample.quantity,
-    }));
+    const formattedSamples = (heartRateSamples as QuantitySample[]).map(
+      (sample: QuantitySample) => ({
+        timestamp: new Date(sample.startDate),
+        value: sample.quantity,
+      })
+    );
 
     return {
       averageHeartRate,

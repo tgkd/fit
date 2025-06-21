@@ -195,7 +195,7 @@ export async function calculateDayStrain(
       limit: 100,
     });
 
-    muscleWorkouts = workoutsToday.filter((w) =>
+    muscleWorkouts = (workoutsToday as WorkoutSample[]).filter((w) =>
       strengthWorkoutTypes.includes(
         w.workoutActivityType as WorkoutActivityType
       )

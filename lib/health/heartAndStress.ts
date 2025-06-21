@@ -1,9 +1,11 @@
 import { Colors } from "@/constants/Colors";
 import { bucketBy, mean } from "@/utils/dates";
+import { type QuantitySample } from "@kingstinct/react-native-healthkit";
 import {
   getMostRecentQuantitySample,
   queryQuantitySamples,
 } from "@kingstinct/react-native-healthkit/lib/commonjs/index.ios.js";
+
 import {
   HeartStressStats,
   HourlyHeartData,
@@ -60,7 +62,7 @@ export const fetchHeartStressStats = async (
     "HKQuantityTypeIdentifierHeartRateVariabilitySDNN",
     { filter: { startDate, endDate }, unit: "ms" }
   );
-  const hrvValues = hrvSamples.map((s) => s.quantity);
+  const hrvValues = (hrvSamples as QuantitySample[]).map((s) => s.quantity);
 
   const { hrv7DayAvg, hrvMostRecent } = processHrv(hrvValues);
 
@@ -146,9 +148,9 @@ export const calculateBaselineHRV = async (
     return defaults?.HRV_BASELINE || 45;
   }
 
-  const dailyGroups = bucketBy(hrvSamples, "day");
+  const dailyGroups = bucketBy(hrvSamples as QuantitySample[], "day");
   const dailyAverages = Object.values(dailyGroups).map((daySamples) =>
-    mean(daySamples.map((s) => s.quantity))
+    mean((daySamples as QuantitySample[]).map((s) => s.quantity))
   );
 
   const baselineHRV =
@@ -184,9 +186,9 @@ export const calculateBaselineRHR = async (
     return defaults?.RESTING_HEART_RATE || 60;
   }
 
-  const dailyGroups = bucketBy(rhrSamples, "day");
+  const dailyGroups = bucketBy(rhrSamples as QuantitySample[], "day");
   const dailyAverages = Object.values(dailyGroups).map((daySamples) =>
-    mean(daySamples.map((s) => s.quantity))
+    mean((daySamples as QuantitySample[]).map((s) => s.quantity))
   );
 
   const baselineRHR =
@@ -248,8 +250,8 @@ export const getHourlyHRandHRV = async (
   );
 
   // Group samples by hour
-  const hrByHour = bucketBy(hrSamples, "hour");
-  const hrvByHour = bucketBy(hrvSamples, "hour");
+  const hrByHour = bucketBy(hrSamples as QuantitySample[], "hour");
+  const hrvByHour = bucketBy(hrvSamples as QuantitySample[], "hour");
 
   // Create hourly data points by merging HR and HRV data
   const hourlyData: HourlyHeartData[] = [];
@@ -259,12 +261,12 @@ export const getHourlyHRandHRV = async (
     if (hrArr.length === 0) return;
 
     // Calculate average HR for this hour
-    const hrValues = hrArr.map((s) => s.quantity);
+    const hrValues = (hrArr as QuantitySample[]).map((s) => s.quantity);
     const avgHR = mean(hrValues);
 
     // Find matching HRV data for this hour
     const hrvArr = hrvByHour[hourKey] || [];
-    const hrvValues = hrvArr.map((s) => s.quantity);
+    const hrvValues = (hrvArr as QuantitySample[]).map((s) => s.quantity);
     const avgHRV = hrvValues.length > 0 ? mean(hrvValues) : 0;
 
     // Create hour start date from the hour key (format is "HH:00")
@@ -550,13 +552,17 @@ export const prepareStressChartDisplayData = async (
         // Lower stress in early morning and late evening
         if (hour >= 6 && hour <= 8) stressMultiplier = 0.7; // Early morning
         else if (hour >= 22) stressMultiplier = 0.6; // Late evening
-        else if (hour >= 9 && hour <= 11) stressMultiplier = 1.2; // Morning peak
+        else if (hour >= 9 && hour <= 11)
+          stressMultiplier = 1.2; // Morning peak
         else if (hour >= 14 && hour <= 16) stressMultiplier = 1.1; // Afternoon
         else stressMultiplier = 1.0; // Normal hours
 
         // Add some random variation
         const variation = (Math.random() - 0.5) * 0.3;
-        const stress = Math.max(0, Math.min(3, baseStress * stressMultiplier + variation));
+        const stress = Math.max(
+          0,
+          Math.min(3, baseStress * stressMultiplier + variation)
+        );
 
         return {
           time: hourTime.getTime(),
@@ -673,16 +679,20 @@ export const fetchStressAverages = async (
   ]);
 
   // Filter the 30-day data to get 14-day samples
-  const hrv14Days = hrv30Days.filter(
+  const hrv14Days = (hrv30Days as QuantitySample[]).filter(
     (sample) => new Date(sample.startDate) >= range14Days.from
   );
-  const rhr14Days = rhr30Days.filter(
+  const rhr14Days = (rhr30Days as QuantitySample[]).filter(
     (sample) => new Date(sample.startDate) >= range14Days.from
   );
 
   const calculate14DayAverages = async () => {
-    const hrvValues = hrv14Days.map((sample) => sample.quantity);
-    const rhrValues = rhr14Days.map((sample) => sample.quantity);
+    const hrvValues = (hrv14Days as QuantitySample[]).map(
+      (sample) => sample.quantity
+    );
+    const rhrValues = (rhr14Days as QuantitySample[]).map(
+      (sample) => sample.quantity
+    );
 
     const avgHrv = calculateAverage(hrvValues);
     const avgRhr = calculateAverage(rhrValues);
@@ -702,8 +712,12 @@ export const fetchStressAverages = async (
   };
 
   const calculate30DayAverages = async () => {
-    const hrvValues = hrv30Days.map((sample) => sample.quantity);
-    const rhrValues = rhr30Days.map((sample) => sample.quantity);
+    const hrvValues = (hrv30Days as QuantitySample[]).map(
+      (sample) => sample.quantity
+    );
+    const rhrValues = (rhr30Days as QuantitySample[]).map(
+      (sample) => sample.quantity
+    );
 
     const avgHrv = calculateAverage(hrvValues);
     const avgRhr = calculateAverage(rhrValues);

@@ -1,6 +1,7 @@
 import {
   CategorySampleTyped,
   CategoryValueSleepAnalysis,
+  type QuantitySample,
 } from "@kingstinct/react-native-healthkit";
 import {
   queryCategorySamples,
@@ -19,7 +20,6 @@ import {
 } from "./types";
 import {
   calculateAverage,
-  getCurrentDateRanges,
   getDateRange,
   msToHours,
   msToMinutes,
@@ -46,19 +46,6 @@ export const ACTUAL_SLEEP_VALUES = [
 export const fetchSleepStats = async (
   targetDate?: Date
 ): Promise<SleepStats> => {
-  // Get date ranges - if targetDate is provided, get sleep data leading up to that date
-  // Sleep data typically looks back from the target date to get recent patterns
-  let endDate: Date, startDate: Date;
-  if (targetDate) {
-    endDate = new Date(targetDate);
-    startDate = new Date(targetDate);
-    startDate.setDate(startDate.getDate() - 7); // Look back 7 days from target date
-  } else {
-    const { now, oneWeekAgo } = getCurrentDateRanges();
-    endDate = now;
-    startDate = oneWeekAgo;
-  }
-
   const sleepSamples = await queryCategorySamples(
     "HKCategoryTypeIdentifierSleepAnalysis"
   );
@@ -707,9 +694,15 @@ export const calculateSleepStress = async (
       }),
     ]);
 
-    const hrValues = hrSamples.map((s) => s.quantity);
-    const hrvValues = hrvSamples.map((s) => s.quantity);
-    const respValues = respSamples.map((s) => s.quantity);
+    const hrValues = (hrSamples as QuantitySample[]).map(
+      (s: QuantitySample) => s.quantity
+    );
+    const hrvValues = (hrvSamples as QuantitySample[]).map(
+      (s: QuantitySample) => s.quantity
+    );
+    const respValues = (respSamples as QuantitySample[]).map(
+      (s: QuantitySample) => s.quantity
+    );
 
     let stressPercentage = 0;
 
@@ -717,7 +710,9 @@ export const calculateSleepStress = async (
     if (hrValues.length > 0) {
       const sortedHR = [...hrValues].sort((a, b) => a - b);
       const hrThreshold = sortedHR[Math.floor(0.9 * sortedHR.length)]; // 90th percentile
-      const highHrCount = hrValues.filter((hr) => hr > hrThreshold).length;
+      const highHrCount = hrValues.filter(
+        (hr: number) => hr > hrThreshold
+      ).length;
       const highHrFraction = highHrCount / hrValues.length;
       stressPercentage += highHrFraction * 100;
     }
@@ -726,7 +721,9 @@ export const calculateSleepStress = async (
     if (hrvValues.length > 0) {
       const sortedHRV = [...hrvValues].sort((a, b) => a - b);
       const hrvThreshold = sortedHRV[Math.floor(0.1 * sortedHRV.length)]; // 10th percentile
-      const lowHrvCount = hrvValues.filter((v) => v < hrvThreshold).length;
+      const lowHrvCount = hrvValues.filter(
+        (v: number) => v < hrvThreshold
+      ).length;
       const lowHrvFraction = lowHrvCount / hrvValues.length;
       stressPercentage += lowHrvFraction * 100;
     }
@@ -735,7 +732,9 @@ export const calculateSleepStress = async (
     if (respValues.length > 0) {
       const sortedResp = [...respValues].sort((a, b) => a - b);
       const respThreshold = sortedResp[Math.floor(0.9 * sortedResp.length)]; // 90th percentile
-      const highRespCount = respValues.filter((r) => r > respThreshold).length;
+      const highRespCount = respValues.filter(
+        (r: number) => r > respThreshold
+      ).length;
       const highRespFraction = highRespCount / respValues.length;
       stressPercentage += highRespFraction * 50; // Half weight for respiratory rate
     }
@@ -792,10 +791,7 @@ const calculateBasicSleepStress = (sleepCluster: SleepCluster): number => {
 export const calculateEnhancedSleepPerformance = async (
   sleepNeed?: SleepNeed
 ): Promise<SleepPerformanceMetrics> => {
-  const { now } = getCurrentDateRanges();
-
-  // Fetch 5 days of sleep data for consistency analysis
-  const fiveDaysAgo = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000);
+  // Fetch sleep data for consistency analysis
   const sleepSamples = await queryCategorySamples(
     "HKCategoryTypeIdentifierSleepAnalysis"
   );
@@ -907,8 +903,6 @@ export const getSleepMetrics = async (options?: {
 export const calculateSleepDebt = async (
   targetHours: number = 8.0
 ): Promise<number> => {
-  const { oneWeekAgo, now } = getCurrentDateRanges();
-
   const sleepSamples = await queryCategorySamples(
     "HKCategoryTypeIdentifierSleepAnalysis"
   );
@@ -936,7 +930,6 @@ export const fetchSleepAverages = async (
   last14Days: SleepAverages;
   last30Days: SleepAverages;
 }> => {
-  const range30Days = getDateRange(30, targetDate);
   const range14Days = getDateRange(14, targetDate);
 
   // Fetch 30 days of data once and slice for 14 days
@@ -946,7 +939,8 @@ export const fetchSleepAverages = async (
 
   // Filter the 30-day data to get 14-day samples
   const sleepSamples14 = sleepSamples30.filter(
-    (sample) => new Date(sample.startDate) >= range14Days.from
+    (sample: CategorySampleTyped<"HKCategoryTypeIdentifierSleepAnalysis">) =>
+      new Date(sample.startDate) >= range14Days.from
   );
 
   const calculate14DayAverages = () => {

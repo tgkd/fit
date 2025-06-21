@@ -1,5 +1,7 @@
 import { bucketBy, mean, sd } from "@/utils/dates";
+import { QuantitySample } from "@kingstinct/react-native-healthkit";
 import { queryQuantitySamples } from "@kingstinct/react-native-healthkit/lib/commonjs/index.ios.js";
+
 import { sub } from "date-fns";
 
 export interface BaselineVitals {
@@ -21,14 +23,16 @@ export async function getBaselineVitals(): Promise<BaselineVitals> {
   );
 
   const restfulHr: number[] = [];
-  Object.values(bucketBy(hrSamples, "day")).forEach((arr) => {
-    arr.sort((a, b) => a.quantity - b.quantity);
-    restfulHr.push(
-      ...arr
-        .slice(0, Math.max(1, Math.floor(arr.length * 0.2)))
-        .map((s) => s.quantity)
-    );
-  });
+  Object.values(bucketBy(hrSamples as QuantitySample[], "day")).forEach(
+    (arr) => {
+      (arr as QuantitySample[]).sort((a, b) => a.quantity - b.quantity);
+      restfulHr.push(
+        ...(arr as QuantitySample[])
+          .slice(0, Math.max(1, Math.floor(arr.length * 0.2)))
+          .map((s) => s.quantity)
+      );
+    }
+  );
 
   /* -------- HRV (overnight SDNN) -------------------------------------- */
   const hrvSamples = await queryQuantitySamples(
@@ -41,7 +45,7 @@ export async function getBaselineVitals(): Promise<BaselineVitals> {
   return {
     hrMean: mean(restfulHr),
     hrSd: sd(restfulHr) || 1,
-    hrvMean: mean(hrvSamples.map((s) => s.quantity)),
-    hrvSd: sd(hrvSamples.map((s) => s.quantity)) || 1,
+    hrvMean: mean((hrvSamples as QuantitySample[]).map((s) => s.quantity)),
+    hrvSd: sd((hrvSamples as QuantitySample[]).map((s) => s.quantity)) || 1,
   };
 }
