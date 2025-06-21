@@ -1,4 +1,4 @@
-import { DEFAULT_USER_PARAMS } from "../../context/HealthDataContext";
+import { DEFAULT_USER_PROFILE } from "@/lib/storage/healthSettings";
 import { fetchGeneralStats } from "./generalStats";
 import {
   calculateStressMetrics,
@@ -114,7 +114,7 @@ export const getAllHealthStats = async (
           date
         )
       : await calculatePersonalizedRecovery(
-          DEFAULT_USER_PARAMS,
+          DEFAULT_USER_PROFILE,
           defaults,
           date
         );
@@ -132,7 +132,7 @@ export const getAllHealthStats = async (
 
     const strainScore = userParams
       ? await calculatePersonalizedStrain(date, defaults, userParams)
-      : await calculateDayStrain(date, defaults, DEFAULT_USER_PARAMS);
+      : await calculateDayStrain(date, defaults, DEFAULT_USER_PROFILE);
 
     return {
       ...generalStats,

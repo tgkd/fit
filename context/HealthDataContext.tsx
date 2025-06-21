@@ -16,113 +16,16 @@ import {
 } from "@/lib/health/types";
 import i18n from "@/lib/i18n";
 import {
+  getSystemDefaults,
+  getUserProfile,
+  initializeHealthSettings,
+  updateSystemDefaults,
+  updateUserProfile,
+} from "@/lib/storage/healthSettings";
+import {
   isHealthDataAvailableAsync,
   requestAuthorization,
 } from "@kingstinct/react-native-healthkit/lib/commonjs/index.ios.js";
-
-// System defaults for health calculations when data is missing
-export const HEALTH_DEFAULTS: SystemDefaults = {
-  RESPIRATORY_RATE: 15, // Default breaths per minute
-  RESTING_HEART_RATE: 60, // Default resting heart rate
-  SLEEP_EFFICIENCY: 85, // Default sleep efficiency percentage
-  DEFAULT_STRESS_LEVEL: 2, // Default stress level when data missing
-  HRV_BASELINE: 45, // Default HRV baseline when no data
-  DAILY_WATER_INTAKE: 2000, // ml - default daily water intake
-  DAILY_ALCOHOL_DRINKS: 0, // number of drinks - default no alcohol
-  DAILY_CALORIES_CONSUMED: 2000, // kcal - default daily calories
-  NORMATIVE_HRV: 45, // ms - fallback HRV baseline for adults
-  WATER_TARGET: 2500, // ml - daily hydration target
-  CALORIE_TARGET: 1800, // kcal - minimum daily calories
-  STRAIN_LOW_THRESHOLD: 500, // kcal - low strain threshold
-  STRAIN_HIGH_THRESHOLD: 1000, // kcal - high strain threshold
-  RESPIRATORY_BASELINE: 16, // breaths/min - ideal respiratory rate
-  ALCOHOL_PENALTY_PER_DRINK: 50, // points deducted per alcoholic drink
-  MAX_HEART_RATE: 190,
-  STRAIN_LOG_SCALE_FACTOR: 1.5,
-  HEART_RATE_ZONE_WEIGHTS: [1, 2, 3, 4, 5],
-  MUSCLE_POINTS_PER_KCAL: 0.5,
-  MUSCLE_POINTS_PER_MINUTE_DURATION: 1.0,
-  HRR_ZONE_LOWER_BOUND_PERCENTAGES: [50, 60, 70, 80, 90],
-  MIN_HRR_FALLBACK_ADJUSTMENT: 0.1,
-  ACTIVITY_THRESHOLD_PERCENTAGE: 0.1,
-};
-
-// Default user parameters for personalized health calculations
-export const DEFAULT_USER_PARAMS: UserProfile = {
-  // Basic user profile
-  age: 30,
-  weight: 70, // kg
-  height: 175, // cm
-  fitnessLevel: "intermediate",
-  restingHeartRate: 60,
-  maxHeartRate: 185,
-  baselineHRV: 45,
-  baselineRHR: 60,
-  dailyWaterTarget: 2500,
-  dailyCalorieTarget: 2000,
-  sleepEfficiency: 85,
-
-  // Heart rate parameters
-  maxHrFormula: "tanaka", // More accurate than classic formula
-  maxHrAgeCoefficient: 0.7,
-  maxHrConstant: 208,
-
-  // Recovery configuration
-  alcoholPenaltyPerDrink: 50,
-  waterIntakePerKg: 35, // ml per kg body weight
-  caloricDeficitPercentage: 0.85, // 15% deficit for weight management
-
-  // BMR activity multipliers
-  bmrActivityMultipliers: {
-    beginner: 1.2,
-    intermediate: 1.375,
-    advanced: 1.55,
-    elite: 1.725,
-  },
-
-  // Strain thresholds by fitness level
-  strainThresholds: {
-    beginner: { low: 400, high: 800 },
-    intermediate: { low: 500, high: 1000 },
-    advanced: { low: 600, high: 1200 },
-    elite: { low: 700, high: 1400 },
-  },
-
-  // Age and fitness adjustments
-  hrvAgeDeclineRate: 0.5, // HRV decline per year above 25
-  rhrAgeIncreaseRate: 0.2, // RHR increase per year above 30
-  fitnessRhrAdjustments: {
-    beginner: 0,
-    intermediate: -5,
-    advanced: -10,
-    elite: -15,
-  },
-
-  // Weight-based alcohol sensitivity
-  alcoholWeightSensitivity: {
-    baseWeight: 70, // kg (reference weight for baseline penalty)
-    minMultiplier: 0.5,
-    maxMultiplier: 1.5,
-  },
-
-  // Strain calculation guidance thresholds
-  strainGuidanceThresholds: {
-    highIntensityMinutes: 20,
-    moderateIntensityMinutes: 30,
-    totalActiveMinutes: 60,
-    lightActivityThreshold: 30,
-  },
-
-  // Recovery calculation constants
-  hrvDataMinimumSamples: 7,
-  hrBaselineAgeReference: 30,
-  hrBaselineValue: 60,
-  hrvBaslineValue: 60,
-  maxAlcoholForZeroScore: 2,
-  respiratoryPenaltyForMissing: 75,
-  waterIntakeAssumption: 0.8,
-  bmrGenderAdjustment: 5, // +5 for males, -161 for females
-};
 
 // Use the modular HealthData interface
 export type HealthData = ModularHealthData;
@@ -224,6 +127,7 @@ export const HealthDataContext = createContext<{
   date: Date;
   loading: boolean;
   userParams: UserProfile;
+  systemDefaults: SystemDefaults;
   refresh: () => Promise<void>;
   setDate: (date: Date) => void;
   setPreviousDate: () => void;
@@ -232,11 +136,13 @@ export const HealthDataContext = createContext<{
   isToday: () => boolean;
   formatDate: (date: Date) => string;
   updateUserParams: (params: Partial<UserProfile>) => void;
+  updateSystemDefaults: (defaults: Partial<SystemDefaults>) => void;
 }>({
   data: defaultData,
   date: new Date(),
   loading: false,
-  userParams: DEFAULT_USER_PARAMS,
+  userParams: getUserProfile(),
+  systemDefaults: getSystemDefaults(),
   refresh: async () => {},
   setDate: (date: Date) => {},
   setPreviousDate: () => {},
@@ -245,6 +151,7 @@ export const HealthDataContext = createContext<{
   isToday: () => false,
   formatDate: (date: Date) => "",
   updateUserParams: (params: Partial<UserProfile>) => {},
+  updateSystemDefaults: (defaults: Partial<SystemDefaults>) => {},
 });
 
 const USE_FAKE_DATA = false;
@@ -253,7 +160,12 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
   const [data, setData] = useState<HealthData>(defaultData);
   const [date, setDate] = useState<Date>(new Date());
   const [loading, setLoading] = useState<boolean>(false);
-  const [userParams, setUserParams] = useState<UserProfile>(DEFAULT_USER_PARAMS);
+  const [userParams, setUserParams] = useState<UserProfile>(() =>
+    getUserProfile()
+  );
+  const [systemDefaults, setSystemDefaults] = useState<SystemDefaults>(() =>
+    getSystemDefaults()
+  );
   const [isHealthKitAvailable, setIsHealthKitAvailable] =
     useState<boolean>(false);
 
@@ -281,6 +193,7 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
     };
 
     checkHealthKitAvailability();
+    initializeHealthSettings();
   }, []);
 
   const initData = useCallback(async () => {
@@ -294,7 +207,7 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
         console.log("Fetching real health data...");
         const fetchedData = await getAllHealthStats(
           date,
-          HEALTH_DEFAULTS,
+          systemDefaults,
           userParams
         );
         setData(fetchedData);
@@ -306,11 +219,10 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setLoading(false);
     }
-  }, [date, userParams, isHealthKitAvailable]);
+  }, [date, userParams, systemDefaults, isHealthKitAvailable]);
 
   useEffect(() => {
-    // Only initialize data when HealthKit availability is determined
-    if (isHealthKitAvailable !== null) {
+    if (isHealthKitAvailable) {
       initData();
     }
   }, [initData, isHealthKitAvailable]);
@@ -350,9 +262,23 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const updateUserParams = useCallback((params: Partial<UserProfile>) => {
-    setUserParams((prevParams: UserProfile) => ({ ...prevParams, ...params }));
-  }, []);
+  const updateUserParamsWithPersistence = useCallback(
+    (params: Partial<UserProfile>) => {
+      updateUserProfile(params);
+      const updatedParams = getUserProfile();
+      setUserParams(updatedParams);
+    },
+    []
+  );
+
+  const updateSystemDefaultsWithPersistence = useCallback(
+    (defaults: Partial<SystemDefaults>) => {
+      updateSystemDefaults(defaults);
+      const updatedDefaults = getSystemDefaults();
+      setSystemDefaults(updatedDefaults);
+    },
+    []
+  );
 
   return (
     <HealthDataContext.Provider
@@ -361,6 +287,7 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
         date,
         loading,
         userParams,
+        systemDefaults,
         refresh: initData,
         setDate,
         setPreviousDate,
@@ -368,7 +295,8 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
         setToday,
         isToday,
         formatDate,
-        updateUserParams,
+        updateUserParams: updateUserParamsWithPersistence,
+        updateSystemDefaults: updateSystemDefaultsWithPersistence,
       }}
     >
       {children}
