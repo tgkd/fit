@@ -10,9 +10,8 @@ import { Card } from "@/components/ui/Card";
 import { ThemedScrollView } from "@/components/ui/ThemedScrollView";
 import { Colors } from "@/constants/Colors";
 import { HealthDataContext } from "@/context/HealthDataContext";
-import { HealthData } from "@/lib/health";
+import { HealthData } from "@/lib/health/types";
 import i18n from "@/lib/i18n";
-import { MAX_STRAIN } from "@/lib/health/strain";
 
 export default function HomeScreen() {
   const { data } = use(HealthDataContext);
@@ -45,7 +44,7 @@ function ScreenContent({ data }: { data: HealthData }) {
           label={i18n.t("home.recovery").toUpperCase()}
         />
         <CircularProgressChart
-          value={(data.strainScore / MAX_STRAIN) * 100}
+          value={data.strainScore}
           color={Colors.charts.strain}
           backgroundColor={Colors.charts.chartBackground}
           label={i18n.t("home.strain").toUpperCase()}

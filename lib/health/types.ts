@@ -1,6 +1,6 @@
 import {
   QuantitySample,
-  WorkoutSample
+  WorkoutSample,
 } from "@kingstinct/react-native-healthkit";
 
 // Shared interfaces for all health modules
@@ -189,7 +189,7 @@ export interface HealthData
   stressChartDisplayData?: StressChartDisplayData;
   sleepAverages: PeriodAverages<SleepAverages>;
   stressAverages: PeriodAverages<StressAverages>;
-  recoveryAverages: PeriodAverages<RecoveryAverages>;
+  recoveryAverages?: PeriodAverages<RecoveryAverages>;
 }
 
 // Activity and heart rate interfaces from healthStats.ts
@@ -211,85 +211,64 @@ export interface SleepSample {
   asleepEnd: Date;
 }
 
-// Write data interfaces (from current context)
-export interface WriteHealthDataOptions {
-  steps?: number;
-  weight?: number; // in kg
-  height?: number; // in cm
-  heartRate?: number; // bpm
-  bodyFatPercentage?: number; // percentage
-  activeEnergyBurned?: number; // calories
-  waterIntake?: number; // ml
-  mindfulSession?: {
-    duration: number; // minutes
-    startDate?: Date;
-  };
-  workout?: {
-    type: string;
-    duration: number; // minutes
-    energyBurned?: number; // calories
-    distance?: number; // meters
-    startDate?: Date;
-  };
-}
-
-// Definition for HealthDataDefaults
-export interface HealthDataDefaults {
-  RESTING_HEART_RATE?: number;
-  RESPIRATORY_RATE?: number;
-  SLEEP_EFFICIENCY?: number;
-  DEFAULT_STRESS_LEVEL?: number;
-  HRV_BASELINE?: number;
+// System defaults for health calculations (medical/scientific standards)
+export interface SystemDefaults {
+  RESTING_HEART_RATE: number;
+  RESPIRATORY_RATE: number;
+  SLEEP_EFFICIENCY: number;
+  DEFAULT_STRESS_LEVEL: number;
+  HRV_BASELINE: number;
 
   // Nutritional defaults for recovery calculation
-  DAILY_WATER_INTAKE?: number; // ml
-  DAILY_ALCOHOL_DRINKS?: number; // number of drinks
-  DAILY_CALORIES_CONSUMED?: number; // kcal
+  DAILY_WATER_INTAKE: number; // ml
+  DAILY_ALCOHOL_DRINKS: number; // number of drinks
+  DAILY_CALORIES_CONSUMED: number; // kcal
 
   // Recovery calculation thresholds
-  NORMATIVE_HRV?: number; // ms - fallback HRV baseline
-  WATER_TARGET?: number; // ml - daily hydration target
-  CALORIE_TARGET?: number; // kcal - minimum daily calories
-  STRAIN_LOW_THRESHOLD?: number; // kcal - low strain threshold
-  STRAIN_HIGH_THRESHOLD?: number; // kcal - high strain threshold
-  RESPIRATORY_BASELINE?: number; // breaths/min - ideal respiratory rate
-  ALCOHOL_PENALTY_PER_DRINK?: number; // points deducted per drink
+  NORMATIVE_HRV: number; // ms - fallback HRV baseline
+  WATER_TARGET: number; // ml - daily hydration target
+  CALORIE_TARGET: number; // kcal - minimum daily calories
+  STRAIN_LOW_THRESHOLD: number; // kcal - low strain threshold
+  STRAIN_HIGH_THRESHOLD: number; // kcal - high strain threshold
+  RESPIRATORY_BASELINE: number; // breaths/min - ideal respiratory rate
+  ALCOHOL_PENALTY_PER_DRINK: number; // points deducted per drink
 
   // Strain calculation defaults
-  MAX_HEART_RATE?: number;
-  STRAIN_LOG_SCALE_FACTOR?: number;
-  HEART_RATE_ZONE_WEIGHTS?: number[];
-  MUSCLE_POINTS_PER_KCAL?: number;
-  MUSCLE_POINTS_PER_MINUTE_DURATION?: number;
-  HRR_ZONE_LOWER_BOUND_PERCENTAGES?: number[];
-  MIN_HRR_FALLBACK_ADJUSTMENT?: number;
+  MAX_HEART_RATE: number;
+  STRAIN_LOG_SCALE_FACTOR: number;
+  HEART_RATE_ZONE_WEIGHTS: number[];
+  MUSCLE_POINTS_PER_KCAL: number;
+  MUSCLE_POINTS_PER_MINUTE_DURATION: number;
+  HRR_ZONE_LOWER_BOUND_PERCENTAGES: number[];
+  MIN_HRR_FALLBACK_ADJUSTMENT: number;
+  ACTIVITY_THRESHOLD_PERCENTAGE: number;
 }
 
-// UserParams interface for personalized health calculations
-export interface UserParams {
-  age?: number;
-  weight?: number; // kg
-  height?: number; // cm
-  fitnessLevel?: "beginner" | "intermediate" | "advanced" | "elite";
-  restingHeartRate?: number;
-  maxHeartRate?: number;
-  baselineHRV?: number;
-  baselineRHR?: number;
-  dailyWaterTarget?: number; // ml
-  dailyCalorieTarget?: number;
-  sleepEfficiency?: number;
+// User profile for personalized health calculations
+export interface UserProfile {
+  age: number;
+  weight: number; // kg
+  height: number; // cm
+  fitnessLevel: "beginner" | "intermediate" | "advanced" | "elite";
+  restingHeartRate: number;
+  maxHeartRate: number;
+  baselineHRV: number;
+  baselineRHR: number;
+  dailyWaterTarget: number; // ml
+  dailyCalorieTarget: number;
+  sleepEfficiency: number;
 
   // Recovery-specific configuration
-  alcoholPenaltyPerDrink?: number; // points deducted per alcoholic drink
-  waterIntakePerKg?: number; // ml per kg body weight for hydration target
-  bmrActivityMultipliers?: {
+  alcoholPenaltyPerDrink: number; // points deducted per alcoholic drink
+  waterIntakePerKg: number; // ml per kg body weight for hydration target
+  bmrActivityMultipliers: {
     beginner: number;
     intermediate: number;
     advanced: number;
     elite: number;
   };
-  caloricDeficitPercentage?: number; // percentage (e.g., 0.85 for 15% deficit)
-  strainThresholds?: {
+  caloricDeficitPercentage: number; // percentage (e.g., 0.85 for 15% deficit)
+  strainThresholds: {
     beginner: { low: number; high: number };
     intermediate: { low: number; high: number };
     advanced: { low: number; high: number };
@@ -297,9 +276,9 @@ export interface UserParams {
   };
 
   // Age and fitness adjustments
-  hrvAgeDeclineRate?: number; // HRV decline per year above 25
-  rhrAgeIncreaseRate?: number; // RHR increase per year above 30
-  fitnessRhrAdjustments?: {
+  hrvAgeDeclineRate: number; // HRV decline per year above 25
+  rhrAgeIncreaseRate: number; // RHR increase per year above 30
+  fitnessRhrAdjustments: {
     beginner: number;
     intermediate: number;
     advanced: number;
@@ -307,19 +286,19 @@ export interface UserParams {
   };
 
   // Weight-based alcohol sensitivity
-  alcoholWeightSensitivity?: {
+  alcoholWeightSensitivity: {
     baseWeight: number; // kg (reference weight for baseline penalty)
     minMultiplier: number; // minimum weight factor
     maxMultiplier: number; // maximum weight factor
   };
 
   // Heart rate calculation parameters
-  maxHrFormula?: "classic" | "tanaka"; // 220-age vs 208-(0.7*age)
-  maxHrAgeCoefficient?: number; // coefficient for age in max HR calculation
-  maxHrConstant?: number; // base constant for max HR formula
+  maxHrFormula: "classic" | "tanaka"; // 220-age vs 208-(0.7*age)
+  maxHrAgeCoefficient: number; // coefficient for age in max HR calculation
+  maxHrConstant: number; // base constant for max HR formula
 
   // Strain calculation guidance thresholds
-  strainGuidanceThresholds?: {
+  strainGuidanceThresholds: {
     highIntensityMinutes: number;
     moderateIntensityMinutes: number;
     totalActiveMinutes: number;
@@ -327,12 +306,12 @@ export interface UserParams {
   };
 
   // Recovery calculation constants
-  hrvDataMinimumSamples?: number; // minimum HRV samples for reliable baseline
-  hrBaselineAgeReference?: number; // reference age for RHR baseline (e.g., 30)
-  hrBaselineValue?: number; // baseline RHR for reference age
-  hrvBaslineValue?: number; // baseline HRV for age calculations
-  maxAlcoholForZeroScore?: number; // number of drinks that results in 0% alcohol score
-  respiratoryPenaltyForMissing?: number; // percentage cap when respiratory data missing
-  waterIntakeAssumption?: number; // percentage of target assumed when no data (e.g., 0.8)
-  bmrGenderAdjustment?: number; // BMR adjustment for gender (+5 for males, -161 for females)
+  hrvDataMinimumSamples: number; // minimum HRV samples for reliable baseline
+  hrBaselineAgeReference: number; // reference age for RHR baseline (e.g., 30)
+  hrBaselineValue: number; // baseline RHR for reference age
+  hrvBaslineValue: number; // baseline HRV for age calculations
+  maxAlcoholForZeroScore: number; // number of drinks that results in 0% alcohol score
+  respiratoryPenaltyForMissing: number; // percentage cap when respiratory data missing
+  waterIntakeAssumption: number; // percentage of target assumed when no data (e.g., 0.8)
+  bmrGenderAdjustment: number; // BMR adjustment for gender (+5 for males, -161 for females)
 }

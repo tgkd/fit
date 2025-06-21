@@ -7,13 +7,13 @@ import {
 } from "@kingstinct/react-native-healthkit/lib/commonjs/index.ios.js";
 
 import {
-  HealthDataDefaults,
   HeartStressStats,
   HourlyHeartData,
   StressAverages,
   StressChartDataPoint,
   StressChartDisplayData,
   StressMetrics,
+  SystemDefaults,
   TimeInterval,
 } from "./types";
 import {
@@ -21,7 +21,6 @@ import {
   createHourStart,
   formatHourDisplay,
   formatTimeDisplay,
-  getCurrentDateRanges,
   getDateRange,
   getDateRanges,
   getExtendedDateRanges,
@@ -35,21 +34,13 @@ import {
  * - Blood oxygen saturation
  */
 export const fetchHeartStressStats = async (
-  age?: number | null,
-  defaults?: HealthDataDefaults,
-  targetDate?: Date
+  defaults: SystemDefaults,
+  targetDate: Date
 ): Promise<HeartStressStats> => {
-  // Get date ranges - if targetDate provided, get data leading up to that date
-  let endDate: Date, startDate: Date;
-  if (targetDate) {
-    endDate = new Date(targetDate);
-    startDate = new Date(targetDate);
-    startDate.setDate(startDate.getDate() - 7); // Look back 7 days from target date
-  } else {
-    const { now, oneWeekAgo } = getCurrentDateRanges();
-    endDate = now;
-    startDate = oneWeekAgo;
-  }
+  // Get date ranges - look back 7 days from target date
+  const endDate = new Date(targetDate);
+  const startDate = new Date(targetDate);
+  startDate.setDate(startDate.getDate() - 7); // Look back 7 days from target date
 
   // Get resting heart rate (most recent)
   const restingHRSample: QuantitySample | undefined =
@@ -84,7 +75,8 @@ export const fetchHeartStressStats = async (
   const stressLevel = await calculateStressLevel(
     restingHeartRate,
     hrv7DayAvg,
-    defaults
+    defaults,
+    targetDate
   );
 
   const result = {
@@ -106,7 +98,8 @@ export const fetchHeartStressStats = async (
 export const calculateStressLevel = async (
   restingHeartRate: number | null,
   hrv: number | null,
-  defaults?: HealthDataDefaults
+  defaults: SystemDefaults,
+  targetDate: Date
 ): Promise<number> => {
   if (!restingHeartRate || !hrv || hrv === 0) {
     return 0;
@@ -114,8 +107,8 @@ export const calculateStressLevel = async (
 
   // Get baselines for more accurate calculation
   const [baselineHRV, baselineRHR] = await Promise.all([
-    calculateBaselineHRV(defaults),
-    calculateBaselineRHR(defaults),
+    calculateBaselineHRV(defaults, targetDate),
+    calculateBaselineRHR(defaults, targetDate),
   ]);
 
   // Use the sophisticated stress moment calculation
@@ -138,11 +131,11 @@ export const calculateStressLevel = async (
  * Replaces deprecated getBaselineHRV with consistent approach
  */
 export const calculateBaselineHRV = async (
-  defaults?: HealthDataDefaults,
-  targetDate?: Date
+  defaults: SystemDefaults,
+  targetDate: Date
 ): Promise<number> => {
   const { fourteenDaysAgo } = getExtendedDateRanges(targetDate);
-  const endDate = targetDate || new Date();
+  const endDate = new Date(targetDate);
 
   const hrvSamples: readonly QuantitySample[] = await queryQuantitySamples(
     "HKQuantityTypeIdentifierHeartRateVariabilitySDNN",
@@ -170,11 +163,11 @@ export const calculateBaselineHRV = async (
  * Replaces deprecated getBaselineRHR with consistent approach
  */
 export const calculateBaselineRHR = async (
-  defaults?: HealthDataDefaults,
-  targetDate?: Date
+  defaults: SystemDefaults,
+  targetDate: Date
 ): Promise<number> => {
   const { fourteenDaysAgo } = getExtendedDateRanges(targetDate);
-  const endDate = targetDate || new Date();
+  const endDate = new Date(targetDate);
 
   const rhrSamples = await queryQuantitySamples(
     "HKQuantityTypeIdentifierRestingHeartRate",
@@ -222,7 +215,7 @@ export const processHrv = (hrvValues: number[]) => {
  * Updated to use bucketBy for more efficient data processing
  */
 export const getHourlyHRandHRV = async (
-  targetDate?: Date,
+  targetDate: Date,
   useLast24Hours = false
 ): Promise<HourlyHeartData[]> => {
   // Get date ranges for the target date
@@ -232,14 +225,10 @@ export const getHourlyHRandHRV = async (
     // Rolling 24-hour window: from 24 hours ago to now
     endDate = new Date();
     startDate = new Date(endDate.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
-  } else if (targetDate) {
+  } else {
     const ranges = getDateRanges(targetDate);
     startDate = ranges.startOfTargetDay;
     endDate = ranges.endOfTargetDay;
-  } else {
-    const ranges = getCurrentDateRanges();
-    startDate = ranges.startOfToday;
-    endDate = ranges.now;
   }
 
   // Query all heart rate samples for the target day at once
@@ -401,8 +390,8 @@ export const isInIntervals = (t: Date, intervals: TimeInterval[]): boolean => {
 };
 
 export const calculateStressMetrics = async (
-  defaults?: HealthDataDefaults,
-  targetDate?: Date,
+  defaults: SystemDefaults,
+  targetDate: Date,
   useLast24Hours = false
 ): Promise<StressMetrics> => {
   // Calculate 14-day baselines using modern approach
@@ -485,11 +474,12 @@ export const calculateStressMetrics = async (
  * Replaces deprecated HRV-based chart generation with sophisticated analysis
  */
 const generateModernStressChartData = async (
-  defaults?: HealthDataDefaults
+  defaults: SystemDefaults,
+  targetDate: Date
 ): Promise<StressChartDataPoint[]> => {
   try {
     // Get detailed stress metrics
-    const stressMetrics = await calculateStressMetrics(defaults);
+    const stressMetrics = await calculateStressMetrics(defaults, targetDate);
 
     if (stressMetrics.hourlyStress && stressMetrics.hourlyStress.length > 0) {
       return stressMetrics.hourlyStress.map((item) => ({
@@ -515,8 +505,8 @@ export const prepareStressChartDisplayData = async (
   restingHeartRate: number | null | undefined,
   overallStressLevelFromContext: number | undefined, // 0-100 scale
   stressDetails: StressMetrics | null | undefined,
-  defaults?: HealthDataDefaults,
-  targetDate?: Date,
+  defaults: SystemDefaults,
+  targetDate: Date,
   useLast24Hours = false
 ): Promise<StressChartDisplayData> => {
   let chartPlotData: StressChartDataPoint[] = [];
@@ -584,7 +574,7 @@ export const prepareStressChartDisplayData = async (
   }
   // 2. Generate modern stress data if no stressDetails provided
   else {
-    chartPlotData = await generateModernStressChartData(defaults);
+    chartPlotData = await generateModernStressChartData(defaults, targetDate);
 
     if (chartPlotData.length > 0) {
       // Calculate current stress from chart data
@@ -662,8 +652,8 @@ export function getStressColor(stressLevel: number): string {
  * Fetch stress averages for 14 and 30 day periods relative to a target date
  */
 export const fetchStressAverages = async (
-  defaults?: HealthDataDefaults,
-  targetDate?: Date
+  defaults: SystemDefaults,
+  targetDate: Date
 ): Promise<{
   last14Days: StressAverages;
   last30Days: StressAverages;
@@ -703,7 +693,7 @@ export const fetchStressAverages = async (
     const avgRhr = calculateAverage(rhrValues);
 
     // Calculate stress level based on HRV deviation from baseline
-    const baselineHRV = await calculateBaselineHRV(defaults);
+    const baselineHRV = await calculateBaselineHRV(defaults, targetDate);
     const stressLevel = Math.max(
       0,
       Math.min(100, 100 - (avgHrv / baselineHRV) * 100)
@@ -727,7 +717,7 @@ export const fetchStressAverages = async (
     const avgHrv = calculateAverage(hrvValues);
     const avgRhr = calculateAverage(rhrValues);
 
-    const baselineHRV = await calculateBaselineHRV(defaults);
+    const baselineHRV = await calculateBaselineHRV(defaults, targetDate);
     const stressLevel = Math.max(
       0,
       Math.min(100, 100 - (avgHrv / baselineHRV) * 100)

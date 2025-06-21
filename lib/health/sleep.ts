@@ -44,7 +44,7 @@ export const ACTUAL_SLEEP_VALUES = [
  * Enhanced version that uses the new sleep performance calculation
  */
 export const fetchSleepStats = async (
-  targetDate?: Date
+  targetDate: Date
 ): Promise<SleepStats> => {
   const sleepSamples = await queryCategorySamples(
     "HKCategoryTypeIdentifierSleepAnalysis"
@@ -135,7 +135,7 @@ export const calculateSleepConsistency = (
     // Use awake time percentage as a consistency indicator
     const lastNightSamples = getLastNightSamples(sleepSamples);
 
-    if (lastNightSamples.length === 0) return 100;
+    if (lastNightSamples.length === 0) return 0;
 
     const totalAwakeTime = lastNightSamples
       .filter((s) => s.value === CategoryValueSleepAnalysis.awake)
@@ -153,7 +153,7 @@ export const calculateSleepConsistency = (
         return acc + duration;
       }, 0);
 
-    if (totalSleepTime === 0) return 100;
+    if (totalSleepTime === 0) return 0;
 
     const awakePercentage =
       (totalAwakeTime / (totalSleepTime + totalAwakeTime)) * 100;
@@ -168,6 +168,7 @@ export const calculateSleepConsistency = (
   const msSinceMidnight = bedTimes.map(
     (d) => d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds()
   );
+
   const mean =
     msSinceMidnight.reduce((a, b) => a + b, 0) / msSinceMidnight.length;
   const variance =
@@ -236,10 +237,10 @@ export const calculateSleepMetrics = (
   );
 
   const sleepConsistency = calculateSleepConsistency(sleepSamples);
-
   const sleepEfficiency = calculateSleepEfficiency(sleepSamples);
 
   const lastNightSamples = getLastNightSamples(sleepSamples);
+
   const totalAwakeTime = lastNightSamples
     .filter((s) => s.value === CategoryValueSleepAnalysis.awake)
     .reduce((acc, s) => {
@@ -261,19 +262,13 @@ export const calculateSleepMetrics = (
       ? (totalAwakeTime / (totalSleepTime + totalAwakeTime)) * 100
       : 0;
 
-  // Calculate sleep stress as a performance score (higher = better)
-  // Convert awake percentage to stress score: low awake time = high performance score
-  // If no sleep data is available, return a neutral score instead of 100%
   let sleepStressScore: number;
 
   if (totalSleepTime === 0 && totalAwakeTime === 0) {
-    // No sleep data available, return neutral score
-    sleepStressScore = 50;
+    sleepStressScore = 0;
   } else if (awakePercentage === 0) {
-    // Perfect sleep (no awake time recorded) - but cap at 95% to be realistic
     sleepStressScore = 95;
   } else {
-    // Normal calculation: convert awake percentage to quality score
     sleepStressScore = Math.max(0, 100 - awakePercentage);
   }
 
@@ -281,7 +276,7 @@ export const calculateSleepMetrics = (
     hoursVsNeeded: roundTo(hoursVsNeeded, 0),
     sleepConsistency: roundTo(sleepConsistency, 0),
     sleepEfficiency: roundTo(sleepEfficiency, 0),
-    sleepStress: roundTo(sleepStressScore, 0), // Now a performance score like the others
+    sleepStress: roundTo(sleepStressScore, 0),
   };
 };
 
@@ -770,14 +765,10 @@ const calculateBasicSleepStress = (sleepCluster: SleepCluster): number => {
   const totalTime =
     sleepCluster.asleepMs + (sleepCluster.timeInBedMs - sleepCluster.asleepMs);
 
-  // If no sleep data, return neutral score instead of perfect score
-  if (totalTime === 0) return 50;
+  if (totalTime === 0) return 0;
 
   const awakeTime = sleepCluster.timeInBedMs - sleepCluster.asleepMs;
   const awakePercentage = (awakeTime / totalTime) * 100;
-
-  // If no awake time recorded, cap at 95% instead of 100%
-  if (awakePercentage === 0) return 95;
 
   const highSleepStress = awakePercentage > 10 ? awakePercentage - 10 : 0;
   const sleepQualityScore = Math.max(0, 100 - highSleepStress);
@@ -925,7 +916,7 @@ export const calculateSleepDebt = async (
  * Fetch sleep averages for 14 and 30 day periods relative to a target date
  */
 export const fetchSleepAverages = async (
-  targetDate?: Date
+  targetDate: Date
 ): Promise<{
   last14Days: SleepAverages;
   last30Days: SleepAverages;

@@ -8,13 +8,11 @@ import React, {
 } from "react";
 
 import { getAllHealthStats } from "@/lib/health";
-import {
-  readPermissions
-} from "@/lib/health/permissions";
+import { readPermissions } from "@/lib/health/permissions";
 import {
   HealthData as ModularHealthData,
-  WriteHealthDataOptions as ModularWriteHealthDataOptions,
-  UserParams,
+  SystemDefaults,
+  UserProfile,
 } from "@/lib/health/types";
 import i18n from "@/lib/i18n";
 import {
@@ -22,8 +20,8 @@ import {
   requestAuthorization,
 } from "@kingstinct/react-native-healthkit/lib/commonjs/index.ios.js";
 
-// Default values for health calculations when data is missing
-export const HEALTH_DEFAULTS = {
+// System defaults for health calculations when data is missing
+export const HEALTH_DEFAULTS: SystemDefaults = {
   RESPIRATORY_RATE: 15, // Default breaths per minute
   RESTING_HEART_RATE: 60, // Default resting heart rate
   SLEEP_EFFICIENCY: 85, // Default sleep efficiency percentage
@@ -39,15 +37,30 @@ export const HEALTH_DEFAULTS = {
   STRAIN_HIGH_THRESHOLD: 1000, // kcal - high strain threshold
   RESPIRATORY_BASELINE: 16, // breaths/min - ideal respiratory rate
   ALCOHOL_PENALTY_PER_DRINK: 50, // points deducted per alcoholic drink
+  MAX_HEART_RATE: 190,
+  STRAIN_LOG_SCALE_FACTOR: 1.5,
+  HEART_RATE_ZONE_WEIGHTS: [1, 2, 3, 4, 5],
+  MUSCLE_POINTS_PER_KCAL: 0.5,
+  MUSCLE_POINTS_PER_MINUTE_DURATION: 1.0,
+  HRR_ZONE_LOWER_BOUND_PERCENTAGES: [50, 60, 70, 80, 90],
+  MIN_HRR_FALLBACK_ADJUSTMENT: 0.1,
+  ACTIVITY_THRESHOLD_PERCENTAGE: 0.1,
 };
 
 // Default user parameters for personalized health calculations
-export const DEFAULT_USER_PARAMS: UserParams = {
+export const DEFAULT_USER_PARAMS: UserProfile = {
   // Basic user profile
   age: 30,
   weight: 70, // kg
   height: 175, // cm
   fitnessLevel: "intermediate",
+  restingHeartRate: 60,
+  maxHeartRate: 185,
+  baselineHRV: 45,
+  baselineRHR: 60,
+  dailyWaterTarget: 2500,
+  dailyCalorieTarget: 2000,
+  sleepEfficiency: 85,
 
   // Heart rate parameters
   maxHrFormula: "tanaka", // More accurate than classic formula
@@ -113,7 +126,6 @@ export const DEFAULT_USER_PARAMS: UserParams = {
 
 // Use the modular HealthData interface
 export type HealthData = ModularHealthData;
-export type WriteHealthDataOptions = ModularWriteHealthDataOptions;
 
 const defaultData: HealthData = {
   // GeneralStats
@@ -211,7 +223,7 @@ export const HealthDataContext = createContext<{
   data: HealthData;
   date: Date;
   loading: boolean;
-  userParams: UserParams;
+  userParams: UserProfile;
   refresh: () => Promise<void>;
   setDate: (date: Date) => void;
   setPreviousDate: () => void;
@@ -219,7 +231,7 @@ export const HealthDataContext = createContext<{
   setToday: () => void;
   isToday: () => boolean;
   formatDate: (date: Date) => string;
-  updateUserParams: (params: Partial<UserParams>) => void;
+  updateUserParams: (params: Partial<UserProfile>) => void;
 }>({
   data: defaultData,
   date: new Date(),
@@ -232,7 +244,7 @@ export const HealthDataContext = createContext<{
   setToday: () => {},
   isToday: () => false,
   formatDate: (date: Date) => "",
-  updateUserParams: (params: Partial<UserParams>) => {},
+  updateUserParams: (params: Partial<UserProfile>) => {},
 });
 
 const USE_FAKE_DATA = false;
@@ -241,7 +253,7 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
   const [data, setData] = useState<HealthData>(defaultData);
   const [date, setDate] = useState<Date>(new Date());
   const [loading, setLoading] = useState<boolean>(false);
-  const [userParams, setUserParams] = useState<UserParams>(DEFAULT_USER_PARAMS);
+  const [userParams, setUserParams] = useState<UserProfile>(DEFAULT_USER_PARAMS);
   const [isHealthKitAvailable, setIsHealthKitAvailable] =
     useState<boolean>(false);
 
@@ -338,8 +350,8 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const updateUserParams = useCallback((params: Partial<UserParams>) => {
-    setUserParams((prevParams) => ({ ...prevParams, ...params }));
+  const updateUserParams = useCallback((params: Partial<UserProfile>) => {
+    setUserParams((prevParams: UserProfile) => ({ ...prevParams, ...params }));
   }, []);
 
   return (

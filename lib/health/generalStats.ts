@@ -18,7 +18,7 @@ import { getCurrentDateRanges, getDateRanges } from "./utils";
  * - Steps (for the specific date)
  */
 export const fetchGeneralStats = async (
-  targetDate?: Date
+  targetDate: Date
 ): Promise<GeneralStats> => {
   // Get age from date of birth
   const dob = await getDateOfBirthAsync();

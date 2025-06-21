@@ -1,3 +1,4 @@
+import { DEFAULT_USER_PARAMS } from "../../context/HealthDataContext";
 import { fetchGeneralStats } from "./generalStats";
 import {
   calculateStressMetrics,
@@ -5,12 +6,7 @@ import {
   fetchStressAverages,
   prepareStressChartDisplayData,
 } from "./heartAndStress";
-import {
-  calculatePersonalizedRecovery,
-  calculateRecoveryScore,
-  fetchRecoveryAverages,
-  getRecoveryMetrics,
-} from "./recovery";
+import { calculatePersonalizedRecovery, getRecoveryMetrics } from "./recovery";
 import { fetchSleepAverages, fetchSleepStats } from "./sleep";
 import {
   calculateDayStrain,
@@ -19,16 +15,16 @@ import {
 } from "./strain";
 import {
   HealthData,
-  HealthDataDefaults,
   StressChartDisplayData,
-  UserParams,
+  SystemDefaults,
+  UserProfile,
 } from "./types";
 import { fetchWorkoutStats } from "./workouts";
 
 export const getAllHealthStats = async (
   date: Date,
-  defaults?: HealthDataDefaults,
-  userParams?: UserParams
+  defaults: SystemDefaults,
+  userParams?: UserProfile
 ): Promise<HealthData> => {
   console.log("Fetching health stats for date:", date);
 
@@ -38,10 +34,9 @@ export const getAllHealthStats = async (
     const healthDataResults = await Promise.allSettled([
       fetchWorkoutStats(date),
       fetchSleepStats(date),
-      fetchHeartStressStats(generalStats.age, defaults, date),
+      fetchHeartStressStats(defaults, date),
       fetchSleepAverages(date),
       fetchStressAverages(defaults, date),
-      fetchRecoveryAverages(defaults, date),
     ]);
 
     // Handle settled promises and provide fallbacks for failed ones
@@ -51,7 +46,6 @@ export const getAllHealthStats = async (
       heartStressResult,
       sleepAveragesResult,
       stressAveragesResult,
-      recoveryAveragesResult,
     ] = healthDataResults;
 
     if (workoutResult.status === "rejected") {
@@ -69,29 +63,28 @@ export const getAllHealthStats = async (
     if (stressAveragesResult.status === "rejected") {
       console.error("❌ Stress averages failed:", stressAveragesResult.reason);
     }
-    if (recoveryAveragesResult.status === "rejected") {
-      console.error(
-        "❌ Recovery averages failed:",
-        recoveryAveragesResult.reason
-      );
-    }
 
-    const workoutStats = workoutResult.status === "fulfilled" ? workoutResult.value : null;
-    const sleepStats = sleepResult.status === "fulfilled" ? sleepResult.value : null;
-    const heartStressStats = heartStressResult.status === "fulfilled" ? heartStressResult.value : null;
-    const sleepAverages = sleepAveragesResult.status === "fulfilled" ? sleepAveragesResult.value : null;
-    const stressAverages = stressAveragesResult.status === "fulfilled" ? stressAveragesResult.value : null;
-    const recoveryAverages = recoveryAveragesResult.status === "fulfilled" ? recoveryAveragesResult.value : null;
-
-    let stressDetails: HealthData["stressDetails"] = null;
-    try {
-      // Use last 24 hours for more current stress data
-      stressDetails = await calculateStressMetrics(defaults, date, true);
-    } catch (error) {
-      console.warn("⚠️ Stress calculation failed, using fallback:", error);
-    }
+    const workoutStats =
+      workoutResult.status === "fulfilled" ? workoutResult.value : null;
+    const sleepStats =
+      sleepResult.status === "fulfilled" ? sleepResult.value : null;
+    const heartStressStats =
+      heartStressResult.status === "fulfilled" ? heartStressResult.value : null;
+    const sleepAverages =
+      sleepAveragesResult.status === "fulfilled"
+        ? sleepAveragesResult.value
+        : null;
+    const stressAverages =
+      stressAveragesResult.status === "fulfilled"
+        ? stressAveragesResult.value
+        : null;
 
     // Only proceed with calculations if we have the required data
+    if (!workoutStats) {
+      console.error("❌ Cannot calculate health stats without workout data");
+      throw new Error("Workout data is required for health calculations");
+    }
+
     if (!sleepStats) {
       console.error("❌ Cannot calculate recovery without sleep data");
       throw new Error("Sleep data is required for health calculations");
@@ -102,25 +95,29 @@ export const getAllHealthStats = async (
       throw new Error("Heart/stress data is required for health calculations");
     }
 
+    if (!sleepAverages) {
+      console.error("❌ Sleep averages data is required");
+      throw new Error("Sleep averages data is required for health calculations");
+    }
+
+    if (!stressAverages) {
+      console.error("❌ Stress averages data is required");
+      throw new Error("Stress averages data is required for health calculations");
+    }
+
+    const stressDetails = await calculateStressMetrics(defaults, date, true);
+
     const recoveryScore = userParams
       ? await calculatePersonalizedRecovery(
-          {
-            ...userParams,
-            sleepEfficiency: sleepStats.sleepEfficiency,
-          },
-          date
-        ).catch((error) => {
-          console.error("❌ Personalized recovery calculation failed:", error);
-          throw error;
-        })
-      : await calculateRecoveryScore({
+          userParams as UserProfile,
           defaults,
-          sleepEfficiency: sleepStats.sleepEfficiency,
-          targetDate: date,
-        }).catch((error) => {
-          console.error("❌ Standard recovery calculation failed:", error);
-          throw error;
-        });
+          date
+        )
+      : await calculatePersonalizedRecovery(
+          DEFAULT_USER_PARAMS,
+          defaults,
+          date
+        );
 
     const stressChartDisplayData: StressChartDisplayData =
       await prepareStressChartDisplayData(
@@ -130,47 +127,24 @@ export const getAllHealthStats = async (
         stressDetails,
         defaults,
         date,
-        true // Use last 24 hours for chart display
-      ).catch((error) => {
-        console.error(
-          "❌ Stress chart display data preparation failed:",
-          error
-        );
-        throw error;
-      });
+        true
+      );
 
     const strainScore = userParams
-      ? await calculatePersonalizedStrain(date, userParams).catch((error) => {
-          console.error("❌ Personalized strain calculation failed:", error);
-          throw error;
-        })
-      : await calculateDayStrain(date, defaults, undefined).catch((error) => {
-          console.error("❌ Standard strain calculation failed:", error);
-          throw error;
-        });
+      ? await calculatePersonalizedStrain(date, defaults, userParams)
+      : await calculateDayStrain(date, defaults, DEFAULT_USER_PARAMS);
 
     return {
       ...generalStats,
-      ...(workoutStats || { exerciseMins: 0, standHours: 0, moveKcal: 0, rawCalories: [], workouts: [] }),
+      ...workoutStats,
       ...heartStressStats,
-      // Extract the total score from recovery result
       recoveryScore: recoveryScore.totalScore,
       sleep: sleepStats,
       strainScore,
       stressDetails,
       stressChartDisplayData,
-      sleepAverages: sleepAverages || {
-        last14Days: { duration: 0, efficiency: 0, performance: 0, consistency: 0 },
-        last30Days: { duration: 0, efficiency: 0, performance: 0, consistency: 0 }
-      },
-      stressAverages: stressAverages || {
-        last14Days: { level: 0, hrvAverage: 0, restingHeartRate: 0 },
-        last30Days: { level: 0, hrvAverage: 0, restingHeartRate: 0 }
-      },
-      recoveryAverages: recoveryAverages || {
-        last14Days: { score: 0 },
-        last30Days: { score: 0 }
-      },
+      sleepAverages,
+      stressAverages,
     };
   } catch (error) {
     console.error("❌ Error fetching health stats:", error);
@@ -186,8 +160,8 @@ export const getAllHealthStats = async (
  */
 export const getPersonalizedHealthStats = async (
   date: Date,
-  userParams: UserParams,
-  defaults?: HealthDataDefaults
+  userParams: UserProfile,
+  defaults: SystemDefaults
 ): Promise<HealthData> => {
   return getAllHealthStats(date, defaults, userParams);
 };
@@ -198,8 +172,8 @@ export const getPersonalizedHealthStats = async (
  */
 export const getHealthMetricsWithInsights = async (
   date: Date,
-  userParams?: UserParams,
-  defaults?: HealthDataDefaults
+  defaults: SystemDefaults,
+  userParams?: UserProfile
 ): Promise<{
   healthData: HealthData;
   strainInsights?: {
@@ -218,14 +192,18 @@ export const getHealthMetricsWithInsights = async (
 
   if (userParams) {
     // Get detailed strain insights
-    const strainMetrics = await getStrainMetrics(date, userParams);
+    const strainMetrics = await getStrainMetrics(date, defaults, userParams);
     result.strainInsights = {
       category: strainMetrics.category,
       recommendation: strainMetrics.recommendation,
     };
 
     // Get detailed recovery insights
-    const recoveryMetrics = await getRecoveryMetrics(userParams, date);
+    const recoveryMetrics = await getRecoveryMetrics(
+      userParams,
+      defaults,
+      date
+    );
     result.recoveryInsights = {
       category: recoveryMetrics.category,
       recommendation: recoveryMetrics.recommendation,

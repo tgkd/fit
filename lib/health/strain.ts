@@ -11,43 +11,31 @@ import {
 } from "@kingstinct/react-native-healthkit/lib/commonjs/index.ios.js";
 import { endOfDay, startOfDay } from "date-fns";
 
-import { UserParams } from "./types";
+import { SystemDefaults, UserProfile } from "./types";
 
 export const MAX_STRAIN = 21;
 
-interface StrainCalculationDefaults {
-  RESTING_HEART_RATE?: number;
-  MAX_HEART_RATE?: number;
-  STRAIN_SCALE_FACTOR?: number;
-  HEART_RATE_ZONE_WEIGHTS?: number[];
-  MUSCLE_POINTS_PER_KCAL?: number;
-  MUSCLE_POINTS_PER_MINUTE_DURATION?: number;
-  HRR_ZONE_LOWER_BOUND_PERCENTAGES?: number[];
-  MIN_HRR_FALLBACK_ADJUSTMENT?: number;
-  ACTIVITY_THRESHOLD_PERCENTAGE?: number;
-}
-
 export async function calculateDayStrain(
   date: Date,
-  defaults?: StrainCalculationDefaults,
-  userParams?: UserParams
+  defaults: SystemDefaults,
+  userProfile: UserProfile
 ): Promise<number> {
-  // Configurable constants with fallbacks
-  const DEFAULT_RESTING_HR = defaults?.RESTING_HEART_RATE ?? 60;
-  const DEFAULT_MAX_HR = defaults?.MAX_HEART_RATE ?? 190;
-  const SCALE_FACTOR = defaults?.STRAIN_SCALE_FACTOR ?? 0.01;
-  const ZONE_WEIGHTS = defaults?.HEART_RATE_ZONE_WEIGHTS ?? [1, 2, 4, 6, 8];
-  const MUSCLE_PTS_PER_KCAL = defaults?.MUSCLE_POINTS_PER_KCAL ?? 0.05;
-  const MUSCLE_PTS_PER_MIN = defaults?.MUSCLE_POINTS_PER_MINUTE_DURATION ?? 0.5;
-  const HRR_ZONE_BOUNDS = defaults?.HRR_ZONE_LOWER_BOUND_PERCENTAGES ?? [
-    0.6, 0.7, 0.8, 0.85, 0.95,
-  ];
-  const MIN_HRR_ADJUST = defaults?.MIN_HRR_FALLBACK_ADJUSTMENT ?? 30;
-  const ACTIVITY_THRESHOLD_PCT = defaults?.ACTIVITY_THRESHOLD_PERCENTAGE ?? 0.1;
+  // Configurable constants - all required, no fallbacks
+  const DEFAULT_RESTING_HR = defaults.RESTING_HEART_RATE;
+  const DEFAULT_MAX_HR = defaults.MAX_HEART_RATE;
+  const SCALE_FACTOR = defaults.STRAIN_LOG_SCALE_FACTOR;
+  const ZONE_WEIGHTS = defaults.HEART_RATE_ZONE_WEIGHTS;
+  const MUSCLE_PTS_PER_KCAL = defaults.MUSCLE_POINTS_PER_KCAL;
+  const MUSCLE_PTS_PER_MIN = defaults.MUSCLE_POINTS_PER_MINUTE_DURATION;
+  const HRR_ZONE_BOUNDS = defaults.HRR_ZONE_LOWER_BOUND_PERCENTAGES;
+  const MIN_HRR_ADJUST = defaults.MIN_HRR_FALLBACK_ADJUSTMENT;
+  const ACTIVITY_THRESHOLD_PCT = defaults.ACTIVITY_THRESHOLD_PERCENTAGE;
 
   // 1. Define the time range for the day
   const dateFrom = startOfDay(date);
-  const dateTo = endOfDay(date); // 2. Query heart rate samples for the day
+  const dateTo = endOfDay(date);
+
+  // 2. Query heart rate samples for the day
   let heartRateSamples: QuantitySample[] = [];
   try {
     heartRateSamples = (await queryQuantitySamples(
@@ -110,8 +98,20 @@ export async function calculateDayStrain(
     }
   });
 
-  if (observedMaxHRInSamples > maxHR) {
-    maxHR = observedMaxHRInSamples;
+  // Use a more realistic max HR - prefer observed data when available
+  // If observed max is significantly lower than theoretical, use a conservative estimate
+  if (observedMaxHRInSamples > 0) {
+    // If observed max is much lower than theoretical, it suggests lighter activity
+    // Use observed max + reasonable buffer instead of theoretical max
+    const theoreticalMax = maxHR;
+    const observedWithBuffer = observedMaxHRInSamples + 20; // Add 20 BPM buffer
+
+    if (observedMaxHRInSamples < theoreticalMax * 0.7) {
+      // If observed is less than 70% of theoretical, use observed + buffer
+      maxHR = Math.min(theoreticalMax, observedWithBuffer);
+    } else if (observedMaxHRInSamples > maxHR) {
+      maxHR = observedMaxHRInSamples;
+    }
   }
 
   if (maxHR <= restingHR) {
@@ -120,13 +120,33 @@ export async function calculateDayStrain(
 
   // 4. Define heart rate zone thresholds using Heart Rate Reserve (HRR) method
   const HRR = Math.max(1, maxHR - restingHR);
-  const zonesThresholds = [
+  let zonesThresholds = [
     restingHR + HRR_ZONE_BOUNDS[0] * HRR,
     restingHR + HRR_ZONE_BOUNDS[1] * HRR,
     restingHR + HRR_ZONE_BOUNDS[2] * HRR,
     restingHR + HRR_ZONE_BOUNDS[3] * HRR,
     restingHR + HRR_ZONE_BOUNDS[4] * HRR,
   ];
+
+  // Adaptive zone adjustment: If most HR data is below Zone 1, adjust zones downward
+  if (heartRateSamples.length > 0 && observedMaxHRInSamples > 0) {
+    const hrValues = heartRateSamples.map(s => s.quantity).filter(q => typeof q === 'number') as number[];
+    const avgHR = hrValues.reduce((sum, hr) => sum + hr, 0) / hrValues.length;
+
+    // If average HR is below Zone 1 threshold, create more realistic zones
+    if (avgHR < zonesThresholds[0]) {
+      const adaptiveMaxHR = Math.max(observedMaxHRInSamples + 10, avgHR + 30);
+      const adaptiveHRR = Math.max(1, adaptiveMaxHR - restingHR);
+
+      zonesThresholds = [
+        restingHR + HRR_ZONE_BOUNDS[0] * adaptiveHRR,
+        restingHR + HRR_ZONE_BOUNDS[1] * adaptiveHRR,
+        restingHR + HRR_ZONE_BOUNDS[2] * adaptiveHRR,
+        restingHR + HRR_ZONE_BOUNDS[3] * adaptiveHRR,
+        restingHR + HRR_ZONE_BOUNDS[4] * adaptiveHRR,
+      ];
+    }
+  }
 
   // 5. Calculate time in each zone using continuous zone accumulation
   const activityThreshold = restingHR + HRR * ACTIVITY_THRESHOLD_PCT;
@@ -260,14 +280,15 @@ export async function calculateDayStrain(
  */
 export async function calculatePersonalizedStrain(
   date: Date,
-  userParams?: UserParams
+  defaults: SystemDefaults,
+  userProfile: UserProfile
 ): Promise<number> {
   // Determine user-specific defaults based on fitness level and personal data
   const getFitnessDefaults = (level: string) => {
     switch (level) {
       case "elite":
         return {
-          STRAIN_SCALE_FACTOR: 0.006,
+          STRAIN_LOG_SCALE_FACTOR: 0.006,
           HEART_RATE_ZONE_WEIGHTS: [1, 2, 4, 7, 10],
           ACTIVITY_THRESHOLD_PERCENTAGE: 0.08,
           MUSCLE_POINTS_PER_KCAL: 0.04,
@@ -275,7 +296,7 @@ export async function calculatePersonalizedStrain(
         };
       case "advanced":
         return {
-          STRAIN_SCALE_FACTOR: 0.007,
+          STRAIN_LOG_SCALE_FACTOR: 0.007,
           HEART_RATE_ZONE_WEIGHTS: [1, 2, 4, 6, 9],
           ACTIVITY_THRESHOLD_PERCENTAGE: 0.09,
           MUSCLE_POINTS_PER_KCAL: 0.035,
@@ -283,16 +304,16 @@ export async function calculatePersonalizedStrain(
         };
       case "intermediate":
         return {
-          STRAIN_SCALE_FACTOR: 0.008,
+          STRAIN_LOG_SCALE_FACTOR: 0.015, // Increased for better scaling
           HEART_RATE_ZONE_WEIGHTS: [1, 2, 4, 6, 8],
           ACTIVITY_THRESHOLD_PERCENTAGE: 0.1,
-          MUSCLE_POINTS_PER_KCAL: 0.03,
-          MUSCLE_POINTS_PER_MINUTE_DURATION: 0.3,
+          MUSCLE_POINTS_PER_KCAL: 0.05, // Increased muscle point value
+          MUSCLE_POINTS_PER_MINUTE_DURATION: 0.4, // Increased duration value
         };
       case "beginner":
       default:
         return {
-          STRAIN_SCALE_FACTOR: 0.009,
+          STRAIN_LOG_SCALE_FACTOR: 0.009,
           HEART_RATE_ZONE_WEIGHTS: [1, 2, 3, 5, 7],
           ACTIVITY_THRESHOLD_PERCENTAGE: 0.12,
           MUSCLE_POINTS_PER_KCAL: 0.025,
@@ -302,35 +323,34 @@ export async function calculatePersonalizedStrain(
   };
 
   // Calculate max HR if not provided
-  let maxHR = userParams?.maxHeartRate;
-  if (!maxHR && userParams?.age) {
+  let maxHR = userProfile.maxHeartRate;
+  if (!maxHR && userProfile.age) {
     // Use configurable formula for max HR calculation
-    const formula = userParams?.maxHrFormula || "tanaka";
+    const formula = userProfile.maxHrFormula;
 
     if (formula === "tanaka") {
       // Tanaka formula: 208 - (0.7 × age) - more accurate than 220-age
-      const coefficient = userParams?.maxHrAgeCoefficient || 0.7;
-      const constant = userParams?.maxHrConstant || 208;
-      maxHR = Math.round(constant - coefficient * userParams.age);
+      const coefficient = userProfile.maxHrAgeCoefficient;
+      const constant = userProfile.maxHrConstant;
+      maxHR = Math.round(constant - coefficient * userProfile.age);
     } else {
       // Classic formula: 220 - age
-      const coefficient = userParams?.maxHrAgeCoefficient || 1.0;
-      const constant = userParams?.maxHrConstant || 220;
-      maxHR = Math.round(constant - coefficient * userParams.age);
+      const coefficient = userProfile.maxHrAgeCoefficient;
+      const constant = userProfile.maxHrConstant;
+      maxHR = Math.round(constant - coefficient * userProfile.age);
     }
   }
 
-  const fitnessDefaults = getFitnessDefaults(
-    userParams?.fitnessLevel || "intermediate"
-  );
+  const fitnessDefaults = getFitnessDefaults(userProfile.fitnessLevel);
 
-  const strainDefaults: StrainCalculationDefaults = {
-    RESTING_HEART_RATE: userParams?.restingHeartRate,
+  const strainDefaults: SystemDefaults = {
+    ...defaults, // Use all existing defaults
+    RESTING_HEART_RATE: userProfile.restingHeartRate,
     MAX_HEART_RATE: maxHR,
     ...fitnessDefaults,
   };
 
-  return calculateDayStrain(date, strainDefaults, userParams);
+  return calculateDayStrain(date, strainDefaults, userProfile);
 }
 
 /**
@@ -339,7 +359,8 @@ export async function calculatePersonalizedStrain(
  */
 export async function getStrainMetrics(
   date: Date,
-  userParams?: UserParams
+  defaults: SystemDefaults,
+  userProfile: UserProfile
 ): Promise<{
   strainScore: number;
   category: string;
@@ -350,7 +371,7 @@ export async function getStrainMetrics(
     totalLoad: number;
   };
 }> {
-  const strainScore = await calculatePersonalizedStrain(date, userParams);
+  const strainScore = await calculatePersonalizedStrain(date, defaults, userProfile);
 
   // Categorize strain level
   let category: string;

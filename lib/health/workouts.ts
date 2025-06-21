@@ -12,7 +12,6 @@ import {
 import { WorkoutData } from "../workouts/config";
 import { ActivitySample, WorkoutStats } from "./types";
 import {
-  getCurrentDateRanges,
   getDateRanges,
   getDurationMinutes,
 } from "./utils";
@@ -68,20 +67,13 @@ export interface ProcessedWorkoutData {
  * - Raw workout samples (last 30 days for workouts screen)
  */
 export const fetchWorkoutStats = async (
-  targetDate?: Date
+  targetDate: Date
 ): Promise<WorkoutStats> => {
   try {
     // Get date ranges for the target date
-    let startDate: Date, endDate: Date;
-    if (targetDate) {
-      const ranges = getDateRanges(targetDate);
-      startDate = ranges.startOfTargetDay;
-      endDate = ranges.endOfTargetDay;
-    } else {
-      const ranges = getCurrentDateRanges();
-      startDate = ranges.startOfToday;
-      endDate = ranges.now;
-    }
+    const ranges = getDateRanges(targetDate);
+    const startDate = ranges.startOfTargetDay;
+    const endDate = ranges.endOfTargetDay;
 
     // Get active calories for the target date (Move ring)
     const caloriesSamples: readonly QuantitySample[] = await queryQuantitySamples(

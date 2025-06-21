@@ -56,7 +56,9 @@ export function StressMonitorCard({
       <View style={styles.header}>
         <View>
           <ThemedText size="md">{i18n.t("stressMonitor.title")}</ThemedText>
-          <ThemedText size="xs" type="secondary">Last 24 Hours</ThemedText>
+          <ThemedText size="xs" type="secondary">
+            Last 24 Hours
+          </ThemedText>
         </View>
         <IconSymbol name="chevron.right" size={16} color={iconColorSecondary} />
       </View>
@@ -121,10 +123,6 @@ function StressVisualization({
   const minX = Math.min(...xValues);
   const maxX = Math.max(...xValues);
   const xDomain: [number, number] = [minX, maxX];
-
-  console.log("🔍 Chart Debug - Data points:", chartData.length);
-  console.log("🔍 Chart Debug - X domain:", xDomain);
-  console.log("🔍 Chart Debug - First few data points:", chartData.slice(0, 3));
 
   return (
     <View style={styles.chartVisualizationContainer}>
