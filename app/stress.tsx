@@ -175,7 +175,7 @@ export default function StressScreen() {
         </View>
 
         {/* Sleep Quality Section */}
-        {data.sleep.lastNight && (
+        {data.sleep && (
           <Card>
             <View style={styles.sectionHeader}>
               <ThemedText type="subtitle" size="lg">
@@ -189,7 +189,7 @@ export default function StressScreen() {
                   {i18n.t("sleepChart.totalSleep")}
                 </ThemedText>
                 <ThemedText type="defaultSemiBold" size="md">
-                  {data.sleep.lastNight.totalSleepTime}
+                  {data.sleep.totalSleepTime}
                 </ThemedText>
               </View>
               <View style={styles.sleepMetric}>
@@ -205,12 +205,12 @@ export default function StressScreen() {
                   {i18n.t("sleepChart.performance")}
                 </ThemedText>
                 <ThemedText type="defaultSemiBold" size="md">
-                  {data.sleep.sleepPerformance}%
+                  {data.sleep.overallPerformance}%
                 </ThemedText>
               </View>
             </View>
 
-            <LastNightSleepDetails lastNight={data.sleep.lastNight} />
+            <LastNightSleepDetails lastNight={data.sleep} />
           </Card>
         )}
       </>

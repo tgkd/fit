@@ -23,15 +23,15 @@ export default function SleepScreen() {
 
       <Card style={styles.chartCard}>
         <SleepPerformanceChart
-          percentage={data.sleep.sleepPerformance}
+          percentage={data.sleep.overallPerformance}
           size={220}
         />
       </Card>
       <Card>
-        <SleepMetricsList metrics={data.sleep.metrics} />
+        <SleepMetricsList metrics={data.sleep} />
       </Card>
       <Card>
-        <LastNightSleepDetails lastNight={data.sleep.lastNight} />
+        <LastNightSleepDetails sleep={data.sleep} />
       </Card>
     </ThemedScrollView>
   );

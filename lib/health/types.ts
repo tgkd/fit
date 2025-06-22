@@ -34,76 +34,42 @@ export interface WorkoutStats {
   workouts: readonly WorkoutSample[];
 }
 
-export interface SleepMetrics {
-  hoursVsNeeded: number;
-  sleepConsistency: number;
-  sleepEfficiency: number;
-  sleepStress: number; // Sleep quality score (0-100, higher = better restfulness)
-}
-
-export interface SleepNeed {
-  baselineHours: number;
-  strainHours: number;
-  sleepDebtHours: number;
-  napHours: number;
-  totalNeedHours: number;
-}
-
-export interface SleepCluster {
-  start: Date;
-  end: Date;
-  asleepMs: number;
-  timeInBedMs: number;
-  isMainSleep: boolean;
-}
-
-export interface SleepPerformanceMetrics {
-  hoursVsNeeded: number; // Percentage of sleep vs needed (0–100)
-  sleepConsistency: number; // Consistency score (0–100)
-  sleepEfficiency: number; // Sleep efficiency percentage (0–100)
-  sleepStress: number; // Sleep quality score (0–100, higher = better restfulness)
-  overallScore: number; // Overall sleep performance (0–100)
-  sleepNeed: SleepNeed;
-  mainCluster: SleepCluster;
-}
-
-export interface SleepStage {
-  type: "awake" | "light" | "deep" | "rem";
+export interface SleepStageData {
+  name: string;
   duration: number; // in minutes
   percentage: number;
   color: string;
 }
 
-export interface LastNightSleep {
-  totalSleepTime: string; // "7:12"
-  averageSleepTime: string; // "7:23"
-  timeInBed: string; // "7:54"
-  stages: {
-    awake: { percentage: number; duration: number; color: string };
-    light: { percentage: number; duration: number; color: string };
-    deep: { percentage: number; duration: number; color: string };
-    rem: { percentage: number; duration: number; color: string };
-  };
-  restorativeSleep: {
-    duration: string; // "3:22"
-    averageDuration: string; // "3:26"
-  };
-}
-
-export interface SleepPerformanceData {
-  overallScore: number; // 89% like in the image
-  lastNight: LastNightSleep;
-  recommendation: string;
-}
-
-export interface SleepStats {
-  sleepHours: number;
-  sleepPerformance: number;
+export interface SleepAnalysis {
+  // Performance metrics (0-100 scores)
+  hoursVsNeeded: number;
   sleepConsistency: number;
   sleepEfficiency: number;
+  sleepStress: number; // Sleep quality score (0-100, higher = better restfulness)
+  overallPerformance: number; // Overall sleep performance score
+
+  // Sleep duration data
+  totalSleepTime: string; // "7:12" formatted
+  totalSleepHours: number; // 7.2 numeric value
+  timeInBed: string; // "7:54" formatted
+
+  // Sleep stage breakdown
+  stages: {
+    awake: SleepStageData;
+    light: SleepStageData;
+    deep: SleepStageData;
+    rem: SleepStageData;
+  };
+
+  // Restorative sleep (deep + REM)
+  restorativeSleep: {
+    duration: string; // "3:22" formatted
+    minutes: number; // 202 numeric value
+  };
+
+  // Historical data
   dailySleepDurations: { date: string; duration: number }[];
-  metrics: SleepMetrics;
-  lastNight: LastNightSleep;
 }
 
 export interface HeartStressStats {
@@ -182,7 +148,7 @@ export interface HealthData
   extends GeneralStats,
     WorkoutStats,
     HeartStressStats {
-  sleep: SleepStats;
+  sleep: SleepAnalysis;
   recoveryScore: number;
   strainScore: number;
   stressDetails: StressMetrics | null;
@@ -315,3 +281,31 @@ export interface UserProfile {
   waterIntakeAssumption: number; // percentage of target assumed when no data (e.g., 0.8)
   bmrGenderAdjustment: number; // BMR adjustment for gender (+5 for males, -161 for females)
 }
+
+export interface SleepNeed {
+  baselineHours: number;
+  strainHours: number;
+  sleepDebtHours: number;
+  napHours: number;
+  totalNeedHours: number;
+}
+
+export interface SleepCluster {
+  start: Date;
+  end: Date;
+  asleepMs: number;
+  timeInBedMs: number;
+  isMainSleep: boolean;
+}
+
+export interface SleepPerformanceMetrics {
+  hoursVsNeeded: number; // Percentage of sleep vs needed (0–100)
+  sleepConsistency: number; // Consistency score (0–100)
+  sleepEfficiency: number; // Sleep efficiency percentage (0–100)
+  sleepStress: number; // Sleep quality score (0–100, higher = better restfulness)
+  overallScore: number; // Overall sleep performance (0–100)
+  sleepNeed: SleepNeed;
+  mainCluster: SleepCluster;
+}
+
+

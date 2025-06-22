@@ -37,33 +37,26 @@ const defaultData: HealthData = {
   workouts: [],
 
   sleep: {
-    // SleepStats
-    sleepHours: 0,
-    sleepPerformance: 0,
+    // SleepAnalysis
+    hoursVsNeeded: 0,
     sleepConsistency: 0,
     sleepEfficiency: 0,
+    sleepStress: 0,
+    overallPerformance: 0,
+    totalSleepTime: "",
+    totalSleepHours: 0,
+    timeInBed: "",
+    stages: {
+      awake: { name: "Awake", percentage: 0, duration: 0, color: "#8B8B8B" },
+      light: { name: "Light", percentage: 0, duration: 0, color: "#7BA7D9" },
+      deep: { name: "SWS (Deep)", percentage: 0, duration: 0, color: "#D97BB6" },
+      rem: { name: "REM", percentage: 0, duration: 0, color: "#9B7AD9" },
+    },
+    restorativeSleep: {
+      duration: "",
+      minutes: 0,
+    },
     dailySleepDurations: [],
-    metrics: {
-      hoursVsNeeded: 0,
-      sleepConsistency: 0,
-      sleepEfficiency: 0,
-      sleepStress: 0,
-    },
-    lastNight: {
-      totalSleepTime: "",
-      averageSleepTime: "",
-      timeInBed: "",
-      stages: {
-        awake: { percentage: 0, duration: 0, color: "#8B8B8B" },
-        light: { percentage: 0, duration: 0, color: "#7BA7D9" },
-        deep: { percentage: 0, duration: 0, color: "#D97BB6" },
-        rem: { percentage: 0, duration: 0, color: "#9B7AD9" },
-      },
-      restorativeSleep: {
-        duration: "",
-        averageDuration: "",
-      },
-    },
   },
 
   // HeartStressStats
@@ -329,35 +322,28 @@ function generateFakeHealthData(): HealthData {
     workouts: [],
 
     sleep: {
-      sleepHours: 7.5,
-      sleepPerformance: 94,
+      hoursVsNeeded: 81,
       sleepConsistency: 85,
       sleepEfficiency: 92,
+      sleepStress: 15,
+      overallPerformance: 94,
+      totalSleepTime: "7:12",
+      totalSleepHours: 7.5,
+      timeInBed: "7:54",
+      stages: {
+        awake: { name: "Awake", percentage: 8, duration: 42, color: "#8B8B8B" },
+        light: { name: "Light", percentage: 50, duration: 230, color: "#7BA7D9" },
+        deep: { name: "SWS (Deep)", percentage: 25, duration: 121, color: "#D97BB6" },
+        rem: { name: "REM", percentage: 17, duration: 81, color: "#9B7AD9" },
+      },
+      restorativeSleep: {
+        duration: "3:22",
+        minutes: 202,
+      },
       dailySleepDurations: [
         { date: "2025-01-14", duration: 7.5 },
         { date: "2025-01-13", duration: 8.0 },
       ],
-      lastNight: {
-        totalSleepTime: "7:12",
-        averageSleepTime: "7:23",
-        timeInBed: "7:54",
-        stages: {
-          awake: { percentage: 8, duration: 42, color: "#8B8B8B" },
-          light: { percentage: 50, duration: 230, color: "#7BA7D9" },
-          deep: { percentage: 25, duration: 121, color: "#D97BB6" },
-          rem: { percentage: 17, duration: 81, color: "#9B7AD9" },
-        },
-        restorativeSleep: {
-          duration: "3:22",
-          averageDuration: "3:26",
-        },
-      },
-      metrics: {
-        hoursVsNeeded: 81,
-        sleepConsistency: 90,
-        sleepEfficiency: 92,
-        sleepStress: 15, // Inverted stress percentage
-      },
     },
 
     // HeartStressStats

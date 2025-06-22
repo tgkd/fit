@@ -9,14 +9,14 @@ import {
 } from "@kingstinct/react-native-healthkit/lib/commonjs/index.ios.js";
 
 import { Colors } from "@/constants/Colors";
+import { formatDuration } from "@/lib/formatters";
 import {
-  LastNightSleep,
+  SleepAnalysis,
   SleepAverages,
   SleepCluster,
-  SleepMetrics,
   SleepNeed,
   SleepPerformanceMetrics,
-  SleepStats,
+  SleepStageData,
 } from "./types";
 import {
   calculateAverage,
@@ -27,7 +27,13 @@ import {
 } from "./utils";
 
 // Export types for external use
-export type { SleepCluster, SleepNeed, SleepPerformanceMetrics };
+export type {
+  SleepAnalysis,
+  SleepCluster,
+  SleepNeed,
+  SleepPerformanceMetrics,
+  SleepStageData
+};
 
 export const SLEEP_PERFORMANCE_GOAL_HOURS = 8;
 export const SLEEP_CONSISTENCY_MAX_STD_DEV_HOURS = 2.5;
@@ -42,56 +48,87 @@ export const ACTUAL_SLEEP_VALUES = [
 /**
  * Fetch comprehensive sleep statistics for a specific date
  * Enhanced version that uses the new sleep performance calculation
+ *
+ * @param targetDate - The date to calculate sleep statistics for.
+ *                     Sleep data will be retrieved for the night ending on this date.
+ *                     For example, if targetDate is June 22, 2025, it will get
+ *                     sleep data from the night of June 21-22, 2025.
  */
-export const fetchSleepStats = async (
+export const fetchSleepAnalysis = async (
   targetDate: Date
-): Promise<SleepStats> => {
+): Promise<SleepAnalysis> => {
   const sleepSamples = await queryCategorySamples(
     "HKCategoryTypeIdentifierSleepAnalysis"
   );
 
-  const { totalSleep, dailySleepDurations } = processSleepData(sleepSamples);
-  const sleepEfficiency = calculateSleepEfficiency(sleepSamples);
-  const sleepConsistency = calculateSleepConsistency(sleepSamples);
+  const { totalSleep, dailySleepDurations } = processSleepData(
+    sleepSamples,
+    targetDate
+  );
+  const sleepEfficiency = calculateSleepEfficiency(sleepSamples, targetDate);
+  const sleepConsistency = calculateSleepConsistency(sleepSamples, targetDate);
 
-  // Use enhanced calculation if available, otherwise fallback to basic calculation
-  let metrics: SleepMetrics;
-  let sleepPerformance: number;
+  // Use enhanced calculation for performance metrics
+  let performanceMetrics: SleepPerformanceMetrics;
 
   try {
-    const enhancedMetrics = await calculateEnhancedSleepPerformance();
-    if (enhancedMetrics) {
-      // Convert SleepPerformanceMetrics to SleepMetrics format
-      metrics = {
-        hoursVsNeeded: enhancedMetrics.hoursVsNeeded,
-        sleepConsistency: enhancedMetrics.sleepConsistency,
-        sleepEfficiency: enhancedMetrics.sleepEfficiency,
-        sleepStress: enhancedMetrics.sleepStress, // This is already a performance score (higher = better)
-      };
-      sleepPerformance = enhancedMetrics.overallScore;
-    } else {
-      throw new Error("Enhanced metrics unavailable");
-    }
+    performanceMetrics = await calculateEnhancedSleepPerformance(targetDate);
   } catch {
-    // Fallback to basic calculation
-    metrics = calculateSleepMetrics(sleepSamples, totalSleep);
-    sleepPerformance = calculateSleepPerformance(
+    // Fallback to basic calculations
+    const basicMetrics = calculateSleepMetrics(
+      sleepSamples,
+      totalSleep,
+      targetDate
+    );
+    const sleepPerformance = calculateSleepPerformance(
       totalSleep,
       sleepEfficiency,
       sleepConsistency
     );
+
+    // Create fallback performance metrics
+    performanceMetrics = {
+      hoursVsNeeded: basicMetrics.hoursVsNeeded,
+      sleepConsistency: basicMetrics.sleepConsistency,
+      sleepEfficiency: basicMetrics.sleepEfficiency,
+      sleepStress: basicMetrics.sleepStress,
+      overallScore: sleepPerformance,
+      sleepNeed: calculateSleepNeed(),
+      mainCluster: {
+        start: new Date(),
+        end: new Date(),
+        asleepMs: totalSleep * 60 * 60 * 1000,
+        timeInBedMs: totalSleep * 60 * 60 * 1000,
+        isMainSleep: true,
+      },
+    };
   }
 
-  const lastNight = calculateLastNightSleep(sleepSamples);
+  // Get stage analysis
+  const stageAnalysis = calculateSleepStageAnalysis(sleepSamples, targetDate);
 
+  // Convert to unified SleepAnalysis format
   return {
-    sleepHours: roundTo(totalSleep, 1),
-    sleepPerformance,
-    sleepConsistency: metrics.sleepConsistency,
-    sleepEfficiency: metrics.sleepEfficiency,
+    ...performanceMetrics,
+    overallPerformance: performanceMetrics.overallScore,
+
+    // Sleep duration data
+    totalSleepTime: stageAnalysis.totalSleepTime,
+    totalSleepHours: totalSleep,
+    timeInBed: stageAnalysis.timeInBed,
+
+    // Sleep stage breakdown
+    stages: stageAnalysis.stages,
+
+    // Restorative sleep
+    restorativeSleep: {
+      duration: stageAnalysis.restorativeSleep.duration,
+      minutes:
+        stageAnalysis.stages.deep.duration + stageAnalysis.stages.rem.duration,
+    },
+
+    // Historical data
     dailySleepDurations,
-    metrics,
-    lastNight,
   };
 };
 
@@ -99,12 +136,14 @@ export const fetchSleepStats = async (
  * Calculate sleep efficiency ratio
  */
 export const calculateSleepEfficiency = (
-  sleepSamples: readonly CategorySampleTyped<"HKCategoryTypeIdentifierSleepAnalysis">[]
+  sleepSamples: readonly CategorySampleTyped<"HKCategoryTypeIdentifierSleepAnalysis">[],
+  targetDate: Date
 ): number => {
   const { totalInBedMs, totalAsleepMs } = sleepSamples.reduce(
     (acc, s) => {
       const durationMs =
         new Date(s.endDate).getTime() - new Date(s.startDate).getTime();
+
       if (s.value === CategoryValueSleepAnalysis.inBed) {
         acc.totalInBedMs += durationMs;
       } else if (ACTUAL_SLEEP_VALUES.includes(s.value)) {
@@ -115,8 +154,35 @@ export const calculateSleepEfficiency = (
     { totalInBedMs: 0, totalAsleepMs: 0 }
   );
 
-  if (totalInBedMs === 0) return 0;
-  const efficiency = (totalAsleepMs / totalInBedMs) * 100;
+  // If no explicit inBed samples exist, calculate time in bed using last night samples
+  let finalInBedMs = totalInBedMs;
+  if (totalInBedMs === 0) {
+    const targetDateSamples = getSleepSamplesForDate(sleepSamples, targetDate);
+
+    const totalAwakeMs = targetDateSamples
+      .filter((s) => s.value === CategoryValueSleepAnalysis.awake)
+      .reduce((acc, s) => {
+        const duration =
+          new Date(s.endDate).getTime() - new Date(s.startDate).getTime();
+        return acc + duration;
+      }, 0);
+
+    const totalSleepMs = targetDateSamples
+      .filter((s) => ACTUAL_SLEEP_VALUES.includes(s.value))
+      .reduce((acc, s) => {
+        const duration =
+          new Date(s.endDate).getTime() - new Date(s.startDate).getTime();
+        return acc + duration;
+      }, 0);
+
+    finalInBedMs = totalSleepMs + totalAwakeMs;
+  }
+
+  if (finalInBedMs === 0) {
+    return 0;
+  }
+
+  const efficiency = (totalAsleepMs / finalInBedMs) * 100;
   return roundTo(efficiency, 1);
 };
 
@@ -124,7 +190,8 @@ export const calculateSleepEfficiency = (
  * Calculate sleep consistency based on bedtime variance and sleep quality
  */
 export const calculateSleepConsistency = (
-  sleepSamples: readonly CategorySampleTyped<"HKCategoryTypeIdentifierSleepAnalysis">[]
+  sleepSamples: readonly CategorySampleTyped<"HKCategoryTypeIdentifierSleepAnalysis">[],
+  targetDate: Date
 ): number => {
   const bedTimes = sleepSamples
     .filter((s) => s.value === CategoryValueSleepAnalysis.inBed)
@@ -133,11 +200,11 @@ export const calculateSleepConsistency = (
   // If we don't have enough bedtime data, calculate based on sleep quality consistency
   if (bedTimes.length < 2) {
     // Use awake time percentage as a consistency indicator
-    const lastNightSamples = getLastNightSamples(sleepSamples);
+    const targetDateSamples = getSleepSamplesForDate(sleepSamples, targetDate);
 
-    if (lastNightSamples.length === 0) return 0;
+    if (targetDateSamples.length === 0) return 0;
 
-    const totalAwakeTime = lastNightSamples
+    const totalAwakeTime = targetDateSamples
       .filter((s) => s.value === CategoryValueSleepAnalysis.awake)
       .reduce((acc, s) => {
         const duration =
@@ -145,7 +212,7 @@ export const calculateSleepConsistency = (
         return acc + duration;
       }, 0);
 
-    const totalSleepTime = lastNightSamples
+    const totalSleepTime = targetDateSamples
       .filter((s) => ACTUAL_SLEEP_VALUES.includes(s.value))
       .reduce((acc, s) => {
         const duration =
@@ -185,7 +252,8 @@ export const calculateSleepConsistency = (
  * Process sleep data for analysis
  */
 export const processSleepData = (
-  sleepSamples: readonly CategorySampleTyped<"HKCategoryTypeIdentifierSleepAnalysis">[]
+  sleepSamples: readonly CategorySampleTyped<"HKCategoryTypeIdentifierSleepAnalysis">[],
+  targetDate: Date
 ) => {
   const sleepByDate: { [key: string]: number } = {};
 
@@ -207,41 +275,42 @@ export const processSleepData = (
     })
   );
 
-  const lastSleepDay = dailySleepDurations.sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-  )[0];
-  const totalSleep = lastSleepDay ? lastSleepDay.duration : 0;
+  // Get sleep for the target date
+  // For target date, we want sleep that occurred the night before
+  // So we look for sleep samples that ended on the target date morning
+  const targetDateString = targetDate.toISOString().split("T")[0];
+  const targetSleep = dailySleepDurations.find(
+    (d) => d.date === targetDateString
+  );
+  const totalSleep = targetSleep ? targetSleep.duration : 0;
 
   return { totalSleep, dailySleepDurations };
 };
 
 /**
- * Format duration in HH:MM format
- */
-const formatDuration = (minutes: number): string => {
-  const hours = Math.floor(minutes / 60);
-  const mins = Math.round(minutes % 60);
-  return `${hours}:${mins.toString().padStart(2, "0")}`;
-};
-
-/**
- * Calculate comprehensive sleep metrics
+ * Calculate basic sleep performance metrics for fallback
  */
 export const calculateSleepMetrics = (
   sleepSamples: readonly CategorySampleTyped<"HKCategoryTypeIdentifierSleepAnalysis">[],
-  totalSleep: number
-): SleepMetrics => {
+  totalSleep: number,
+  targetDate: Date
+): {
+  hoursVsNeeded: number;
+  sleepConsistency: number;
+  sleepEfficiency: number;
+  sleepStress: number;
+} => {
   const hoursVsNeeded = Math.min(
     100,
     (totalSleep / SLEEP_PERFORMANCE_GOAL_HOURS) * 100
   );
 
-  const sleepConsistency = calculateSleepConsistency(sleepSamples);
-  const sleepEfficiency = calculateSleepEfficiency(sleepSamples);
+  const sleepConsistency = calculateSleepConsistency(sleepSamples, targetDate);
+  const sleepEfficiency = calculateSleepEfficiency(sleepSamples, targetDate);
 
-  const lastNightSamples = getLastNightSamples(sleepSamples);
+  const targetDateSamples = getSleepSamplesForDate(sleepSamples, targetDate);
 
-  const totalAwakeTime = lastNightSamples
+  const totalAwakeTime = targetDateSamples
     .filter((s) => s.value === CategoryValueSleepAnalysis.awake)
     .reduce((acc, s) => {
       const duration =
@@ -249,7 +318,7 @@ export const calculateSleepMetrics = (
       return acc + duration;
     }, 0);
 
-  const totalSleepTime = lastNightSamples
+  const totalSleepTime = targetDateSamples
     .filter((s) => ACTUAL_SLEEP_VALUES.includes(s.value))
     .reduce((acc, s) => {
       const duration =
@@ -281,16 +350,21 @@ export const calculateSleepMetrics = (
 };
 
 /**
- * Get sleep samples from last night
+ * Get sleep samples for a specific target date
+ * Uses noon-to-noon window to capture overnight sleep ending on the target date
  */
-const getLastNightSamples = (
-  sleepSamples: readonly CategorySampleTyped<"HKCategoryTypeIdentifierSleepAnalysis">[]
+const getSleepSamplesForDate = (
+  sleepSamples: readonly CategorySampleTyped<"HKCategoryTypeIdentifierSleepAnalysis">[],
+  targetDate: Date
 ): CategorySampleTyped<"HKCategoryTypeIdentifierSleepAnalysis">[] => {
-  // Original noon-to-noon approach
-  const yesterdayNoon = new Date();
+  const referenceDate = targetDate;
+
+  // Calculate noon-to-noon window relative to target date
+  const yesterdayNoon = new Date(referenceDate);
   yesterdayNoon.setHours(12, 0, 0, 0);
   yesterdayNoon.setDate(yesterdayNoon.getDate() - 1);
-  const todayNoon = new Date();
+
+  const todayNoon = new Date(referenceDate);
   todayNoon.setHours(12, 0, 0, 0);
 
   let filteredSamples = sleepSamples.filter((sample) => {
@@ -300,14 +374,14 @@ const getLastNightSamples = (
 
   // If no samples found with noon-to-noon, try a broader approach
   if (filteredSamples.length === 0) {
-    // Try to find the most recent sleep session by looking at the last 48 hours
-    const fortyEightHoursAgo = new Date();
+    // Try to find the most recent sleep session by looking at the 48 hours before target date
+    const fortyEightHoursAgo = new Date(referenceDate);
     fortyEightHoursAgo.setHours(fortyEightHoursAgo.getHours() - 48);
 
     // Get all recent samples
     const recentSamples = sleepSamples.filter((sample) => {
       const startDate = new Date(sample.startDate);
-      return startDate >= fortyEightHoursAgo;
+      return startDate >= fortyEightHoursAgo && startDate < referenceDate;
     });
 
     // Group samples by sleep session (samples close together in time)
@@ -354,6 +428,7 @@ const getLastNightSamples = (
       }, 0);
       return totalDuration > 30 * 60 * 1000; // More than 30 minutes
     });
+
     if (substantialSessions.length > 0) {
       // Use the most recent substantial session
       filteredSamples = substantialSessions[substantialSessions.length - 1];
@@ -367,12 +442,44 @@ const getLastNightSamples = (
 };
 
 /**
- * Calculate detailed sleep stage analysis
+ * Calculate detailed sleep stage analysis for a specific date
  */
-export const calculateLastNightSleep = (
-  sleepSamples: readonly CategorySampleTyped<"HKCategoryTypeIdentifierSleepAnalysis">[]
-): LastNightSleep => {
-  const lastNightSamples = getLastNightSamples(sleepSamples);
+export const calculateSleepStageAnalysis = (
+  sleepSamples: readonly CategorySampleTyped<"HKCategoryTypeIdentifierSleepAnalysis">[],
+  targetDate: Date
+): {
+  totalSleepTime: string;
+  timeInBed: string;
+  stages: {
+    awake: {
+      name: string;
+      percentage: number;
+      duration: number;
+      color: string;
+    };
+    light: {
+      name: string;
+      percentage: number;
+      duration: number;
+      color: string;
+    };
+    deep: { name: string; percentage: number; duration: number; color: string };
+    rem: { name: string; percentage: number; duration: number; color: string };
+  };
+  restorativeSleep: {
+    duration: string;
+  };
+} => {
+  const targetDateSamples = getSleepSamplesForDate(sleepSamples, targetDate);
+
+  console.log(
+    "Target date samples:",
+    targetDateSamples.map((s) => ({
+      value: s.value,
+      startDate: s.startDate,
+      endDate: s.endDate,
+    }))
+  );
 
   const stageDurations = {
     awake: 0,
@@ -384,7 +491,7 @@ export const calculateLastNightSleep = (
   let totalSleepTime = 0;
   let totalTimeInBed = 0;
 
-  lastNightSamples.forEach((sample) => {
+  targetDateSamples.forEach((sample) => {
     const duration =
       (new Date(sample.endDate).getTime() -
         new Date(sample.startDate).getTime()) /
@@ -418,7 +525,7 @@ export const calculateLastNightSleep = (
   const stages = {
     awake: {
       name: "Awake",
-      duration: stageDurations.awake,
+      duration: Math.round(stageDurations.awake),
       percentage:
         totalTime > 0
           ? roundTo((stageDurations.awake / totalTime) * 100, 0)
@@ -427,7 +534,7 @@ export const calculateLastNightSleep = (
     },
     light: {
       name: "Light",
-      duration: stageDurations.light,
+      duration: Math.round(stageDurations.light),
       percentage:
         totalTime > 0
           ? roundTo((stageDurations.light / totalTime) * 100, 0)
@@ -436,14 +543,14 @@ export const calculateLastNightSleep = (
     },
     deep: {
       name: "SWS (Deep)",
-      duration: stageDurations.deep,
+      duration: Math.round(stageDurations.deep),
       percentage:
         totalTime > 0 ? roundTo((stageDurations.deep / totalTime) * 100, 0) : 0,
       color: Colors.sleep.deep,
     },
     rem: {
       name: "REM",
-      duration: stageDurations.rem,
+      duration: Math.round(stageDurations.rem),
       percentage:
         totalTime > 0 ? roundTo((stageDurations.rem / totalTime) * 100, 0) : 0,
       color: Colors.sleep.rem,
@@ -453,13 +560,13 @@ export const calculateLastNightSleep = (
   const restorativeSleepMinutes = stageDurations.deep + stageDurations.rem;
 
   return {
-    totalSleepTime: formatDuration(totalSleepTime),
-    averageSleepTime: formatDuration(totalSleepTime),
-    timeInBed: formatDuration(totalTimeInBed > 0 ? totalTimeInBed : totalTime),
+    totalSleepTime: formatDuration(Math.round(totalSleepTime)),
+    timeInBed: formatDuration(
+      Math.round(totalTimeInBed > 0 ? totalTimeInBed : totalTime)
+    ),
     stages,
     restorativeSleep: {
-      duration: formatDuration(restorativeSleepMinutes),
-      averageDuration: formatDuration(restorativeSleepMinutes),
+      duration: formatDuration(Math.round(restorativeSleepMinutes)),
     },
   };
 };
@@ -596,6 +703,12 @@ export const createSleepClusters = (
     );
     longestCluster.isMainSleep = true;
   }
+
+  clusters.forEach((cluster) => {
+    if (cluster.timeInBedMs === 0) {
+      cluster.timeInBedMs = cluster.end.getTime() - cluster.start.getTime();
+    }
+  });
 
   return clusters;
 };
@@ -780,6 +893,7 @@ const calculateBasicSleepStress = (sleepCluster: SleepCluster): number => {
  * Calculate comprehensive enhanced sleep performance metrics
  */
 export const calculateEnhancedSleepPerformance = async (
+  targetDate: Date,
   sleepNeed?: SleepNeed
 ): Promise<SleepPerformanceMetrics> => {
   // Fetch sleep data for consistency analysis
@@ -816,7 +930,7 @@ export const calculateEnhancedSleepPerformance = async (
 
   // 2. Sleep Consistency
   // Use the improved calculateSleepConsistency with fallback logic
-  const sleepConsistency = calculateSleepConsistency(sleepSamples);
+  const sleepConsistency = calculateSleepConsistency(sleepSamples, targetDate);
 
   // 3. Sleep Efficiency
   const sleepEfficiency =
@@ -848,6 +962,7 @@ export const calculateEnhancedSleepPerformance = async (
  * This is the main function that should be used for comprehensive sleep analysis
  */
 export const calculatePersonalizedSleepPerformance = async (
+  targetDate: Date,
   baselineHours: number = 8.0,
   strainHours: number = 0.0,
   sleepDebtHours: number = 0.0,
@@ -859,19 +974,22 @@ export const calculatePersonalizedSleepPerformance = async (
     sleepDebtHours,
     napHours
   );
-  return calculateEnhancedSleepPerformance(sleepNeed);
+  return calculateEnhancedSleepPerformance(targetDate, sleepNeed);
 };
 
 /**
  * Convenience function for getting enhanced sleep metrics with user preferences
  * This can be called from React components that need detailed sleep analysis
  */
-export const getSleepMetrics = async (options?: {
-  baselineHours?: number;
-  strainHours?: number;
-  sleepDebtHours?: number;
-  napHours?: number;
-}): Promise<SleepPerformanceMetrics> => {
+export const getSleepMetrics = async (
+  targetDate: Date,
+  options?: {
+    baselineHours?: number;
+    strainHours?: number;
+    sleepDebtHours?: number;
+    napHours?: number;
+  }
+): Promise<SleepPerformanceMetrics> => {
   const {
     baselineHours = 8.0,
     strainHours = 0.0,
@@ -880,6 +998,7 @@ export const getSleepMetrics = async (options?: {
   } = options || {};
 
   return calculatePersonalizedSleepPerformance(
+    targetDate,
     baselineHours,
     strainHours,
     sleepDebtHours,
@@ -935,9 +1054,15 @@ export const fetchSleepAverages = async (
   );
 
   const calculate14DayAverages = () => {
-    const { dailySleepDurations } = processSleepData(sleepSamples14);
-    const efficiency = calculateSleepEfficiency(sleepSamples14);
-    const consistency = calculateSleepConsistency(sleepSamples14);
+    // Use the midpoint of the 14-day period as reference
+    const midDate = new Date(
+      range14Days.from.getTime() +
+        (range14Days.to.getTime() - range14Days.from.getTime()) / 2
+    );
+
+    const { dailySleepDurations } = processSleepData(sleepSamples14, midDate);
+    const efficiency = calculateSleepEfficiency(sleepSamples14, midDate);
+    const consistency = calculateSleepConsistency(sleepSamples14, midDate);
 
     const durations = dailySleepDurations.map((d) => d.duration);
     const avgDuration = calculateAverage(durations);
@@ -951,9 +1076,13 @@ export const fetchSleepAverages = async (
   };
 
   const calculate30DayAverages = () => {
-    const { dailySleepDurations } = processSleepData(sleepSamples30);
-    const efficiency = calculateSleepEfficiency(sleepSamples30);
-    const consistency = calculateSleepConsistency(sleepSamples30);
+    // Use target date as reference for 30-day period
+    const { dailySleepDurations } = processSleepData(
+      sleepSamples30,
+      targetDate
+    );
+    const efficiency = calculateSleepEfficiency(sleepSamples30, targetDate);
+    const consistency = calculateSleepConsistency(sleepSamples30, targetDate);
 
     const durations = dailySleepDurations.map((d) => d.duration);
     const avgDuration = calculateAverage(durations);

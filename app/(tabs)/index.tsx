@@ -31,7 +31,7 @@ function ScreenContent({ data }: { data: HealthData }) {
       <Card style={styles.circularChartsContainer}>
         <Pressable onPress={() => router.push("/sleep")}>
           <CircularProgressChart
-            value={data.sleep.sleepPerformance}
+            value={data.sleep.overallPerformance}
             color={Colors.charts.sleep}
             backgroundColor={Colors.charts.chartBackground}
             label={i18n.t("home.sleep").toUpperCase()}

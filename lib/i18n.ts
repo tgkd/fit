@@ -69,6 +69,7 @@ const translations = {
         core: "Core",
         awake: "Awake",
       },
+      inBed: "In Bed",
       total: "Total Sleep",
       deep: "Deep Sleep",
       rem: "REM Sleep",
@@ -116,7 +117,8 @@ const translations = {
       healthDataSubtitle: "Manage your health data permissions in Health app",
       profile: {
         title: "User Profile",
-        subtitle: "Configure your personal information for accurate health calculations",
+        subtitle:
+          "Configure your personal information for accurate health calculations",
         age: "Age",
         weight: "Weight",
         height: "Height",

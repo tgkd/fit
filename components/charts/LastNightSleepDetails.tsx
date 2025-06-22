@@ -3,7 +3,7 @@ import { StyleSheet, View } from "react-native";
 
 import { Colors } from "@/constants/Colors";
 import { formatDurationHHMM } from "@/lib/formatters";
-import { LastNightSleep } from "@/lib/health/types";
+import { SleepAnalysis } from "@/lib/health/types";
 import i18n from "@/lib/i18n";
 import { ThemedText } from "../ThemedText";
 
@@ -63,69 +63,48 @@ function SleepStageRow({
 }
 
 interface LastNightSleepDetailsProps {
-  lastNight: LastNightSleep;
+  sleep: SleepAnalysis;
 }
 
-export function LastNightSleepDetails({
-  lastNight,
-}: LastNightSleepDetailsProps) {
+export function LastNightSleepDetails({ sleep }: LastNightSleepDetailsProps) {
   return (
     <View style={styles.container}>
       <View>
         <ThemedText type="subtitle" size="md">
           {i18n.t("sleep.lastNightsSleep")}
         </ThemedText>
-        <ThemedText type="secondary" size="sm">
-          {i18n.t("sleep.todayVsPrior30Days")}
-        </ThemedText>
-      </View>
 
-      <View>
-        <ThemedText type="secondary" size="xxs">
-          {i18n.t("sleep.hoursOfSleep")}
-        </ThemedText>
-        <View style={styles.sleepTimeRow}>
-          <ThemedText type="title" size="xxl">
-            {lastNight.totalSleepTime}
-          </ThemedText>
-          <ThemedText type="secondary" size="md">
-            {lastNight.averageSleepTime}
-          </ThemedText>
-        </View>
-      </View>
-
-      <View style={styles.rangeHeader}>
-        <ThemedText type="secondary" size="xs">
-          {i18n.t("sleep.typicalRange") + " TODO CALC"}
+        <ThemedText size="md">
+          {i18n.t("sleep.duration")} {sleep.totalSleepTime}
         </ThemedText>
         <ThemedText type="secondary" size="xxs">
-          {i18n.t("sleep.duration")} {lastNight.timeInBed}
+          {i18n.t("sleep.inBed")} {sleep.timeInBed}
         </ThemedText>
       </View>
 
       <SleepStageRow
         name={i18n.t("sleep.awake")}
-        percentage={lastNight.stages.awake.percentage}
-        duration={lastNight.stages.awake.duration}
-        color={lastNight.stages.awake.color}
+        percentage={sleep.stages.awake.percentage}
+        duration={sleep.stages.awake.duration}
+        color={sleep.stages.awake.color}
       />
       <SleepStageRow
         name={i18n.t("sleep.light")}
-        percentage={lastNight.stages.light.percentage}
-        duration={lastNight.stages.light.duration}
-        color={lastNight.stages.light.color}
+        percentage={sleep.stages.light.percentage}
+        duration={sleep.stages.light.duration}
+        color={sleep.stages.light.color}
       />
       <SleepStageRow
         name={i18n.t("sleep.deep")}
-        percentage={lastNight.stages.deep.percentage}
-        duration={lastNight.stages.deep.duration}
-        color={lastNight.stages.deep.color}
+        percentage={sleep.stages.deep.percentage}
+        duration={sleep.stages.deep.duration}
+        color={sleep.stages.deep.color}
       />
       <SleepStageRow
         name={i18n.t("sleep.rem")}
-        percentage={lastNight.stages.rem.percentage}
-        duration={lastNight.stages.rem.duration}
-        color={lastNight.stages.rem.color}
+        percentage={sleep.stages.rem.percentage}
+        duration={sleep.stages.rem.duration}
+        color={sleep.stages.rem.color}
       />
     </View>
   );

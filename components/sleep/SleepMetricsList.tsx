@@ -4,7 +4,7 @@ import { StyleSheet, View } from "react-native";
 import { Colors } from "@/constants/Colors";
 import { useThemeColor } from "@/hooks/useThemeColor";
 import { getPerformanceColor } from "@/lib/health/sleep";
-import { SleepMetrics } from "@/lib/health/types";
+import { SleepAnalysis } from "@/lib/health/types";
 import i18n from "@/lib/i18n";
 import { ThemedText } from "../ThemedText";
 
@@ -51,7 +51,7 @@ function MetricRow({ icon, label, percentage }: MetricRowProps) {
 }
 
 interface SleepMetricsListProps {
-  metrics: SleepMetrics;
+  metrics: SleepAnalysis;
 }
 
 export function SleepMetricsList({ metrics }: SleepMetricsListProps) {

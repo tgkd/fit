@@ -1,23 +1,23 @@
 import { DEFAULT_USER_PROFILE } from "@/lib/storage/healthSettings";
 import { fetchGeneralStats } from "./generalStats";
 import {
-  calculateStressMetrics,
-  fetchHeartStressStats,
-  fetchStressAverages,
-  prepareStressChartDisplayData,
+    calculateStressMetrics,
+    fetchHeartStressStats,
+    fetchStressAverages,
+    prepareStressChartDisplayData,
 } from "./heartAndStress";
 import { calculatePersonalizedRecovery, getRecoveryMetrics } from "./recovery";
-import { fetchSleepAverages, fetchSleepStats } from "./sleep";
+import { fetchSleepAnalysis, fetchSleepAverages } from "./sleep";
 import {
-  calculateDayStrain,
-  calculatePersonalizedStrain,
-  getStrainMetrics,
+    calculateDayStrain,
+    calculatePersonalizedStrain,
+    getStrainMetrics,
 } from "./strain";
 import {
-  HealthData,
-  StressChartDisplayData,
-  SystemDefaults,
-  UserProfile,
+    HealthData,
+    StressChartDisplayData,
+    SystemDefaults,
+    UserProfile,
 } from "./types";
 import { fetchWorkoutStats } from "./workouts";
 
@@ -33,7 +33,7 @@ export const getAllHealthStats = async (
 
     const healthDataResults = await Promise.allSettled([
       fetchWorkoutStats(date),
-      fetchSleepStats(date),
+      fetchSleepAnalysis(date),
       fetchHeartStressStats(defaults, date),
       fetchSleepAverages(date),
       fetchStressAverages(defaults, date),
