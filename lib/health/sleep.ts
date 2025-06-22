@@ -8,6 +8,8 @@ import {
   queryQuantitySamples,
 } from "@kingstinct/react-native-healthkit/lib/commonjs/index.ios.js";
 
+import { differenceInMilliseconds, format } from "date-fns";
+
 import { Colors } from "@/constants/Colors";
 import { formatDuration } from "@/lib/formatters";
 import {
@@ -37,6 +39,7 @@ export type {
 
 export const SLEEP_PERFORMANCE_GOAL_HOURS = 8;
 export const SLEEP_CONSISTENCY_MAX_STD_DEV_HOURS = 2.5;
+const QUERY_LIMIT = 100;
 
 export const ACTUAL_SLEEP_VALUES = [
   CategoryValueSleepAnalysis.asleepUnspecified,
@@ -44,7 +47,6 @@ export const ACTUAL_SLEEP_VALUES = [
   CategoryValueSleepAnalysis.asleepCore,
   CategoryValueSleepAnalysis.asleepREM,
 ];
-
 /**
  * Fetch comprehensive sleep statistics for a specific date
  * Enhanced version that uses the new sleep performance calculation
@@ -57,8 +59,38 @@ export const ACTUAL_SLEEP_VALUES = [
 export const fetchSleepAnalysis = async (
   targetDate: Date
 ): Promise<SleepAnalysis> => {
+  console.log("\n=== Debug fetchSleepAnalysis ===");
+  console.log("Querying sleep samples from HealthKit...");
+
+  try {
+    const sleepSamples: CategorySampleTyped<"HKCategoryTypeIdentifierSleepAnalysis">[] =
+      await queryCategorySamples("HKCategoryTypeIdentifierSleepAnalysis", {
+        limit: QUERY_LIMIT,
+      });
+
+    console.log(`Raw query result: ${sleepSamples?.length || 0} samples`);
+
+    if (sleepSamples && sleepSamples.length > 0) {
+      console.log("First sample:", {
+        startDate: sleepSamples[0].startDate,
+        endDate: sleepSamples[0].endDate,
+        value: sleepSamples[0].value,
+      });
+      console.log("Last sample:", {
+        startDate: sleepSamples[sleepSamples.length - 1].startDate,
+        endDate: sleepSamples[sleepSamples.length - 1].endDate,
+        value: sleepSamples[sleepSamples.length - 1].value,
+      });
+    }
+  } catch (error) {
+    console.error("Error querying sleep samples:", error);
+    throw error;
+  }
+
   const sleepSamples: CategorySampleTyped<"HKCategoryTypeIdentifierSleepAnalysis">[] =
-    await queryCategorySamples("HKCategoryTypeIdentifierSleepAnalysis");
+    await queryCategorySamples("HKCategoryTypeIdentifierSleepAnalysis", {
+      limit: QUERY_LIMIT,
+    });
 
   const { totalSleep, dailySleepDurations } = processSleepData(
     sleepSamples,
@@ -133,31 +165,35 @@ export const fetchSleepAnalysis = async (
 
 /**
  * Calculate sleep efficiency ratio
+ * Sleep efficiency = (Total Sleep Time / Time in Bed) × 100
  */
 export const calculateSleepEfficiency = (
   sleepSamples: readonly CategorySampleTyped<"HKCategoryTypeIdentifierSleepAnalysis">[],
   targetDate: Date
 ): number => {
-  const { totalInBedMs, totalAsleepMs } = sleepSamples.reduce(
-    (acc, s) => {
-      const durationMs =
-        new Date(s.endDate).getTime() - new Date(s.startDate).getTime();
+  const targetDateSamples = getSleepSamplesForDate(sleepSamples, targetDate);
 
-      if (s.value === CategoryValueSleepAnalysis.inBed) {
-        acc.totalInBedMs += durationMs;
-      } else if (ACTUAL_SLEEP_VALUES.includes(s.value)) {
-        acc.totalAsleepMs += durationMs;
-      }
-      return acc;
-    },
-    { totalInBedMs: 0, totalAsleepMs: 0 }
-  );
+  if (targetDateSamples.length === 0) {
+    return 0;
+  }
 
-  // If no explicit inBed samples exist, calculate time in bed using last night samples
-  let finalInBedMs = totalInBedMs;
-  if (totalInBedMs === 0) {
-    const targetDateSamples = getSleepSamplesForDate(sleepSamples, targetDate);
+  let totalTimeInBedMs = 0;
+  let totalAsleepMs = 0;
 
+  // Calculate time in bed and total sleep time
+  targetDateSamples.forEach((sample) => {
+    const durationMs =
+      new Date(sample.endDate).getTime() - new Date(sample.startDate).getTime();
+
+    if (sample.value === CategoryValueSleepAnalysis.inBed) {
+      totalTimeInBedMs += durationMs;
+    } else if (ACTUAL_SLEEP_VALUES.includes(sample.value)) {
+      totalAsleepMs += durationMs;
+    }
+  });
+
+  // If no explicit inBed samples, calculate from sleep + awake time
+  if (totalTimeInBedMs === 0) {
     const totalAwakeMs = targetDateSamples
       .filter((s) => s.value === CategoryValueSleepAnalysis.awake)
       .reduce((acc, s) => {
@@ -166,22 +202,14 @@ export const calculateSleepEfficiency = (
         return acc + duration;
       }, 0);
 
-    const totalSleepMs = targetDateSamples
-      .filter((s) => ACTUAL_SLEEP_VALUES.includes(s.value))
-      .reduce((acc, s) => {
-        const duration =
-          new Date(s.endDate).getTime() - new Date(s.startDate).getTime();
-        return acc + duration;
-      }, 0);
-
-    finalInBedMs = totalSleepMs + totalAwakeMs;
+    totalTimeInBedMs = totalAsleepMs + totalAwakeMs;
   }
 
-  if (finalInBedMs === 0) {
+  if (totalTimeInBedMs === 0) {
     return 0;
   }
 
-  const efficiency = (totalAsleepMs / finalInBedMs) * 100;
+  const efficiency = (totalAsleepMs / totalTimeInBedMs) * 100;
   return roundTo(efficiency, 1);
 };
 
@@ -247,24 +275,54 @@ export const calculateSleepConsistency = (
   return roundTo(consistency, 1);
 };
 
-/**
- * Process sleep data for analysis
- */
 export const processSleepData = (
   sleepSamples: readonly CategorySampleTyped<"HKCategoryTypeIdentifierSleepAnalysis">[],
   targetDate: Date
 ) => {
-  const sleepByDate: { [key: string]: number } = {};
+  console.log(
+    `\n=== Debug processSleepData for ${targetDate.toDateString()} ===`
+  );
+  console.log(`Total sleep samples: ${sleepSamples.length}`);
 
-  sleepSamples.forEach((sample) => {
-    if (ACTUAL_SLEEP_VALUES.includes(sample.value)) {
-      const day = new Date(sample.endDate).toISOString().split("T")[0];
-      const durationMs =
-        new Date(sample.endDate).getTime() -
-        new Date(sample.startDate).getTime();
+  const sleepByDate: { [date: string]: number } = {};
 
-      sleepByDate[day] = (sleepByDate[day] || 0) + durationMs;
+  const allDates = Array.from(
+    new Set(
+      sleepSamples.map((sample) =>
+        format(new Date(sample.endDate), "yyyy-MM-dd")
+      )
+    )
+  );
+
+  console.log(`Unique dates found: ${allDates.join(", ")}`);
+
+  allDates.forEach((dateString) => {
+    const date = new Date(dateString + "T12:00:00.000Z");
+    const samplesForDate = getSleepSamplesForDate(sleepSamples, date);
+
+    if (samplesForDate.length === 0) {
+      sleepByDate[dateString] = 0;
+      return;
     }
+
+    // Simple calculation: sum all actual sleep time
+    const totalSleepMs = samplesForDate
+      .filter((sample) => ACTUAL_SLEEP_VALUES.includes(sample.value))
+      .reduce((sum, sample) => {
+        const durationMs = differenceInMilliseconds(
+          new Date(sample.endDate),
+          new Date(sample.startDate)
+        );
+        return sum + durationMs;
+      }, 0);
+
+    console.log(
+      `Date ${dateString}: ${samplesForDate.length} samples, ${(
+        totalSleepMs /
+        (1000 * 60 * 60)
+      ).toFixed(2)} hours sleep`
+    );
+    sleepByDate[dateString] = totalSleepMs;
   });
 
   const dailySleepDurations = Object.entries(sleepByDate).map(
@@ -274,18 +332,19 @@ export const processSleepData = (
     })
   );
 
-  // Get sleep for the target date
-  // For target date, we want sleep that occurred the night before
-  // So we look for sleep samples that ended on the target date morning
-  const targetDateString = targetDate.toISOString().split("T")[0];
+  const targetDateString = format(targetDate, "yyyy-MM-dd");
   const targetSleep = dailySleepDurations.find(
     (d) => d.date === targetDateString
   );
   const totalSleep = targetSleep ? targetSleep.duration : 0;
 
+  console.log(`Target date ${targetDateString}: ${totalSleep} hours`);
   return { totalSleep, dailySleepDurations };
 };
 
+/**
+ * Groups samples into sleep sessions, handling cross-midnight sessions
+ */
 /**
  * Calculate basic sleep performance metrics for fallback
  */
@@ -356,88 +415,49 @@ const getSleepSamplesForDate = (
   sleepSamples: readonly CategorySampleTyped<"HKCategoryTypeIdentifierSleepAnalysis">[],
   targetDate: Date
 ): CategorySampleTyped<"HKCategoryTypeIdentifierSleepAnalysis">[] => {
-  const referenceDate = targetDate;
+  // Create window from noon of previous day to noon of target date
+  // This captures the night that ends on the target date
+  const startOfWindow = new Date(targetDate);
+  startOfWindow.setDate(startOfWindow.getDate() - 1);
+  startOfWindow.setHours(12, 0, 0, 0); // Previous day at noon
 
-  // Calculate noon-to-noon window relative to target date
-  const yesterdayNoon = new Date(referenceDate);
-  yesterdayNoon.setHours(12, 0, 0, 0);
-  yesterdayNoon.setDate(yesterdayNoon.getDate() - 1);
+  const endOfWindow = new Date(targetDate);
+  endOfWindow.setHours(12, 0, 0, 0); // Target date at noon
 
-  const todayNoon = new Date(referenceDate);
-  todayNoon.setHours(12, 0, 0, 0);
+  console.log(
+    `\n=== Debug getSleepSamplesForDate for ${targetDate.toDateString()} ===`
+  );
+  console.log(
+    `Window: ${startOfWindow.toLocaleString()} to ${endOfWindow.toLocaleString()}`
+  );
+  console.log(`Total samples available: ${sleepSamples.length}`);
 
-  let filteredSamples = sleepSamples.filter((sample) => {
+  const filtered = sleepSamples.filter((sample) => {
     const startDate = new Date(sample.startDate);
-    return startDate >= yesterdayNoon && startDate < todayNoon;
+    const endDate = new Date(sample.endDate);
+
+    // Include samples that start within the window OR end within the window
+    // This ensures we capture all sleep data for the night
+    return (
+      (startDate >= startOfWindow && startDate < endOfWindow) ||
+      (endDate > startOfWindow && endDate <= endOfWindow) ||
+      (startDate < startOfWindow && endDate > endOfWindow)
+    );
   });
 
-  // If no samples found with noon-to-noon, try a broader approach
-  if (filteredSamples.length === 0) {
-    // Try to find the most recent sleep session by looking at the 48 hours before target date
-    const fortyEightHoursAgo = new Date(referenceDate);
-    fortyEightHoursAgo.setHours(fortyEightHoursAgo.getHours() - 48);
-
-    // Get all recent samples
-    const recentSamples = sleepSamples.filter((sample) => {
-      const startDate = new Date(sample.startDate);
-      return startDate >= fortyEightHoursAgo && startDate < referenceDate;
-    });
-
-    // Group samples by sleep session (samples close together in time)
-    const sleepSessions: (typeof sleepSamples)[0][][] = [];
-    let currentSession: (typeof sleepSamples)[0][] = [];
-
-    const sortedRecentSamples = [...recentSamples].sort(
-      (a, b) =>
-        new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+  console.log(`Filtered samples: ${filtered.length}`);
+  if (filtered.length > 0) {
+    console.log(
+      `First sample: ${new Date(filtered[0].startDate).toLocaleString()}`
     );
-
-    for (let i = 0; i < sortedRecentSamples.length; i++) {
-      const sample = sortedRecentSamples[i];
-
-      if (currentSession.length === 0) {
-        currentSession = [sample];
-      } else {
-        const lastSample = currentSession[currentSession.length - 1];
-        const timeDiff =
-          new Date(sample.startDate).getTime() -
-          new Date(lastSample.endDate).getTime();
-
-        // If gap is more than 4 hours, start a new session
-        if (timeDiff > 4 * 60 * 60 * 1000) {
-          sleepSessions.push(currentSession);
-          currentSession = [sample];
-        } else {
-          currentSession.push(sample);
-        }
-      }
-    }
-
-    if (currentSession.length > 0) {
-      sleepSessions.push(currentSession);
-    }
-
-    // Get the most recent substantial sleep session (more than 30 minutes)
-    const substantialSessions = sleepSessions.filter((session) => {
-      const totalDuration = session.reduce((sum, sample) => {
-        const duration =
-          new Date(sample.endDate).getTime() -
-          new Date(sample.startDate).getTime();
-        return sum + duration;
-      }, 0);
-      return totalDuration > 30 * 60 * 1000; // More than 30 minutes
-    });
-
-    if (substantialSessions.length > 0) {
-      // Use the most recent substantial session
-      filteredSamples = substantialSessions[substantialSessions.length - 1];
-    } else if (recentSamples.length > 0) {
-      // Fallback to all recent samples if no substantial sessions found
-      filteredSamples = recentSamples;
-    }
+    console.log(
+      `Last sample: ${new Date(
+        filtered[filtered.length - 1].endDate
+      ).toLocaleString()}`
+    );
   }
 
-  return filteredSamples;
+  return filtered;
 };
 
 /**
@@ -471,15 +491,6 @@ export const calculateSleepStageAnalysis = (
 } => {
   const targetDateSamples = getSleepSamplesForDate(sleepSamples, targetDate);
 
-  console.log(
-    "Target date samples:",
-    targetDateSamples.map((s) => ({
-      value: s.value,
-      startDate: s.startDate,
-      endDate: s.endDate,
-    }))
-  );
-
   const stageDurations = {
     awake: 0,
     light: 0,
@@ -488,46 +499,56 @@ export const calculateSleepStageAnalysis = (
   };
 
   let totalSleepTime = 0;
-  let totalTimeInBed = 0;
+  let totalTimeInBedFromInBedSamples = 0;
 
   targetDateSamples.forEach((sample) => {
-    const duration =
+    const durationMinutes =
       (new Date(sample.endDate).getTime() -
         new Date(sample.startDate).getTime()) /
       (1000 * 60);
 
     switch (sample.value) {
+      case CategoryValueSleepAnalysis.inBed:
+        totalTimeInBedFromInBedSamples += durationMinutes;
+        break;
       case CategoryValueSleepAnalysis.awake:
-        stageDurations.awake += duration;
+        stageDurations.awake += durationMinutes;
         break;
       case CategoryValueSleepAnalysis.asleepCore:
       case CategoryValueSleepAnalysis.asleepUnspecified:
-        stageDurations.light += duration;
-        totalSleepTime += duration;
+        stageDurations.light += durationMinutes;
+        totalSleepTime += durationMinutes;
         break;
       case CategoryValueSleepAnalysis.asleepDeep:
-        stageDurations.deep += duration;
-        totalSleepTime += duration;
+        stageDurations.deep += durationMinutes;
+        totalSleepTime += durationMinutes;
         break;
       case CategoryValueSleepAnalysis.asleepREM:
-        stageDurations.rem += duration;
-        totalSleepTime += duration;
-        break;
-      case CategoryValueSleepAnalysis.inBed:
-        totalTimeInBed += duration;
+        stageDurations.rem += durationMinutes;
+        totalSleepTime += durationMinutes;
         break;
     }
   });
 
-  const totalTime = totalSleepTime + stageDurations.awake;
+  // Determine total time in bed
+  let finalTimeInBed: number;
+  if (totalTimeInBedFromInBedSamples > 0) {
+    // Use explicit inBed samples if available
+    finalTimeInBed = totalTimeInBedFromInBedSamples;
+  } else {
+    // Fallback: calculate from sleep stages + awake time
+    finalTimeInBed = totalSleepTime + stageDurations.awake;
+  }
+
+  // Calculate percentages based on time in bed (not just sleep + awake)
 
   const stages = {
     awake: {
       name: "Awake",
       duration: Math.round(stageDurations.awake),
       percentage:
-        totalTime > 0
-          ? roundTo((stageDurations.awake / totalTime) * 100, 0)
+        finalTimeInBed > 0
+          ? roundTo((stageDurations.awake / finalTimeInBed) * 100, 0)
           : 0,
       color: Colors.sleep.awake,
     },
@@ -535,8 +556,8 @@ export const calculateSleepStageAnalysis = (
       name: "Light",
       duration: Math.round(stageDurations.light),
       percentage:
-        totalTime > 0
-          ? roundTo((stageDurations.light / totalTime) * 100, 0)
+        finalTimeInBed > 0
+          ? roundTo((stageDurations.light / finalTimeInBed) * 100, 0)
           : 0,
       color: Colors.sleep.light,
     },
@@ -544,14 +565,18 @@ export const calculateSleepStageAnalysis = (
       name: "SWS (Deep)",
       duration: Math.round(stageDurations.deep),
       percentage:
-        totalTime > 0 ? roundTo((stageDurations.deep / totalTime) * 100, 0) : 0,
+        finalTimeInBed > 0
+          ? roundTo((stageDurations.deep / finalTimeInBed) * 100, 0)
+          : 0,
       color: Colors.sleep.deep,
     },
     rem: {
       name: "REM",
       duration: Math.round(stageDurations.rem),
       percentage:
-        totalTime > 0 ? roundTo((stageDurations.rem / totalTime) * 100, 0) : 0,
+        finalTimeInBed > 0
+          ? roundTo((stageDurations.rem / finalTimeInBed) * 100, 0)
+          : 0,
       color: Colors.sleep.rem,
     },
   };
@@ -560,9 +585,7 @@ export const calculateSleepStageAnalysis = (
 
   return {
     totalSleepTime: formatDuration(Math.round(totalSleepTime)),
-    timeInBed: formatDuration(
-      Math.round(totalTimeInBed > 0 ? totalTimeInBed : totalTime)
-    ),
+    timeInBed: formatDuration(Math.round(finalTimeInBed)),
     stages,
     restorativeSleep: {
       duration: formatDuration(Math.round(restorativeSleepMinutes)),
@@ -622,15 +645,8 @@ export const getPerformanceColor = (perf: number) => {
  */
 
 /**
- * Determines if a sleep analysis value represents actual sleep
- */
-const isAsleepValue = (value: CategoryValueSleepAnalysis): boolean => {
-  return ACTUAL_SLEEP_VALUES.includes(value);
-};
-
-/**
  * Groups sleep samples into contiguous sleep sessions (clusters)
- * Separates main overnight sleep from naps based on timing gaps
+ * Properly handles inBed samples as the container for sleep sessions
  */
 export const createSleepClusters = (
   sleepSamples: readonly CategorySampleTyped<"HKCategoryTypeIdentifierSleepAnalysis">[]
@@ -642,74 +658,84 @@ export const createSleepClusters = (
   );
 
   const clusters: SleepCluster[] = [];
-  const MAX_GAP_MS = 3 * 60 * 60 * 1000; // 3 hours gap breaks a sleep session
+  const MAX_GAP_MS = 4 * 60 * 60 * 1000; // 4 hours gap breaks a sleep session
 
-  let currentCluster: SleepCluster = {
-    start: new Date(sortedSamples[0].startDate),
-    end: new Date(sortedSamples[0].endDate),
-    asleepMs: isAsleepValue(sortedSamples[0].value)
-      ? new Date(sortedSamples[0].endDate).getTime() -
-        new Date(sortedSamples[0].startDate).getTime()
-      : 0,
-    timeInBedMs:
-      sortedSamples[0].value === CategoryValueSleepAnalysis.inBed
-        ? new Date(sortedSamples[0].endDate).getTime() -
-          new Date(sortedSamples[0].startDate).getTime()
-        : 0,
-    isMainSleep: false,
-  };
+  // Group samples by time proximity
+  let currentGroup: typeof sortedSamples = [];
 
-  for (let i = 1; i < sortedSamples.length; i++) {
-    const sample = sortedSamples[i];
-    const sampleStart = new Date(sample.startDate);
-    const sampleEnd = new Date(sample.endDate);
-    const durationMs = sampleEnd.getTime() - sampleStart.getTime();
-
-    if (sampleStart.getTime() - currentCluster.end.getTime() <= MAX_GAP_MS) {
-      // Continue current cluster
-      if (sampleEnd.getTime() > currentCluster.end.getTime()) {
-        currentCluster.end = sampleEnd;
-      }
-      if (isAsleepValue(sample.value)) {
-        currentCluster.asleepMs += durationMs;
-      }
-      if (sample.value === CategoryValueSleepAnalysis.inBed) {
-        currentCluster.timeInBedMs += durationMs;
-      }
+  for (const sample of sortedSamples) {
+    if (currentGroup.length === 0) {
+      currentGroup = [sample];
     } else {
-      // Gap too large - finish current cluster and start new one
-      clusters.push(currentCluster);
-      currentCluster = {
-        start: sampleStart,
-        end: sampleEnd,
-        asleepMs: isAsleepValue(sample.value) ? durationMs : 0,
-        timeInBedMs:
-          sample.value === CategoryValueSleepAnalysis.inBed ? durationMs : 0,
-        isMainSleep: false,
-      };
+      const lastSample = currentGroup[currentGroup.length - 1];
+      const gap =
+        new Date(sample.startDate).getTime() -
+        new Date(lastSample.endDate).getTime();
+
+      if (gap <= MAX_GAP_MS) {
+        currentGroup.push(sample);
+      } else {
+        // Process current group and start new one
+        if (currentGroup.length > 0) {
+          const cluster = createClusterFromSamples(currentGroup);
+          if (cluster) clusters.push(cluster);
+        }
+        currentGroup = [sample];
+      }
     }
   }
 
-  clusters.push(currentCluster);
-
-  // Identify main sleep sessions (>= 3 hours of sleep)
-  const mainClusters = clusters.filter((c) => msToHours(c.asleepMs) >= 3);
-
-  // Mark the longest cluster as main sleep
-  if (mainClusters.length > 0) {
-    const longestCluster = mainClusters.reduce((prev, current) =>
-      current.asleepMs > prev.asleepMs ? current : prev
-    );
-    longestCluster.isMainSleep = true;
+  // Process final group
+  if (currentGroup.length > 0) {
+    const cluster = createClusterFromSamples(currentGroup);
+    if (cluster) clusters.push(cluster);
   }
 
+  // Mark main sleep sessions (>= 3 hours of sleep)
   clusters.forEach((cluster) => {
-    if (cluster.timeInBedMs === 0) {
-      cluster.timeInBedMs = cluster.end.getTime() - cluster.start.getTime();
-    }
+    cluster.isMainSleep = msToHours(cluster.asleepMs) >= 3;
   });
 
   return clusters;
+};
+
+/**
+ * Create a sleep cluster from a group of samples
+ */
+const createClusterFromSamples = (
+  samples: CategorySampleTyped<"HKCategoryTypeIdentifierSleepAnalysis">[]
+): SleepCluster | null => {
+  if (samples.length === 0) return null;
+
+  const startTime = new Date(samples[0].startDate);
+  const endTime = new Date(samples[samples.length - 1].endDate);
+
+  let totalAsleepMs = 0;
+  let totalTimeInBedMs = 0;
+
+  samples.forEach((sample) => {
+    const durationMs =
+      new Date(sample.endDate).getTime() - new Date(sample.startDate).getTime();
+
+    if (sample.value === CategoryValueSleepAnalysis.inBed) {
+      totalTimeInBedMs += durationMs;
+    } else if (ACTUAL_SLEEP_VALUES.includes(sample.value)) {
+      totalAsleepMs += durationMs;
+    }
+  });
+
+  // If no explicit inBed samples, calculate from session duration
+  if (totalTimeInBedMs === 0) {
+    totalTimeInBedMs = endTime.getTime() - startTime.getTime();
+  }
+
+  return {
+    start: startTime,
+    end: endTime,
+    asleepMs: totalAsleepMs,
+    timeInBedMs: totalTimeInBedMs,
+    isMainSleep: false, // Will be set later
+  };
 };
 
 /**
@@ -897,7 +923,9 @@ export const calculateEnhancedSleepPerformance = async (
 ): Promise<SleepPerformanceMetrics> => {
   // Fetch sleep data for consistency analysis
   const sleepSamples: CategorySampleTyped<"HKCategoryTypeIdentifierSleepAnalysis">[] =
-    await queryCategorySamples("HKCategoryTypeIdentifierSleepAnalysis");
+    await queryCategorySamples("HKCategoryTypeIdentifierSleepAnalysis", {
+      limit: QUERY_LIMIT,
+    });
 
   if (!sleepSamples || sleepSamples.length === 0) {
     throw new Error("No sleep data available");
@@ -1012,7 +1040,9 @@ export const calculateSleepDebt = async (
   targetHours: number = 8.0
 ): Promise<number> => {
   const sleepSamples: CategorySampleTyped<"HKCategoryTypeIdentifierSleepAnalysis">[] =
-    await queryCategorySamples("HKCategoryTypeIdentifierSleepAnalysis");
+    await queryCategorySamples("HKCategoryTypeIdentifierSleepAnalysis", {
+      limit: QUERY_LIMIT,
+    });
 
   const clusters = createSleepClusters(sleepSamples);
   const mainSleepClusters = clusters.filter((c) => c.isMainSleep);
@@ -1038,10 +1068,11 @@ export const fetchSleepAverages = async (
   last30Days: SleepAverages;
 }> => {
   const range14Days = getDateRange(14, targetDate);
-
   // Fetch 30 days of data once and slice for 14 days
   const sleepSamples30: CategorySampleTyped<"HKCategoryTypeIdentifierSleepAnalysis">[] =
-    await queryCategorySamples("HKCategoryTypeIdentifierSleepAnalysis");
+    await queryCategorySamples("HKCategoryTypeIdentifierSleepAnalysis", {
+      limit: 3000,
+    });
 
   // Filter the 30-day data to get 14-day samples
   const sleepSamples14 = sleepSamples30.filter(
