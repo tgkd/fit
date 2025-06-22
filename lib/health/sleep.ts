@@ -57,9 +57,8 @@ export const ACTUAL_SLEEP_VALUES = [
 export const fetchSleepAnalysis = async (
   targetDate: Date
 ): Promise<SleepAnalysis> => {
-  const sleepSamples = await queryCategorySamples(
-    "HKCategoryTypeIdentifierSleepAnalysis"
-  );
+  const sleepSamples: CategorySampleTyped<"HKCategoryTypeIdentifierSleepAnalysis">[] =
+    await queryCategorySamples("HKCategoryTypeIdentifierSleepAnalysis");
 
   const { totalSleep, dailySleepDurations } = processSleepData(
     sleepSamples,
@@ -897,9 +896,8 @@ export const calculateEnhancedSleepPerformance = async (
   sleepNeed?: SleepNeed
 ): Promise<SleepPerformanceMetrics> => {
   // Fetch sleep data for consistency analysis
-  const sleepSamples = await queryCategorySamples(
-    "HKCategoryTypeIdentifierSleepAnalysis"
-  );
+  const sleepSamples: CategorySampleTyped<"HKCategoryTypeIdentifierSleepAnalysis">[] =
+    await queryCategorySamples("HKCategoryTypeIdentifierSleepAnalysis");
 
   if (!sleepSamples || sleepSamples.length === 0) {
     throw new Error("No sleep data available");
@@ -1013,9 +1011,8 @@ export const getSleepMetrics = async (
 export const calculateSleepDebt = async (
   targetHours: number = 8.0
 ): Promise<number> => {
-  const sleepSamples = await queryCategorySamples(
-    "HKCategoryTypeIdentifierSleepAnalysis"
-  );
+  const sleepSamples: CategorySampleTyped<"HKCategoryTypeIdentifierSleepAnalysis">[] =
+    await queryCategorySamples("HKCategoryTypeIdentifierSleepAnalysis");
 
   const clusters = createSleepClusters(sleepSamples);
   const mainSleepClusters = clusters.filter((c) => c.isMainSleep);
@@ -1043,9 +1040,8 @@ export const fetchSleepAverages = async (
   const range14Days = getDateRange(14, targetDate);
 
   // Fetch 30 days of data once and slice for 14 days
-  const sleepSamples30 = await queryCategorySamples(
-    "HKCategoryTypeIdentifierSleepAnalysis"
-  );
+  const sleepSamples30: CategorySampleTyped<"HKCategoryTypeIdentifierSleepAnalysis">[] =
+    await queryCategorySamples("HKCategoryTypeIdentifierSleepAnalysis");
 
   // Filter the 30-day data to get 14-day samples
   const sleepSamples14 = sleepSamples30.filter(
