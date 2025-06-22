@@ -1,3 +1,7 @@
+import {
+  isHealthDataAvailableAsync,
+  requestAuthorization,
+} from "@kingstinct/react-native-healthkit/lib/commonjs/index.ios.js";
 import React, {
   createContext,
   ReactNode,
@@ -9,11 +13,7 @@ import React, {
 
 import { getAllHealthStats } from "@/lib/health";
 import { readPermissions } from "@/lib/health/permissions";
-import {
-  HealthData as ModularHealthData,
-  SystemDefaults,
-  UserProfile,
-} from "@/lib/health/types";
+import { HealthData, SystemDefaults, UserProfile } from "@/lib/health/types";
 import i18n from "@/lib/i18n";
 import {
   getSystemDefaults,
@@ -22,13 +22,6 @@ import {
   updateSystemDefaults,
   updateUserProfile,
 } from "@/lib/storage/healthSettings";
-import {
-  isHealthDataAvailableAsync,
-  requestAuthorization,
-} from "@kingstinct/react-native-healthkit/lib/commonjs/index.ios.js";
-
-// Use the modular HealthData interface
-export type HealthData = ModularHealthData;
 
 const defaultData: HealthData = {
   // GeneralStats

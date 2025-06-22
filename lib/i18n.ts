@@ -114,6 +114,18 @@ const translations = {
       subtitle: "Configure your app preferences",
       healthDataTitle: "Health Data",
       healthDataSubtitle: "Manage your health data permissions in Health app",
+      profile: {
+        title: "User Profile",
+        subtitle: "Configure your personal information for accurate health calculations",
+        age: "Age",
+        weight: "Weight",
+        height: "Height",
+      },
+      units: {
+        years: "years",
+        kg: "kg",
+        cm: "cm",
+      },
     },
 
     // Workouts Screen (app/(tabs)/workouts.tsx)

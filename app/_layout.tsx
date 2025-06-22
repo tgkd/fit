@@ -34,6 +34,13 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="+not-found" />
             <Stack.Screen
+              name="profile-settings"
+              options={{
+                presentation: "modal",
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
               name="stress"
               options={{
                 presentation: "modal",
