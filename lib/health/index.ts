@@ -1,23 +1,23 @@
 import { DEFAULT_USER_PROFILE } from "@/lib/storage/healthSettings";
 import { fetchGeneralStats } from "./generalStats";
 import {
-    calculateStressMetrics,
-    fetchHeartStressStats,
-    fetchStressAverages,
-    prepareStressChartDisplayData,
+  calculateStressMetrics,
+  fetchHeartStressStats,
+  fetchStressAverages,
+  prepareStressChartDisplayData,
 } from "./heartAndStress";
 import { calculatePersonalizedRecovery, getRecoveryMetrics } from "./recovery";
 import { fetchSleepAnalysis, fetchSleepAverages } from "./sleep";
 import {
-    calculateDayStrain,
-    calculatePersonalizedStrain,
-    getStrainMetrics,
+  calculateDayStrain,
+  calculatePersonalizedStrain,
+  getStrainMetrics,
 } from "./strain";
 import {
-    HealthData,
-    StressChartDisplayData,
-    SystemDefaults,
-    UserProfile,
+  HealthData,
+  StressChartDisplayData,
+  SystemDefaults,
+  UserProfile,
 } from "./types";
 import { fetchWorkoutStats } from "./workouts";
 
@@ -97,12 +97,16 @@ export const getAllHealthStats = async (
 
     if (!sleepAverages) {
       console.error("❌ Sleep averages data is required");
-      throw new Error("Sleep averages data is required for health calculations");
+      throw new Error(
+        "Sleep averages data is required for health calculations"
+      );
     }
 
     if (!stressAverages) {
       console.error("❌ Stress averages data is required");
-      throw new Error("Stress averages data is required for health calculations");
+      throw new Error(
+        "Stress averages data is required for health calculations"
+      );
     }
 
     const stressDetails = await calculateStressMetrics(defaults, date, true);

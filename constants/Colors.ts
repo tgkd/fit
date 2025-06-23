@@ -45,6 +45,16 @@ export const Colors = {
     strain: "#CC7600", // Darker orange
     stress: "#CC2F26", // Darker red
     chartBackground: "#F2F2F7", // iOS light gray background for charts
+    primary: "#007AFF", // iOS blue
+    positive: "#00C853", // Green for positive trends
+    negative: "#F57C00", // Orange for negative trends
+    neutral: "#8E8E93", // Gray for neutral trends
+    // Beautiful sleep trends palette
+    sleepCurrent: "#023047", // Dark blue for current values
+    sleep14Days: "#219EBC", // Medium blue for 14-day averages
+    sleep30Days: "#8ECAE6", // Light blue for 30-day averages
+    sleepAccent: "#FFB703", // Yellow for highlights
+    sleepWarm: "#FB8500", // Orange for emphasis
   },
   sleep: {
     awake: "#4A4A4A", // Darker gray for better contrast

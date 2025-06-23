@@ -107,6 +107,18 @@ const translations = {
       sleepConsistencyDesc: "Bedtime/wake time regularity",
       sleepEfficiencyDesc: "Time asleep vs. time in bed",
       sleepStressDesc: "Sleep restfulness and uninterrupted sleep quality",
+      trends: {
+        title: "Sleep Trends",
+        last14Days: "Last 14 Days",
+        last30Days: "Last 30 Days",
+        vsToday: "vs Today",
+        better: "Better",
+        worse: "Worse",
+        same: "Same",
+        average: "Average",
+        durationHours: "{{hours}} hrs",
+        improvementTip: "Tip: Consistency is key for better sleep quality",
+      },
     },
 
     // Settings Screen (app/(tabs)/settings.tsx)

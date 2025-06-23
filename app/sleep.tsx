@@ -3,6 +3,7 @@ import { StyleSheet } from "react-native";
 
 import { LastNightSleepDetails } from "@/components/charts/LastNightSleepDetails";
 import { SleepPerformanceChart } from "@/components/charts/SleepPerformanceChart";
+import { SleepTrendsChart } from "@/components/charts/SleepTrendsChart";
 import { SleepMetricsList } from "@/components/sleep/SleepMetricsList";
 import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/ui/Card";
@@ -27,6 +28,12 @@ export default function SleepScreen() {
       </Card>
       <Card>
         <SleepMetricsList metrics={data.sleep} />
+      </Card>
+      <Card>
+        <SleepTrendsChart
+          currentSleep={data.sleep}
+          sleepAverages={data.sleepAverages}
+        />
       </Card>
       <Card>
         <LastNightSleepDetails sleep={data.sleep} />
