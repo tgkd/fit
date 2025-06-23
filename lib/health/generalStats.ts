@@ -1,12 +1,12 @@
 import type {
-  QuantitySample,
-  QueryStatisticsResponse,
+    QuantitySample,
+    QueryStatisticsResponse,
 } from "@kingstinct/react-native-healthkit";
 import {
-  getDateOfBirthAsync,
-  getMostRecentQuantitySample,
-  queryStatisticsForQuantity,
-} from "@kingstinct/react-native-healthkit/lib/commonjs/index.ios.js";
+    getDateOfBirthAsync,
+    getMostRecentQuantitySample,
+    queryStatisticsForQuantity,
+} from "@kingstinct/react-native-healthkit";
 
 import { GeneralStats } from "./types";
 import { getCurrentDateRanges, getDateRanges } from "./utils";

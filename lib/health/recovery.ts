@@ -1,22 +1,22 @@
 import { mean } from "@/utils/dates";
 import type {
-  QuantitySample,
-  QueryStatisticsResponse,
+    QuantitySample,
+    QueryStatisticsResponse,
 } from "@kingstinct/react-native-healthkit";
 import {
-  getMostRecentQuantitySample,
-  queryQuantitySamples,
-  queryStatisticsForQuantity,
-} from "@kingstinct/react-native-healthkit/lib/commonjs/index.ios.js";
+    getMostRecentQuantitySample,
+    queryQuantitySamples,
+    queryStatisticsForQuantity,
+} from "@kingstinct/react-native-healthkit";
 
 import { RecoveryAverages, SystemDefaults, UserProfile } from "./types";
 import {
-  calculateAverage,
-  getCurrentDateRanges,
-  getDateRange,
-  getDateRanges,
-  getDatesArray,
-  getExtendedDateRanges,
+    calculateAverage,
+    getCurrentDateRanges,
+    getDateRange,
+    getDateRanges,
+    getDatesArray,
+    getExtendedDateRanges,
 } from "./utils";
 
 export interface RecoveryCalculationOptions {

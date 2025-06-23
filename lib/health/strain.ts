@@ -1,14 +1,12 @@
 import {
-  QuantitySample,
-  WorkoutActivityType,
-  WorkoutSample,
+    getDateOfBirthAsync,
+    getMostRecentQuantitySample,
+    QuantitySample,
+    queryQuantitySamples,
+    queryWorkoutSamples,
+    WorkoutActivityType,
+    WorkoutSample,
 } from "@kingstinct/react-native-healthkit";
-import {
-  getDateOfBirthAsync,
-  getMostRecentQuantitySample,
-  queryQuantitySamples,
-  queryWorkoutSamples,
-} from "@kingstinct/react-native-healthkit/lib/commonjs/index.ios.js";
 import { endOfDay, startOfDay } from "date-fns";
 
 import { SystemDefaults, UserProfile } from "./types";

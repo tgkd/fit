@@ -1807,14 +1807,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@kingstinct/react-native-healthkit@npm:^9.0.6":
-  version: 9.0.6
-  resolution: "@kingstinct/react-native-healthkit@npm:9.0.6"
+"@kingstinct/react-native-healthkit@npm:^9.0.7":
+  version: 9.0.7
+  resolution: "@kingstinct/react-native-healthkit@npm:9.0.7"
   peerDependencies:
     react: "*"
     react-native: "*"
     react-native-nitro-modules: "*"
-  checksum: 10c0/1ee10dc4ff315f303fca8f0eba6c5740687bf3b15e4c4edb909cb5926d1b2a2bf8bad80b5fe596ff56df42991e7c0fe0b027a8892609626faa4d2df4837221ce
+  checksum: 10c0/cf847427412f8ab037828292493e803fc38ba0b6c4eba9e422f3cddcafa189316f52ecdcc57b9560522970abf70d2dd4bac9312fcfc1223ba2f4e49567bcd326
   languageName: node
   linkType: hard
 
@@ -5377,7 +5377,7 @@ __metadata:
   dependencies:
     "@babel/core": "npm:^7.25.2"
     "@expo/vector-icons": "npm:^14.1.0"
-    "@kingstinct/react-native-healthkit": "npm:^9.0.6"
+    "@kingstinct/react-native-healthkit": "npm:^9.0.7"
     "@react-navigation/bottom-tabs": "npm:^7.3.10"
     "@react-navigation/elements": "npm:^2.3.8"
     "@react-navigation/native": "npm:^7.1.6"

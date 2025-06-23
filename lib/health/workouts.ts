@@ -1,20 +1,15 @@
 import {
   QuantitySample,
-  QueryStatisticsResponse,
-  WorkoutSample,
-} from "@kingstinct/react-native-healthkit";
-import {
   queryQuantitySamples,
   queryStatisticsForQuantity,
+  QueryStatisticsResponse,
   queryWorkoutSamples,
-} from "@kingstinct/react-native-healthkit/lib/commonjs/index.ios.js";
+  WorkoutSample,
+} from "@kingstinct/react-native-healthkit";
 
 import { WorkoutData } from "../workouts/config";
 import { ActivitySample, WorkoutStats } from "./types";
-import {
-  getDateRanges,
-  getDurationMinutes,
-} from "./utils";
+import { getDateRanges, getDurationMinutes } from "./utils";
 
 // Constants from original healthStats.ts
 export const ACTIVITY_MULTIPLIERS = {
@@ -76,16 +71,14 @@ export const fetchWorkoutStats = async (
     const endDate = ranges.endOfTargetDay;
 
     // Get active calories for the target date (Move ring)
-    const caloriesSamples: readonly QuantitySample[] = await queryQuantitySamples(
-      "HKQuantityTypeIdentifierActiveEnergyBurned",
-      {
+    const caloriesSamples: readonly QuantitySample[] =
+      await queryQuantitySamples("HKQuantityTypeIdentifierActiveEnergyBurned", {
         filter: { startDate, endDate },
         unit: "kcal",
-      }
-    ).catch((error: unknown) => {
-      console.log("❌ Active energy query failed:", error);
-      throw error;
-    });
+      }).catch((error: unknown) => {
+        console.log("❌ Active energy query failed:", error);
+        throw error;
+      });
 
     const moveKcal = (caloriesSamples as QuantitySample[]).reduce(
       (sum: number, record: QuantitySample) => sum + record.quantity,
@@ -94,16 +87,20 @@ export const fetchWorkoutStats = async (
 
     // Use HealthKit's exercise time directly (Exercise ring)
     let exerciseMins = 0;
+
     try {
-      const exerciseTimeStat: QueryStatisticsResponse = await queryStatisticsForQuantity(
-        "HKQuantityTypeIdentifierAppleExerciseTime",
-        ["cumulativeSum"],
-        {
-          filter: { startDate, endDate },
-          unit: "min",
-        }
+      const exerciseTimeStat: QueryStatisticsResponse =
+        await queryStatisticsForQuantity(
+          "HKQuantityTypeIdentifierAppleExerciseTime",
+          ["cumulativeSum"],
+          {
+            filter: { startDate, endDate },
+            unit: "s",
+          }
+        );
+      exerciseMins = Math.floor(
+        (exerciseTimeStat?.sumQuantity?.quantity || 0) / 60
       );
-      exerciseMins = Math.floor(exerciseTimeStat?.sumQuantity?.quantity || 0);
     } catch (error: unknown) {
       console.log("❌ Exercise time query failed:", error);
       exerciseMins = 0;
@@ -112,14 +109,15 @@ export const fetchWorkoutStats = async (
     // Use HealthKit's stand hours directly (Stand ring)
     let standHours = 0;
     try {
-      const standHoursStat: QueryStatisticsResponse = await queryStatisticsForQuantity(
-        "HKQuantityTypeIdentifierAppleStandTime",
-        ["cumulativeSum"],
-        {
-          filter: { startDate, endDate },
-          unit: "hr",
-        }
-      );
+      const standHoursStat: QueryStatisticsResponse =
+        await queryStatisticsForQuantity(
+          "HKQuantityTypeIdentifierAppleStandTime",
+          ["cumulativeSum"],
+          {
+            filter: { startDate, endDate },
+            unit: "hr",
+          }
+        );
       standHours = Math.min(
         12,
         Math.floor(standHoursStat?.sumQuantity?.quantity || 0)

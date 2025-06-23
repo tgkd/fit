@@ -1,7 +1,7 @@
 import {
   isHealthDataAvailableAsync,
   requestAuthorization,
-} from "@kingstinct/react-native-healthkit/lib/commonjs/index.ios.js";
+} from "@kingstinct/react-native-healthkit";
 import React, {
   createContext,
   ReactNode,
@@ -49,7 +49,12 @@ const defaultData: HealthData = {
     stages: {
       awake: { name: "Awake", percentage: 0, duration: 0, color: "#8B8B8B" },
       light: { name: "Light", percentage: 0, duration: 0, color: "#7BA7D9" },
-      deep: { name: "SWS (Deep)", percentage: 0, duration: 0, color: "#D97BB6" },
+      deep: {
+        name: "SWS (Deep)",
+        percentage: 0,
+        duration: 0,
+        color: "#D97BB6",
+      },
       rem: { name: "REM", percentage: 0, duration: 0, color: "#9B7AD9" },
     },
     restorativeSleep: {
@@ -161,14 +166,7 @@ export const HealthDataProvider = ({ children }: { children: ReactNode }) => {
         const available = await isHealthDataAvailableAsync();
         setIsHealthKitAvailable(available);
         if (available) {
-          console.log("HealthKit is available");
-
-          const status = await requestAuthorization([], readPermissions);
-          if (status) {
-            console.log("HealthKit authorization granted");
-          } else {
-            console.warn("HealthKit authorization denied");
-          }
+          await requestAuthorization([], readPermissions);
         } else {
           console.warn("HealthKit is not available on this device");
         }
@@ -332,8 +330,18 @@ function generateFakeHealthData(): HealthData {
       timeInBed: "7:54",
       stages: {
         awake: { name: "Awake", percentage: 8, duration: 42, color: "#8B8B8B" },
-        light: { name: "Light", percentage: 50, duration: 230, color: "#7BA7D9" },
-        deep: { name: "SWS (Deep)", percentage: 25, duration: 121, color: "#D97BB6" },
+        light: {
+          name: "Light",
+          percentage: 50,
+          duration: 230,
+          color: "#7BA7D9",
+        },
+        deep: {
+          name: "SWS (Deep)",
+          percentage: 25,
+          duration: 121,
+          color: "#D97BB6",
+        },
         rem: { name: "REM", percentage: 17, duration: 81, color: "#9B7AD9" },
       },
       restorativeSleep: {

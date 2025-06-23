@@ -1,12 +1,10 @@
 import {
   CategorySampleTyped,
   CategoryValueSleepAnalysis,
-  type QuantitySample,
-} from "@kingstinct/react-native-healthkit";
-import {
   queryCategorySamples,
   queryQuantitySamples,
-} from "@kingstinct/react-native-healthkit/lib/commonjs/index.ios.js";
+  type QuantitySample,
+} from "@kingstinct/react-native-healthkit";
 
 import { differenceInMilliseconds, format } from "date-fns";
 

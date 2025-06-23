@@ -1,5 +1,5 @@
 import type { QuantitySample } from "@kingstinct/react-native-healthkit";
-import { queryQuantitySamples } from "@kingstinct/react-native-healthkit/lib/commonjs/index.ios.js";
+import { queryQuantitySamples } from "@kingstinct/react-native-healthkit";
 import { differenceInMinutes, endOfDay, startOfDay } from "date-fns";
 
 import { bucketBy, mean } from "@/utils/dates";

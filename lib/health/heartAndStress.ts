@@ -1,30 +1,29 @@
 import { Colors } from "@/constants/Colors";
 import { bucketBy, mean } from "@/utils/dates";
-import { type QuantitySample } from "@kingstinct/react-native-healthkit";
 import {
-  getMostRecentQuantitySample,
-  queryQuantitySamples,
-} from "@kingstinct/react-native-healthkit/lib/commonjs/index.ios.js";
+    getMostRecentQuantitySample,
+    queryQuantitySamples, type QuantitySample
+} from "@kingstinct/react-native-healthkit";
 
 import {
-  HeartStressStats,
-  HourlyHeartData,
-  StressAverages,
-  StressChartDataPoint,
-  StressChartDisplayData,
-  StressMetrics,
-  SystemDefaults,
-  TimeInterval,
+    HeartStressStats,
+    HourlyHeartData,
+    StressAverages,
+    StressChartDataPoint,
+    StressChartDisplayData,
+    StressMetrics,
+    SystemDefaults,
+    TimeInterval,
 } from "./types";
 import {
-  calculateAverage,
-  createHourStart,
-  formatHourDisplay,
-  formatTimeDisplay,
-  getDateRange,
-  getDateRanges,
-  getExtendedDateRanges,
-  roundTo,
+    calculateAverage,
+    createHourStart,
+    formatHourDisplay,
+    formatTimeDisplay,
+    getDateRange,
+    getDateRanges,
+    getExtendedDateRanges,
+    roundTo,
 } from "./utils";
 
 /**
