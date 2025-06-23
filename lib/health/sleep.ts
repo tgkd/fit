@@ -658,17 +658,26 @@ export const calculateSleepStress = async (
   sleepCluster: SleepCluster
 ): Promise<number> => {
   const { start, end } = sleepCluster;
-
   try {
     const [hrSamples, hrvSamples, respSamples] = await Promise.all([
       queryQuantitySamples("HKQuantityTypeIdentifierHeartRate", {
-        filter: { startDate: start, endDate: end },
+        filter: {
+          startDate: start,
+          endDate: end,
+          unit: "count/min",
+          limit: 100,
+        },
       }),
       queryQuantitySamples("HKQuantityTypeIdentifierHeartRateVariabilitySDNN", {
-        filter: { startDate: start, endDate: end },
+        filter: { startDate: start, endDate: end, unit: "ms", limit: 100 },
       }),
       queryQuantitySamples("HKQuantityTypeIdentifierRespiratoryRate", {
-        filter: { startDate: start, endDate: end },
+        filter: {
+          startDate: start,
+          endDate: end,
+          unit: "count/min",
+          limit: 100,
+        },
       }),
     ]);
 
@@ -681,7 +690,6 @@ export const calculateSleepStress = async (
     const respValues = (respSamples as QuantitySample[]).map(
       (s: QuantitySample) => s.quantity
     );
-
     let stressPercentage = 0;
 
     if (hrValues.length > 0) {
@@ -760,10 +768,28 @@ export const calculateEnhancedSleepPerformance = async (
   }
 
   const clusters = createSleepClusters(sleepSamples);
-  const mainCluster = clusters.find((c) => c.isMainSleep);
+
+  // Filter clusters for the target date (sleep from previous evening to target morning)
+  const targetDateClusters = clusters.filter((cluster) => {
+    const sleepDate = new Date(cluster.end);
+    const targetDateString = format(targetDate, "yyyy-MM-dd");
+    const sleepDateString = format(sleepDate, "yyyy-MM-dd");
+
+    return sleepDateString === targetDateString;
+  });
+
+  const mainCluster = targetDateClusters.find((c) => c.isMainSleep);
 
   if (!mainCluster) {
-    throw new Error("Could not identify main sleep session");
+    const availableDates = clusters
+      .filter((c) => c.isMainSleep)
+      .map((c) => format(new Date(c.end), "yyyy-MM-dd"))
+      .join(", ");
+
+    throw new Error(
+      `No main sleep session found for ${format(targetDate, "yyyy-MM-dd")}. ` +
+        `Available dates: ${availableDates || "none"}`
+    );
   }
 
   const calculatedSleepNeed = sleepNeed || calculateSleepNeed();

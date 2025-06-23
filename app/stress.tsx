@@ -1,7 +1,6 @@
 import React, { use } from "react";
 import { StyleSheet, View } from "react-native";
 
-import { LastNightSleepDetails } from "@/components/charts/LastNightSleepDetails";
 import { StressChart } from "@/components/charts/StressChart";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
@@ -173,46 +172,6 @@ export default function StressScreen() {
             </ThemedText>
           </ThemedView>
         </View>
-
-        {/* Sleep Quality Section */}
-        {data.sleep && (
-          <Card>
-            <View style={styles.sectionHeader}>
-              <ThemedText type="subtitle" size="lg">
-                {i18n.t("sleepChart.lastNight")}
-              </ThemedText>
-            </View>
-
-            <View style={styles.sleepMetricsRow}>
-              <View style={styles.sleepMetric}>
-                <ThemedText type="secondary" size="sm">
-                  {i18n.t("sleepChart.totalSleep")}
-                </ThemedText>
-                <ThemedText type="defaultSemiBold" size="md">
-                  {data.sleep.totalSleepTime}
-                </ThemedText>
-              </View>
-              <View style={styles.sleepMetric}>
-                <ThemedText type="secondary" size="sm">
-                  {i18n.t("sleepChart.efficiency")}
-                </ThemedText>
-                <ThemedText type="defaultSemiBold" size="md">
-                  {data.sleep.sleepEfficiency}%
-                </ThemedText>
-              </View>
-              <View style={styles.sleepMetric}>
-                <ThemedText type="secondary" size="sm">
-                  {i18n.t("sleepChart.performance")}
-                </ThemedText>
-                <ThemedText type="defaultSemiBold" size="md">
-                  {data.sleep.overallPerformance}%
-                </ThemedText>
-              </View>
-            </View>
-
-            <LastNightSleepDetails lastNight={data.sleep} />
-          </Card>
-        )}
       </>
     </ThemedScrollView>
   );

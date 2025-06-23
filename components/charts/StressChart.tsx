@@ -23,8 +23,6 @@ export function StressChart({ data: initData }: StressChartProps) {
   const themedLineColor = useThemeColor({}, "tint");
   const themedGridColor = useThemeColor({}, "textSecondary");
 
-  console.log(">>>", initData.stressAverages);
-
   if (!initData || !initData.stressChartDisplayData) {
     return (
       <Card>
