@@ -1,11 +1,11 @@
 import {
-    getDateOfBirthAsync,
-    getMostRecentQuantitySample,
-    QuantitySample,
-    queryQuantitySamples,
-    queryWorkoutSamples,
-    WorkoutActivityType,
-    WorkoutSample,
+  getDateOfBirthAsync,
+  getMostRecentQuantitySample,
+  QuantitySample,
+  queryQuantitySamples,
+  queryWorkoutSamples,
+  WorkoutActivityType,
+  WorkoutSample,
 } from "@kingstinct/react-native-healthkit";
 import { endOfDay, startOfDay } from "date-fns";
 
@@ -13,12 +13,27 @@ import { SystemDefaults, UserProfile } from "./types";
 
 export const MAX_STRAIN = 21;
 
+const strengthWorkoutTypes = [
+  WorkoutActivityType.functionalStrengthTraining,
+  WorkoutActivityType.traditionalStrengthTraining,
+  WorkoutActivityType.crossTraining,
+];
+
+const cardioWorkoutTypes = [
+  WorkoutActivityType.walking,
+  WorkoutActivityType.running,
+  WorkoutActivityType.cycling,
+  WorkoutActivityType.swimming,
+  WorkoutActivityType.hiking,
+  WorkoutActivityType.elliptical,
+  WorkoutActivityType.stairClimbing,
+];
+
 export async function calculateDayStrain(
   date: Date,
   defaults: SystemDefaults,
   userProfile: UserProfile
 ): Promise<number> {
-  // Configurable constants - all required, no fallbacks
   const DEFAULT_RESTING_HR = defaults.RESTING_HEART_RATE;
   const DEFAULT_MAX_HR = defaults.MAX_HEART_RATE;
   const SCALE_FACTOR = defaults.STRAIN_LOG_SCALE_FACTOR;
@@ -28,6 +43,11 @@ export async function calculateDayStrain(
   const HRR_ZONE_BOUNDS = defaults.HRR_ZONE_LOWER_BOUND_PERCENTAGES;
   const MIN_HRR_ADJUST = defaults.MIN_HRR_FALLBACK_ADJUSTMENT;
   const ACTIVITY_THRESHOLD_PCT = defaults.ACTIVITY_THRESHOLD_PERCENTAGE;
+
+  // Ensure zone bounds are in decimal format (0.5, 0.6, etc.) not percentages (50, 60, etc.)
+  const normalizedZoneBounds = HRR_ZONE_BOUNDS.map((bound) =>
+    bound > 1 ? bound / 100 : bound
+  );
 
   // 1. Define the time range for the day
   const dateFrom = startOfDay(date);
@@ -119,16 +139,18 @@ export async function calculateDayStrain(
   // 4. Define heart rate zone thresholds using Heart Rate Reserve (HRR) method
   const HRR = Math.max(1, maxHR - restingHR);
   let zonesThresholds = [
-    restingHR + HRR_ZONE_BOUNDS[0] * HRR,
-    restingHR + HRR_ZONE_BOUNDS[1] * HRR,
-    restingHR + HRR_ZONE_BOUNDS[2] * HRR,
-    restingHR + HRR_ZONE_BOUNDS[3] * HRR,
-    restingHR + HRR_ZONE_BOUNDS[4] * HRR,
+    restingHR + normalizedZoneBounds[0] * HRR,
+    restingHR + normalizedZoneBounds[1] * HRR,
+    restingHR + normalizedZoneBounds[2] * HRR,
+    restingHR + normalizedZoneBounds[3] * HRR,
+    restingHR + normalizedZoneBounds[4] * HRR,
   ];
 
   // Adaptive zone adjustment: If most HR data is below Zone 1, adjust zones downward
   if (heartRateSamples.length > 0 && observedMaxHRInSamples > 0) {
-    const hrValues = heartRateSamples.map(s => s.quantity).filter(q => typeof q === 'number') as number[];
+    const hrValues = heartRateSamples
+      .map((s) => s.quantity)
+      .filter((q) => typeof q === "number") as number[];
     const avgHR = hrValues.reduce((sum, hr) => sum + hr, 0) / hrValues.length;
 
     // If average HR is below Zone 1 threshold, create more realistic zones
@@ -137,11 +159,11 @@ export async function calculateDayStrain(
       const adaptiveHRR = Math.max(1, adaptiveMaxHR - restingHR);
 
       zonesThresholds = [
-        restingHR + HRR_ZONE_BOUNDS[0] * adaptiveHRR,
-        restingHR + HRR_ZONE_BOUNDS[1] * adaptiveHRR,
-        restingHR + HRR_ZONE_BOUNDS[2] * adaptiveHRR,
-        restingHR + HRR_ZONE_BOUNDS[3] * adaptiveHRR,
-        restingHR + HRR_ZONE_BOUNDS[4] * adaptiveHRR,
+        restingHR + normalizedZoneBounds[0] * adaptiveHRR,
+        restingHR + normalizedZoneBounds[1] * adaptiveHRR,
+        restingHR + normalizedZoneBounds[2] * adaptiveHRR,
+        restingHR + normalizedZoneBounds[3] * adaptiveHRR,
+        restingHR + normalizedZoneBounds[4] * adaptiveHRR,
       ];
     }
   }
@@ -193,13 +215,8 @@ export async function calculateDayStrain(
     cardioPoints += zonePoints;
   }
 
-  // 7. Query strength-type workouts for the day
-  const strengthWorkoutTypes = [
-    WorkoutActivityType.functionalStrengthTraining,
-    WorkoutActivityType.traditionalStrengthTraining,
-    WorkoutActivityType.crossTraining,
-  ];
   let muscleWorkouts: WorkoutSample[] = [];
+  let cardioWorkouts: WorkoutSample[] = [];
 
   try {
     const workoutsToday = await queryWorkoutSamples({
@@ -217,6 +234,10 @@ export async function calculateDayStrain(
       strengthWorkoutTypes.includes(
         w.workoutActivityType as WorkoutActivityType
       )
+    );
+
+    cardioWorkouts = (workoutsToday as WorkoutSample[]).filter((w) =>
+      cardioWorkoutTypes.includes(w.workoutActivityType as WorkoutActivityType)
     );
   } catch (error) {
     console.warn("Could not query workouts:", error);
@@ -255,15 +276,46 @@ export async function calculateDayStrain(
     musclePoints += workoutMusclePoints;
   }
 
-  const totalLoad = cardioPoints + musclePoints;
+  // 8b. Calculate cardio workout points (walking, running, etc.)
+  let cardioWorkoutPoints = 0;
+  for (const workout of cardioWorkouts) {
+    let workoutCardioPoints = 0;
 
-  // Improved logarithmic scaling with better calibration
-  const baseStrain = Math.log(Math.max(1, totalLoad + 1)) * 3.2;
+    // For cardio workouts, prioritize energy burned or duration
+    if (workout.totalEnergyBurned) {
+      const energy =
+        typeof workout.totalEnergyBurned === "object"
+          ? workout.totalEnergyBurned.quantity
+          : workout.totalEnergyBurned;
+      // Cardio workouts get standard energy multiplier (not doubled like strength)
+      workoutCardioPoints = energy * MUSCLE_PTS_PER_KCAL;
+    } else if (typeof workout.duration === "number" && workout.duration > 0) {
+      const durationMinutes = workout.duration / 60;
+      // Walking and light cardio get moderate points per minute
+      const cardioMultiplier =
+        workout.workoutActivityType === WorkoutActivityType.walking
+          ? MUSCLE_PTS_PER_MIN * 0.8 // Walking gets 80% of standard rate
+          : MUSCLE_PTS_PER_MIN * 1.2; // Other cardio gets 120% of standard rate
+      workoutCardioPoints = durationMinutes * cardioMultiplier;
+    }
+
+    cardioWorkoutPoints += workoutCardioPoints;
+  }
+
+  const totalLoad = cardioPoints + musclePoints + cardioWorkoutPoints;
+
+  // Improved scaling for more realistic strain scores
+  // Use a combination of linear and logarithmic scaling
+  const linearComponent = Math.min(15, totalLoad * 0.01); // Direct linear scaling up to 15
+  const logComponent = Math.log(Math.max(1, totalLoad + 1)) * 2.5; // Logarithmic scaling
   const exponentialComponent =
-    MAX_STRAIN * (1 - Math.exp(-SCALE_FACTOR * totalLoad * 0.7));
+    MAX_STRAIN * (1 - Math.exp(-SCALE_FACTOR * totalLoad * 0.001)); // Adjusted exponential
 
-  // Blend the two approaches for more realistic scaling
-  let strainScore = Math.min(baseStrain, exponentialComponent);
+  // Use the maximum of the three approaches for better scaling
+  let strainScore = Math.max(
+    linearComponent,
+    Math.max(logComponent, exponentialComponent)
+  );
 
   // 10. Validation and final adjustments
   strainScore = Math.max(0, Math.min(MAX_STRAIN, strainScore));
@@ -286,36 +338,36 @@ export async function calculatePersonalizedStrain(
     switch (level) {
       case "elite":
         return {
-          STRAIN_LOG_SCALE_FACTOR: 0.006,
+          STRAIN_LOG_SCALE_FACTOR: 0.8, // Reduced from 0.006
           HEART_RATE_ZONE_WEIGHTS: [1, 2, 4, 7, 10],
           ACTIVITY_THRESHOLD_PERCENTAGE: 0.08,
-          MUSCLE_POINTS_PER_KCAL: 0.04,
-          MUSCLE_POINTS_PER_MINUTE_DURATION: 0.4,
+          MUSCLE_POINTS_PER_KCAL: 0.4, // Increased from 0.04
+          MUSCLE_POINTS_PER_MINUTE_DURATION: 4.0, // Increased from 0.4
         };
       case "advanced":
         return {
-          STRAIN_LOG_SCALE_FACTOR: 0.007,
+          STRAIN_LOG_SCALE_FACTOR: 1.0, // Increased from 0.007
           HEART_RATE_ZONE_WEIGHTS: [1, 2, 4, 6, 9],
           ACTIVITY_THRESHOLD_PERCENTAGE: 0.09,
-          MUSCLE_POINTS_PER_KCAL: 0.035,
-          MUSCLE_POINTS_PER_MINUTE_DURATION: 0.35,
+          MUSCLE_POINTS_PER_KCAL: 0.35, // Increased from 0.035
+          MUSCLE_POINTS_PER_MINUTE_DURATION: 3.5, // Increased from 0.35
         };
       case "intermediate":
         return {
-          STRAIN_LOG_SCALE_FACTOR: 0.015, // Increased for better scaling
+          STRAIN_LOG_SCALE_FACTOR: 1.2, // Significantly increased from 0.015
           HEART_RATE_ZONE_WEIGHTS: [1, 2, 4, 6, 8],
           ACTIVITY_THRESHOLD_PERCENTAGE: 0.1,
-          MUSCLE_POINTS_PER_KCAL: 0.05, // Increased muscle point value
-          MUSCLE_POINTS_PER_MINUTE_DURATION: 0.4, // Increased duration value
+          MUSCLE_POINTS_PER_KCAL: 0.3, // Significantly increased from 0.05
+          MUSCLE_POINTS_PER_MINUTE_DURATION: 3.0, // Significantly increased from 0.4
         };
       case "beginner":
       default:
         return {
-          STRAIN_LOG_SCALE_FACTOR: 0.009,
+          STRAIN_LOG_SCALE_FACTOR: 1.5, // Significantly increased from 0.009
           HEART_RATE_ZONE_WEIGHTS: [1, 2, 3, 5, 7],
           ACTIVITY_THRESHOLD_PERCENTAGE: 0.12,
-          MUSCLE_POINTS_PER_KCAL: 0.025,
-          MUSCLE_POINTS_PER_MINUTE_DURATION: 0.25,
+          MUSCLE_POINTS_PER_KCAL: 0.25, // Significantly increased from 0.025
+          MUSCLE_POINTS_PER_MINUTE_DURATION: 2.5, // Significantly increased from 0.25
         };
     }
   };
@@ -369,7 +421,11 @@ export async function getStrainMetrics(
     totalLoad: number;
   };
 }> {
-  const strainScore = await calculatePersonalizedStrain(date, defaults, userProfile);
+  const strainScore = await calculatePersonalizedStrain(
+    date,
+    defaults,
+    userProfile
+  );
 
   // Categorize strain level
   let category: string;

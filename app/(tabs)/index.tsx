@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/Card";
 import { ThemedScrollView } from "@/components/ui/ThemedScrollView";
 import { Colors } from "@/constants/Colors";
 import { HealthDataContext } from "@/context/HealthDataContext";
+import { MAX_STRAIN } from "@/lib/health/strain";
 import { HealthData } from "@/lib/health/types";
 import i18n from "@/lib/i18n";
 
@@ -48,7 +49,7 @@ function ScreenContent({ data }: { data: HealthData }) {
           color={Colors.charts.strain}
           backgroundColor={Colors.charts.chartBackground}
           label={i18n.t("home.strain").toUpperCase()}
-          maxValue={20}
+          maxValue={MAX_STRAIN}
         />
       </Card>
 
