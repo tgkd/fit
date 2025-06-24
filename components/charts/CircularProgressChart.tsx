@@ -1,56 +1,31 @@
-import { LinearGradient, vec } from "@shopify/react-native-skia";
 import React from "react";
-import { View } from "react-native";
+import { StyleSheet, View } from "react-native";
+
 import { Pie, PolarChart } from "victory-native";
 
 import { ThemedText } from "../ThemedText";
 
-function calculateGradientPoints(
-  radius: number,
-  startAngle: number,
-  endAngle: number,
-  centerX: number,
-  centerY: number
-) {
-  // Calculate the midpoint angle of the slice for a central gradient effect
-  const midAngle = (startAngle + endAngle) / 2;
-
-  // Convert angles from degrees to radians
-  const startRad = (Math.PI / 180) * startAngle;
-  const midRad = (Math.PI / 180) * midAngle;
-
-  // Calculate start point (inner edge near the pie's center)
-  const startX = centerX + radius * 0.5 * Math.cos(startRad);
-  const startY = centerY + radius * 0.5 * Math.sin(startRad);
-
-  // Calculate end point (outer edge of the slice)
-  const endX = centerX + radius * Math.cos(midRad);
-  const endY = centerY + radius * Math.sin(midRad);
-
-  return { startX, startY, endX, endY };
-}
-
 interface Props {
   value: number;
+  maxValue?: number;
   color?: string;
   backgroundColor?: string;
   size?: number;
   strokeWidth?: number;
   label?: string;
-  showGradient?: boolean;
 }
 
 export function CircularProgressChart({
   value,
+  maxValue = 100,
   color = "#4CAF50",
   backgroundColor = "#2a2a2a",
   size = 96,
   label,
-  showGradient = false,
 }: Props) {
-  const percentage = Math.max(0, Math.min(100, value));
+  const percentage = Math.max(0, Math.min(100, (value / maxValue) * 100));
   const remainingPercentage = 100 - percentage;
-  const chartSize = size - 6;
+  const chartSize = size - 4;
 
   const data = [
     {
@@ -66,8 +41,8 @@ export function CircularProgressChart({
   ];
 
   return (
-    <View style={{ alignItems: "center", justifyContent: "center" }}>
-      <View style={{ width: size, height: size }}>
+    <View style={styles.container}>
+      <View style={[styles.chartContainer, { width: size, height: size }]}>
         <PolarChart
           data={data}
           labelKey="label"
@@ -80,53 +55,49 @@ export function CircularProgressChart({
         >
           <Pie.Chart innerRadius="80%" startAngle={-90}>
             {({ slice }) => {
-              if (showGradient && slice.label === "progress") {
-                const { startX, startY, endX, endY } = calculateGradientPoints(
-                  slice.radius,
-                  slice.startAngle,
-                  slice.endAngle,
-                  slice.center.x,
-                  slice.center.y
-                );
-
-                return (
-                  <Pie.Slice>
-                    <LinearGradient
-                      start={vec(startX, startY)}
-                      end={vec(endX, endY)}
-                      colors={[slice.color, `${slice.color}80`]}
-                      positions={[0, 1]}
-                    />
-                  </Pie.Slice>
-                );
-              }
               return <Pie.Slice />;
             }}
           </Pie.Chart>
         </PolarChart>
+
+        <View style={styles.percentageContainer}>
+          <ThemedText style={[styles.percentageText, { color: color }]}>
+            {maxValue === 100 ? `${Math.round(percentage)}%` : `${value}`}
+          </ThemedText>
+        </View>
       </View>
 
-      <View
-        style={{
-          position: "absolute",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <ThemedText
-          style={{
-            fontWeight: "bold",
-            color: color,
-          }}
-        >
-          {Math.round(percentage)}%
+      {label ? (
+        <ThemedText size="xs" type="secondary" style={styles.labelText}>
+          {label}
         </ThemedText>
-        {label && (
-          <ThemedText size="xxs" type="secondary">
-            {label}
-          </ThemedText>
-        )}
-      </View>
+      ) : null}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  chartContainer: {
+    position: "relative",
+  },
+  percentageContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  percentageText: {
+    fontWeight: "bold",
+  },
+  labelText: {
+    marginLeft: -4,
+    marginTop: 4,
+  },
+});

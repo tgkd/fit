@@ -48,6 +48,7 @@ function ScreenContent({ data }: { data: HealthData }) {
           color={Colors.charts.strain}
           backgroundColor={Colors.charts.chartBackground}
           label={i18n.t("home.strain").toUpperCase()}
+          maxValue={20}
         />
       </Card>
 
