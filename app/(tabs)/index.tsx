@@ -44,13 +44,15 @@ function ScreenContent({ data }: { data: HealthData }) {
           backgroundColor={Colors.charts.chartBackground}
           label={i18n.t("home.recovery").toUpperCase()}
         />
-        <CircularProgressChart
-          value={data.strainScore}
-          color={Colors.charts.strain}
-          backgroundColor={Colors.charts.chartBackground}
-          label={i18n.t("home.strain").toUpperCase()}
-          maxValue={MAX_STRAIN}
-        />
+        <Pressable onPress={() => router.push("/strain")}>
+          <CircularProgressChart
+            value={data.strainScore}
+            color={Colors.charts.strain}
+            backgroundColor={Colors.charts.chartBackground}
+            label={i18n.t("home.strain").toUpperCase()}
+            maxValue={MAX_STRAIN}
+          />
+        </Pressable>
       </Card>
 
       <StressMonitorCard

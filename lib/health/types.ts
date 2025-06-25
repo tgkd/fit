@@ -1,6 +1,6 @@
 import {
-  QuantitySample,
-  WorkoutSample,
+    QuantitySample,
+    WorkoutSample,
 } from "@kingstinct/react-native-healthkit";
 
 // Shared interfaces for all health modules
@@ -306,6 +306,65 @@ export interface SleepPerformanceMetrics {
   overallScore: number; // Overall sleep performance (0–100)
   sleepNeed: SleepNeed;
   mainCluster: SleepCluster;
+}
+
+// Strain Statistics Interfaces
+export interface DailyStrainData {
+  date: Date;
+  strainScore: number;
+  category: string;
+  breakdown: {
+    cardioLoad: number;
+    muscleLoad: number;
+    cardioWorkoutPoints: number;
+    totalLoad: number;
+  };
+  workouts: {
+    strength: WorkoutSample[];
+    cardio: WorkoutSample[];
+  };
+  metrics: {
+    totalWorkoutTime: number; // total workout minutes
+    totalCalories: number; // total calories burned
+    avgHeartRate: number; // average heart rate during activity
+    zoneMinutes: number[]; // time spent in each HR zone [zone1, zone2, zone3, zone4, zone5]
+    workoutCount: number; // total number of workouts
+  };
+}
+
+export interface StrainPeriodStats {
+  periodDays: number; // number of days in the period
+  startDate: Date;
+  endDate: Date;
+  dailyData: DailyStrainData[];
+  aggregations: {
+    avgStrainScore: number;
+    maxStrainScore: number;
+    minStrainScore: number;
+    totalWorkoutTime: number; // total workout minutes across all days
+    totalCalories: number; // total calories burned across all days
+    workoutsByType: Record<string, number>; // count of workouts by type
+    strainByCategory: Record<string, number>; // count of days in each strain category
+    avgHeartRateZoneDistribution: number[]; // average time per zone across period
+    recoveryDays: number; // days with strain < 6
+    highStrainDays: number; // days with strain >= 14
+    workoutDays: number; // days with at least one workout
+  };
+  trends: {
+    strainTrend: 'increasing' | 'decreasing' | 'stable';
+    fitnessProgress: number; // -1 to 1 scale (negative = declining, positive = improving)
+    workloadConsistency: number; // 0-1 scale (1 = very consistent)
+    averageRestDaysBetweenHighStrain: number; // average days between high strain sessions
+  };
+}
+
+export interface StrainPeriodPresets {
+  last14Days: DateRange;
+  last30Days: DateRange;
+  thisWeek: DateRange;
+  lastWeek: DateRange;
+  thisMonth: DateRange;
+  lastMonth: DateRange;
 }
 
 
