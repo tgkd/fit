@@ -5,6 +5,7 @@ import { StrainBarChart, WorkoutBreakdownChart } from "@/components/charts";
 import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/ui/Card";
 import { IconSymbol } from "@/components/ui/IconSymbol";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { ThemedScrollView } from "@/components/ui/ThemedScrollView";
 import { HealthDataContext } from "@/context/HealthDataContext";
 import { useThemeColor } from "@/hooks/useThemeColor";
@@ -25,6 +26,14 @@ export default function StrainScreen() {
     useState<StrainPeriodStats | null>(null);
   const [todayStrainMetrics, setTodayStrainMetrics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedPeriod, setSelectedPeriod] = useState<"14" | "30">("14");
+
+  const periodOptions = [
+    { value: "14", label: i18n.t("strainScreen.last14Days") },
+    { value: "30", label: i18n.t("strainScreen.last30Days") },
+  ];
+
+  const activeStrainStats = selectedPeriod === "14" ? strainStats14Days : strainStats30Days;
 
   useEffect(() => {
     const loadStrainStats = async () => {
@@ -100,26 +109,42 @@ export default function StrainScreen() {
         </View>
       </Card>
 
-      {/* 14-Day Summary with Chart */}
-      {strainStats14Days && (
+      {/* Segmented Control for Period Selection */}
+      <SegmentedControl
+        options={periodOptions}
+        selectedValue={selectedPeriod}
+        onValueChange={(value) => setSelectedPeriod(value as "14" | "30")}
+        style={styles.segmentedControl}
+      />
+
+      {/* Active Period Summary with Chart */}
+      {activeStrainStats && (
         <Card>
           <ThemedText type="subtitle" size="lg" style={styles.cardTitle}>
-            {i18n.t("strainScreen.last14Days")}
+            {selectedPeriod === "14"
+              ? i18n.t("strainScreen.last14Days")
+              : i18n.t("strainScreen.last30DaysOverview")
+            }
           </ThemedText>
 
           {/* Daily Strain Chart */}
-          {strainStats14Days.dailyData &&
-            strainStats14Days.dailyData.length > 0 && (
+          {activeStrainStats.dailyData &&
+            activeStrainStats.dailyData.length > 0 && (
               <StrainBarChart
-                data={strainStats14Days.dailyData}
-                title={i18n.t("strainScreen.dailyStrainScores")}
+                data={activeStrainStats.dailyData}
+                title={
+                  selectedPeriod === "14"
+                    ? i18n.t("strainScreen.dailyStrainScores")
+                    : i18n.t("strainScreen.recentDailyStrain")
+                }
+                height={selectedPeriod === "30" ? 220 : undefined}
               />
             )}
 
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
               <ThemedText type="defaultSemiBold" size="xl">
-                {strainStats14Days.aggregations.avgStrainScore}
+                {activeStrainStats.aggregations.avgStrainScore}
               </ThemedText>
               <ThemedText type="secondary" size="sm">
                 {i18n.t("strainScreen.avgStrain")}
@@ -128,63 +153,93 @@ export default function StrainScreen() {
 
             <View style={styles.statItem}>
               <ThemedText type="defaultSemiBold" size="xl">
-                {Math.round(strainStats14Days.aggregations.totalWorkoutTime)}
+                {selectedPeriod === "14"
+                  ? Math.round(activeStrainStats.aggregations.totalWorkoutTime)
+                  : activeStrainStats.aggregations.highStrainDays
+                }
               </ThemedText>
               <ThemedText type="secondary" size="sm">
-                {i18n.t("strainScreen.totalMinutes")}
+                {selectedPeriod === "14"
+                  ? i18n.t("strainScreen.totalMinutes")
+                  : i18n.t("strainScreen.highStrainDays")
+                }
               </ThemedText>
             </View>
 
             <View style={styles.statItem}>
               <ThemedText type="defaultSemiBold" size="xl">
-                {strainStats14Days.aggregations.workoutDays}
+                {selectedPeriod === "14"
+                  ? activeStrainStats.aggregations.workoutDays
+                  : activeStrainStats.aggregations.recoveryDays
+                }
               </ThemedText>
               <ThemedText type="secondary" size="sm">
-                {i18n.t("strainScreen.workoutDays")}
+                {selectedPeriod === "14"
+                  ? i18n.t("strainScreen.workoutDays")
+                  : i18n.t("strainScreen.recoveryDays")
+                }
               </ThemedText>
             </View>
           </View>
 
-          <View style={styles.trendsContainer}>
-            <ThemedText type="defaultSemiBold" size="md">
-              {i18n.t("strainScreen.trends")}
-            </ThemedText>
-            <View style={styles.trendRow}>
-              <ThemedText type="secondary" size="sm">
-                {i18n.t("strainScreen.trend", {
-                  trend: strainStats14Days.trends.strainTrend,
-                })}
+          {selectedPeriod === "14" && (
+            <View style={styles.trendsContainer}>
+              <ThemedText type="defaultSemiBold" size="md">
+                {i18n.t("strainScreen.trends")}
               </ThemedText>
+              <View style={styles.trendRow}>
+                <ThemedText type="secondary" size="sm">
+                  {i18n.t("strainScreen.trend", {
+                    trend: activeStrainStats.trends.strainTrend,
+                  })}
+                </ThemedText>
+                <ThemedText type="secondary" size="sm">
+                  {i18n.t("strainScreen.fitnessProgress", {
+                    progress: (
+                      activeStrainStats.trends.fitnessProgress * 100
+                    ).toFixed(0),
+                  })}
+                </ThemedText>
+              </View>
               <ThemedText type="secondary" size="sm">
-                {i18n.t("strainScreen.fitnessProgress", {
-                  progress: (
-                    strainStats14Days.trends.fitnessProgress * 100
+                {i18n.t("strainScreen.consistency", {
+                  consistency: (
+                    activeStrainStats.trends.workloadConsistency * 100
                   ).toFixed(0),
                 })}
               </ThemedText>
             </View>
-            <ThemedText type="secondary" size="sm">
-              {i18n.t("strainScreen.consistency", {
-                consistency: (
-                  strainStats14Days.trends.workloadConsistency * 100
-                ).toFixed(0),
-              })}
-            </ThemedText>
-          </View>
+          )}
+
+          {selectedPeriod === "30" && (
+            <View style={styles.additionalStats}>
+              <ThemedText type="secondary" size="sm">
+                {i18n.t("strainScreen.totalCalories", {
+                  calories:
+                    activeStrainStats.aggregations.totalCalories.toLocaleString(),
+                })}
+              </ThemedText>
+              <ThemedText type="secondary" size="sm">
+                {i18n.t("strainScreen.avgRestBetweenHighStrain", {
+                  days: activeStrainStats.trends.averageRestDaysBetweenHighStrain,
+                })}
+              </ThemedText>
+            </View>
+          )}
         </Card>
       )}
 
       {/* Workout Breakdown with Chart */}
-      {strainStats14Days &&
-        Object.keys(strainStats14Days.aggregations.workoutsByType).length >
+      {selectedPeriod === "14" && activeStrainStats &&
+        Object.keys(activeStrainStats.aggregations.workoutsByType).length >
           0 && (
           <Card>
             <WorkoutBreakdownChart
-              data={strainStats14Days.aggregations.workoutsByType}
+              data={activeStrainStats.aggregations.workoutsByType}
               title={i18n.t("strainScreen.workoutBreakdown")}
             />
 
-            {Object.entries(strainStats14Days.aggregations.workoutsByType)
+            {Object.entries(activeStrainStats.aggregations.workoutsByType)
               .sort(([, a], [, b]) => (b as number) - (a as number))
               .slice(0, 3)
               .map(([type, count]) => (
@@ -201,13 +256,13 @@ export default function StrainScreen() {
         )}
 
       {/* Strain Distribution */}
-      {strainStats14Days && (
+      {activeStrainStats && (
         <Card>
           <ThemedText type="subtitle" size="lg" style={styles.cardTitle}>
             {i18n.t("strainScreen.strainDistribution")}
           </ThemedText>
 
-          {Object.entries(strainStats14Days.aggregations.strainByCategory).map(
+          {Object.entries(activeStrainStats.aggregations.strainByCategory).map(
             ([category, days]) => (
               <View key={category} style={styles.categoryRow}>
                 <ThemedText size="sm">{category}</ThemedText>
@@ -223,76 +278,14 @@ export default function StrainScreen() {
         </Card>
       )}
 
-      {/* 30-Day Comparison with Chart */}
-      {strainStats30Days && (
-        <Card>
-          <ThemedText type="subtitle" size="lg" style={styles.cardTitle}>
-            {i18n.t("strainScreen.last30DaysOverview")}
-          </ThemedText>
-
-          {/* 30-Day Strain Chart */}
-          {strainStats30Days.dailyData &&
-            strainStats30Days.dailyData.length > 0 && (
-              <StrainBarChart
-                data={strainStats30Days.dailyData}
-                title={i18n.t("strainScreen.recentDailyStrain")}
-                height={220}
-              />
-            )}
-
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <ThemedText type="defaultSemiBold" size="xl">
-                {strainStats30Days.aggregations.avgStrainScore}
-              </ThemedText>
-              <ThemedText type="secondary" size="sm">
-                {i18n.t("strainScreen.avgStrain")}
-              </ThemedText>
-            </View>
-
-            <View style={styles.statItem}>
-              <ThemedText type="defaultSemiBold" size="xl">
-                {strainStats30Days.aggregations.highStrainDays}
-              </ThemedText>
-              <ThemedText type="secondary" size="sm">
-                {i18n.t("strainScreen.highStrainDays")}
-              </ThemedText>
-            </View>
-
-            <View style={styles.statItem}>
-              <ThemedText type="defaultSemiBold" size="xl">
-                {strainStats30Days.aggregations.recoveryDays}
-              </ThemedText>
-              <ThemedText type="secondary" size="sm">
-                {i18n.t("strainScreen.recoveryDays")}
-              </ThemedText>
-            </View>
-          </View>
-
-          <View style={styles.additionalStats}>
-            <ThemedText type="secondary" size="sm">
-              {i18n.t("strainScreen.totalCalories", {
-                calories:
-                  strainStats30Days.aggregations.totalCalories.toLocaleString(),
-              })}
-            </ThemedText>
-            <ThemedText type="secondary" size="sm">
-              {i18n.t("strainScreen.avgRestBetweenHighStrain", {
-                days: strainStats30Days.trends.averageRestDaysBetweenHighStrain,
-              })}
-            </ThemedText>
-          </View>
-        </Card>
-      )}
-
       {/* Recent Daily Data */}
-      {strainStats14Days?.dailyData && (
+      {selectedPeriod === "14" && activeStrainStats?.dailyData && (
         <Card>
           <ThemedText type="subtitle" size="lg" style={styles.cardTitle}>
             {i18n.t("strainScreen.recentDays")}
           </ThemedText>
 
-          {strainStats14Days.dailyData.slice(-7).map((dayData, index) => (
+          {activeStrainStats.dailyData.slice(-7).map((dayData, index) => (
             <View key={index} style={styles.dailyRow}>
               <View style={styles.dailyRowLeft}>
                 <ThemedText size="sm">
@@ -329,6 +322,9 @@ export default function StrainScreen() {
 }
 
 const styles = StyleSheet.create({
+  segmentedControl: {
+    marginBottom: 16,
+  },
   chartCard: {
     alignItems: "center",
   },
