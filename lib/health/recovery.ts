@@ -1,22 +1,22 @@
 import { mean } from "@/utils/dates";
 import type {
-    QuantitySample,
-    QueryStatisticsResponse,
+  QuantitySample,
+  QueryStatisticsResponse,
 } from "@kingstinct/react-native-healthkit";
 import {
-    getMostRecentQuantitySample,
-    queryQuantitySamples,
-    queryStatisticsForQuantity,
+  getMostRecentQuantitySample,
+  queryQuantitySamples,
+  queryStatisticsForQuantity,
 } from "@kingstinct/react-native-healthkit";
 
 import { RecoveryAverages, SystemDefaults, UserProfile } from "./types";
 import {
-    calculateAverage,
-    getCurrentDateRanges,
-    getDateRange,
-    getDateRanges,
-    getDatesArray,
-    getExtendedDateRanges,
+  calculateAverage,
+  getCurrentDateRanges,
+  getDateRange,
+  getDateRanges,
+  getDatesArray,
+  getExtendedDateRanges,
 } from "./utils";
 
 export interface RecoveryCalculationOptions {
@@ -51,6 +51,299 @@ export interface RecoveryScoreResult {
 // Helper: clamp a value to 0–100
 const clampPercent = (num: number): number => Math.max(0, Math.min(100, num));
 
+interface DateRanges {
+  now: Date;
+  startOfDay: Date;
+  oneWeekAgo: Date;
+  fourteenDaysAgo: Date;
+}
+
+/**
+ * Calculate all required date ranges for recovery calculation
+ */
+const calculateDateRanges = (targetDate?: Date): DateRanges => {
+  if (targetDate) {
+    const ranges = getDateRanges(targetDate);
+    const extendedRanges = getExtendedDateRanges(targetDate);
+    return {
+      now: ranges.endOfTargetDay,
+      startOfDay: ranges.startOfTargetDay,
+      oneWeekAgo: ranges.oneWeekAgo,
+      fourteenDaysAgo: extendedRanges.fourteenDaysAgo,
+    };
+  } else {
+    const ranges = getCurrentDateRanges();
+    const extendedRanges = getExtendedDateRanges();
+    return {
+      now: ranges.now,
+      startOfDay: ranges.startOfToday,
+      oneWeekAgo: ranges.oneWeekAgo,
+      fourteenDaysAgo: extendedRanges.fourteenDaysAgo,
+    };
+  }
+};
+
+interface HealthDataResult {
+  restingHR: number;
+  currentHrv: number;
+  respiratoryRate: number;
+  hasRespiratoryData: boolean;
+  activeEnergyBurned: number;
+  baselineHrv?: number;
+  baselineRhr?: number;
+  sleepEfficiency: number;
+}
+
+/**
+ * Fetch all required health data from HealthKit
+ */
+const fetchHealthData = async (
+  dateRanges: DateRanges,
+  defaults: SystemDefaults,
+  sleepEfficiency?: number
+): Promise<HealthDataResult> => {
+  const { now, startOfDay, oneWeekAgo, fourteenDaysAgo } = dateRanges;
+
+  // Fetch all required health data in parallel
+  const [
+    restingHRSample,
+    hrvSamples,
+    respiratoryStats,
+    activeEnergyStats,
+    baselineHrvSamples,
+    baselineRhrSamples,
+  ]: [
+    QuantitySample | undefined,
+    readonly QuantitySample[],
+    QueryStatisticsResponse,
+    QueryStatisticsResponse,
+    readonly QuantitySample[],
+    readonly QuantitySample[]
+  ] = await Promise.all([
+    // Current resting heart rate
+    getMostRecentQuantitySample("HKQuantityTypeIdentifierRestingHeartRate"),
+
+    // HRV data for last week (for current value)
+    queryQuantitySamples("HKQuantityTypeIdentifierHeartRateVariabilitySDNN", {
+      filter: { startDate: oneWeekAgo, endDate: now },
+    }),
+
+    // Respiratory rate for the target day (may not be available)
+    queryStatisticsForQuantity(
+      "HKQuantityTypeIdentifierRespiratoryRate",
+      ["discreteAverage"],
+      {
+        filter: { startDate: startOfDay, endDate: now },
+        unit: "count/min",
+      }
+    ),
+
+    // Active energy burned for the target day
+    queryStatisticsForQuantity(
+      "HKQuantityTypeIdentifierActiveEnergyBurned",
+      ["cumulativeSum"],
+      {
+        filter: { startDate: startOfDay, endDate: now },
+        unit: "kcal",
+      }
+    ),
+
+    // 14-day HRV baseline
+    queryQuantitySamples("HKQuantityTypeIdentifierHeartRateVariabilitySDNN", {
+      filter: { startDate: fourteenDaysAgo, endDate: now },
+      unit: "ms",
+    }),
+
+    // 14-day RHR baseline
+    queryQuantitySamples("HKQuantityTypeIdentifierRestingHeartRate", {
+      filter: { startDate: fourteenDaysAgo, endDate: now },
+      unit: "count/min",
+    }),
+  ]);
+
+  // Validate and process fetched data
+  const restingHR = restingHRSample?.quantity ?? defaults.RESTING_HEART_RATE;
+
+  const hrvValues = (hrvSamples as QuantitySample[]).map(
+    (s: QuantitySample) => s.quantity
+  );
+  const currentHrv = hrvValues.length > 0 ? mean(hrvValues) : defaults.HRV_BASELINE;
+
+  // Respiratory rate validation - handle null/empty response
+  const hasRespiratoryData = !!respiratoryStats?.averageQuantity?.quantity;
+  const respiratoryRate = hasRespiratoryData
+    ? respiratoryStats.averageQuantity!.quantity
+    : defaults.RESPIRATORY_RATE;
+
+  const processedSleepEfficiency = sleepEfficiency ?? defaults.SLEEP_EFFICIENCY;
+  const activeEnergyBurned = activeEnergyStats?.sumQuantity?.quantity || 0;
+
+  // Calculate baselines for comparison
+  const baselineHrvValues = (baselineHrvSamples as QuantitySample[]).map(
+    (s: QuantitySample) => s.quantity
+  );
+  const baselineHrv = baselineHrvValues.length > 0 ? mean(baselineHrvValues) : undefined;
+
+  const baselineRhrValues = (baselineRhrSamples as QuantitySample[]).map(
+    (s: QuantitySample) => s.quantity
+  );
+  const baselineRhr = baselineRhrValues.length > 0 ? mean(baselineRhrValues) : undefined;
+
+  return {
+    restingHR,
+    currentHrv,
+    respiratoryRate,
+    hasRespiratoryData,
+    activeEnergyBurned,
+    baselineHrv,
+    baselineRhr,
+    sleepEfficiency: processedSleepEfficiency,
+  };
+};
+
+interface UserTargets {
+  waterTarget: number;
+  calorieTarget: number;
+  strainLow: number;
+  strainHigh: number;
+}
+
+interface MetricCalculation {
+  value: number;
+  baseline: number;
+  isHigherBetter?: boolean;
+  penalty?: number;
+  isDataMissing?: boolean;
+}
+
+/**
+ * Calculate a standardized metric score based on value vs baseline
+ */
+const calculateMetricScore = ({
+  value,
+  baseline,
+  isHigherBetter = true,
+  penalty = 0,
+  isDataMissing = false
+}: MetricCalculation): number => {
+  if (isDataMissing && penalty > 0) {
+    return Math.min(100, penalty);
+  }
+
+  let score: number;
+  if (isHigherBetter) {
+    score = (value / baseline) * 100;
+    if (value >= baseline) score = 100;
+  } else {
+    score = (baseline / value) * 100;
+    if (value <= baseline) score = 100;
+  }
+
+  return clampPercent(score - penalty);
+};
+
+/**
+ * Calculate strain score based on thresholds
+ */
+const calculateStrainScore = (
+  activeEnergy: number,
+  lowThreshold: number,
+  highThreshold: number
+): number => {
+  if (activeEnergy <= lowThreshold) return 100;
+  if (activeEnergy >= highThreshold) return 0;
+
+  const excess = activeEnergy - lowThreshold;
+  return clampPercent(100 - (excess / (highThreshold - lowThreshold)) * 100);
+};
+
+/**
+ * Calculate HRV baseline with age adjustment
+ */
+const calculateHrvBaseline = (
+  userParams: UserProfile,
+  healthData: HealthDataResult
+): number => {
+  if (userParams.baselineHRV) return userParams.baselineHRV;
+  if (healthData.baselineHrv) return healthData.baselineHrv;
+
+  if (userParams.age) {
+    const declineRate = userParams.hrvAgeDeclineRate;
+    return Math.max(25, 60 - (userParams.age - 25) * declineRate);
+  }
+
+  return 50;
+};
+
+/**
+ * Calculate RHR baseline with age and fitness adjustments
+ */
+const calculateRhrBaseline = (
+  userParams: UserProfile,
+  healthData: HealthDataResult
+): number => {
+  if (userParams.baselineRHR) return userParams.baselineRHR;
+  if (healthData.baselineRhr) return healthData.baselineRhr;
+
+  if (userParams.age) {
+    const baseRHR = userParams.hrBaselineValue;
+    const referenceAge = userParams.hrBaselineAgeReference;
+    const ageAdjustment = (userParams.age - referenceAge) * userParams.rhrAgeIncreaseRate;
+    const fitnessAdjustment = userParams.fitnessRhrAdjustments[userParams.fitnessLevel];
+
+    return Math.max(40, baseRHR + ageAdjustment + fitnessAdjustment);
+  }
+
+  return 60;
+};
+
+/**
+ * Calculate user-specific targets for water intake, calories, and strain thresholds
+ */
+const calculateUserTargets = (userParams: UserProfile, defaults: SystemDefaults): UserTargets => {
+  // Calculate personalized water target based on weight and activity
+  let waterTarget = defaults.WATER_TARGET;
+  if (userParams.weight) {
+    const waterPerKg = userParams.waterIntakePerKg;
+    waterTarget = Math.round(userParams.weight * waterPerKg);
+  }
+  if (userParams.dailyWaterTarget) {
+    waterTarget = userParams.dailyWaterTarget;
+  }
+
+  // Calculate personalized calorie target based on user stats
+  let calorieTarget = defaults.CALORIE_TARGET;
+  if (userParams.weight && userParams.height && userParams.age) {
+    const genderAdjustment = userParams.bmrGenderAdjustment;
+    const bmr =
+      10 * userParams.weight +
+      6.25 * userParams.height -
+      5 * userParams.age +
+      genderAdjustment;
+
+    const activityMultipliers = userParams.bmrActivityMultipliers;
+    const activityMultiplier = activityMultipliers[userParams.fitnessLevel];
+
+    const deficitPercentage = userParams.caloricDeficitPercentage;
+    calorieTarget = Math.round(
+      bmr * activityMultiplier * deficitPercentage
+    );
+  }
+  if (userParams.dailyCalorieTarget) {
+    calorieTarget = userParams.dailyCalorieTarget;
+  }
+
+  const configuredThresholds = userParams.strainThresholds;
+  const strainThresholds = configuredThresholds[userParams.fitnessLevel];
+
+  return {
+    waterTarget,
+    calorieTarget,
+    strainLow: strainThresholds.low,
+    strainHigh: strainThresholds.high,
+  };
+};
+
 /**
  * Fetch recovery data directly from HealthKit and calculate comprehensive recovery score
  * Includes biometric data (HRV, RHR, respiratory rate, sleep efficiency)
@@ -61,164 +354,11 @@ export async function calculateRecoveryScore(
   options: RecoveryCalculationOptions
 ): Promise<RecoveryScoreResult> {
   try {
-    const targetDate = options.targetDate;
-    let now: Date, startOfDay: Date, oneWeekAgo: Date, fourteenDaysAgo: Date;
+    const dateRanges = calculateDateRanges(options.targetDate);
+    const healthData = await fetchHealthData(dateRanges, options.defaults, options.sleepEfficiency);
 
-    if (targetDate) {
-      const ranges = getDateRanges(targetDate);
-      const extendedRanges = getExtendedDateRanges(targetDate);
-      now = ranges.endOfTargetDay;
-      startOfDay = ranges.startOfTargetDay;
-      oneWeekAgo = ranges.oneWeekAgo;
-      fourteenDaysAgo = extendedRanges.fourteenDaysAgo;
-    } else {
-      const ranges = getCurrentDateRanges();
-      const extendedRanges = getExtendedDateRanges();
-      now = ranges.now;
-      startOfDay = ranges.startOfToday;
-      oneWeekAgo = ranges.oneWeekAgo;
-      fourteenDaysAgo = extendedRanges.fourteenDaysAgo;
-    }
-
-    // Fetch all required health data in parallel
-    const [
-      restingHRSample,
-      hrvSamples,
-      respiratoryStats,
-      activeEnergyStats,
-      baselineHrvSamples,
-      baselineRhrSamples,
-    ]: [
-      QuantitySample | undefined,
-      readonly QuantitySample[],
-      QueryStatisticsResponse,
-      QueryStatisticsResponse,
-      readonly QuantitySample[],
-      readonly QuantitySample[]
-    ] = await Promise.all([
-      // Current resting heart rate
-      getMostRecentQuantitySample("HKQuantityTypeIdentifierRestingHeartRate"),
-
-      // HRV data for last week (for current value)
-      queryQuantitySamples("HKQuantityTypeIdentifierHeartRateVariabilitySDNN", {
-        filter: { startDate: oneWeekAgo, endDate: now },
-      }),
-
-      // Respiratory rate for the target day (may not be available)
-      queryStatisticsForQuantity(
-        "HKQuantityTypeIdentifierRespiratoryRate",
-        ["discreteAverage"],
-        {
-          filter: { startDate: startOfDay, endDate: now },
-          unit: "count/min",
-        }
-      ),
-
-      // Active energy burned for the target day
-      queryStatisticsForQuantity(
-        "HKQuantityTypeIdentifierActiveEnergyBurned",
-        ["cumulativeSum"],
-        {
-          filter: { startDate: startOfDay, endDate: now },
-          unit: "kcal",
-        }
-      ),
-
-      // 14-day HRV baseline
-      queryQuantitySamples("HKQuantityTypeIdentifierHeartRateVariabilitySDNN", {
-        filter: { startDate: fourteenDaysAgo, endDate: now },
-        unit: "ms",
-      }),
-
-      // 14-day RHR baseline
-      queryQuantitySamples("HKQuantityTypeIdentifierRestingHeartRate", {
-        filter: { startDate: fourteenDaysAgo, endDate: now },
-        unit: "count/min",
-      }),
-    ]);
-
-    // Validate and process fetched data
-    const restingHR =
-      restingHRSample?.quantity ?? options.defaults.RESTING_HEART_RATE;
-
-    const hrvValues = (hrvSamples as QuantitySample[]).map(
-      (s: QuantitySample) => s.quantity
-    );
-
-    const currentHrv =
-      hrvValues.length > 0 ? mean(hrvValues) : options.defaults.HRV_BASELINE;
-
-    // Respiratory rate validation - handle null/empty response
-    const hasRespiratoryData = respiratoryStats?.averageQuantity?.quantity;
-    const respiratoryRate =
-      hasRespiratoryData ?? options.defaults.RESPIRATORY_RATE;
-
-    const sleepEfficiency =
-      options.sleepEfficiency ?? options.defaults.SLEEP_EFFICIENCY;
-
-    const activeEnergyBurned = activeEnergyStats?.sumQuantity?.quantity || 0;
-
-    // Calculate baselines for comparison
-    const baselineHrvValues = (baselineHrvSamples as QuantitySample[]).map(
-      (s: QuantitySample) => s.quantity
-    );
-    const baselineHrv =
-      baselineHrvValues.length > 0 ? mean(baselineHrvValues) : undefined;
-
-    const baselineRhrValues = (baselineRhrSamples as QuantitySample[]).map(
-      (s: QuantitySample) => s.quantity
-    );
-    const baselineRhr =
-      baselineRhrValues.length > 0 ? mean(baselineRhrValues) : undefined;
-
-    // Calculate user-specific targets and baselines
-    const getUserSpecificTargets = () => {
-      const userParams = options.userParams;
-
-      // Calculate personalized water target based on weight and activity
-      let waterTarget = options.defaults.WATER_TARGET;
-      if (userParams.weight) {
-        const waterPerKg = userParams.waterIntakePerKg;
-        waterTarget = Math.round(userParams.weight * waterPerKg);
-      }
-      if (userParams.dailyWaterTarget) {
-        waterTarget = userParams.dailyWaterTarget;
-      }
-
-      // Calculate personalized calorie target based on user stats
-      let calorieTarget = options.defaults.CALORIE_TARGET;
-      if (userParams.weight && userParams.height && userParams.age) {
-        const genderAdjustment = userParams.bmrGenderAdjustment;
-        const bmr =
-          10 * userParams.weight +
-          6.25 * userParams.height -
-          5 * userParams.age +
-          genderAdjustment;
-
-        const activityMultipliers = userParams.bmrActivityMultipliers;
-        const activityMultiplier = activityMultipliers[userParams.fitnessLevel];
-
-        const deficitPercentage = userParams.caloricDeficitPercentage;
-        calorieTarget = Math.round(
-          bmr * activityMultiplier * deficitPercentage
-        );
-      }
-      if (userParams.dailyCalorieTarget) {
-        calorieTarget = userParams.dailyCalorieTarget;
-      }
-
-      const configuredThresholds = userParams.strainThresholds;
-      const strainThresholds = configuredThresholds[userParams.fitnessLevel];
-
-      return {
-        waterTarget,
-        calorieTarget,
-        strainLow: strainThresholds.low,
-        strainHigh: strainThresholds.high,
-      };
-    };
-
-    const targets = getUserSpecificTargets();
+    // Calculate user-specific targets
+    const targets = calculateUserTargets(options.userParams, options.defaults);
 
     const waterIntakeAssumption = options.userParams.waterIntakeAssumption;
     const waterIntake =
@@ -253,77 +393,56 @@ export async function calculateRecoveryScore(
       );
       alcoholPenalty = Math.round(alcoholPenalty * weightFactor);
     }
-    // 1. Normalize biometric metrics with user-specific baselines
-    const baselines = {
-      hrv: options.userParams.baselineHRV || baselineHrv,
-      restingHR: options.userParams.baselineRHR || baselineRhr,
-    };
+    // 1. Calculate baseline values and normalized scores
+    const hrvBaseline = calculateHrvBaseline(options.userParams, healthData);
+    const rhrBaseline = calculateRhrBaseline(options.userParams, healthData);
 
-    // HRV: higher is better. Use personal baseline if available, with age adjustment
-    let hrvBaseline = baselines.hrv ?? 50;
-
-    // Age-adjusted HRV baseline if user age is provided but no personal baseline
-    if (!baselines.hrv && options.userParams.age) {
-      const declineRate = options.userParams.hrvAgeDeclineRate;
-      const ageAdjustedHRV = Math.max(
-        25,
-        60 - (options.userParams.age - 25) * declineRate
-      );
-      hrvBaseline = ageAdjustedHRV;
-    }
-
-    let hrvScore = (currentHrv / hrvBaseline) * 100;
+    // Calculate biometric scores
+    let hrvScore = calculateMetricScore({
+      value: healthData.currentHrv,
+      baseline: hrvBaseline,
+      isHigherBetter: true
+    });
 
     // Use configurable baseline comparison threshold
     const baselineMinSamples = options.userParams.hrvDataMinimumSamples;
     if (
-      baselineHrvValues.length < baselineMinSamples &&
-      Math.abs(currentHrv - hrvBaseline) < 1
+      (healthData.baselineHrv ? 14 : 0) < baselineMinSamples &&
+      Math.abs(healthData.currentHrv - hrvBaseline) < 1
     ) {
-      hrvScore = (currentHrv / normativeHrv) * 100;
+      hrvScore = calculateMetricScore({
+        value: healthData.currentHrv,
+        baseline: normativeHrv,
+        isHigherBetter: true
+      });
     }
 
-    if (currentHrv >= hrvBaseline) hrvScore = 100;
-    hrvScore = clampPercent(hrvScore);
-
-    // Resting Heart Rate (RHR): lower is better, with age and fitness adjustments
-    let rhrBaseline = baselines.restingHR ?? 60;
-
-    // Age and fitness-adjusted RHR baseline if no personal baseline
-    if (!baselines.restingHR && options.userParams.age) {
-      const baseRHR = options.userParams.hrBaselineValue;
-      const referenceAge = options.userParams.hrBaselineAgeReference;
-      const ageAdjustment =
-        (options.userParams.age - referenceAge) *
-        options.userParams.rhrAgeIncreaseRate;
-
-      const fitnessAdjustments = options.userParams.fitnessRhrAdjustments;
-      const fitnessAdjustment =
-        fitnessAdjustments[options.userParams.fitnessLevel];
-
-      rhrBaseline = Math.max(40, baseRHR + ageAdjustment + fitnessAdjustment);
-    }
-
-    let rhrScore = (rhrBaseline / restingHR) * 100;
-    if (restingHR <= rhrBaseline) rhrScore = 100;
-    rhrScore = clampPercent(rhrScore);
+    const rhrScore = calculateMetricScore({
+      value: healthData.restingHR,
+      baseline: rhrBaseline,
+      isHigherBetter: false
+    });
 
     // Respiratory Rate: lower (within normal range) is better
-    let respiratoryScore = (respBase / respiratoryRate) * 100;
-    if (respiratoryRate <= respBase) respiratoryScore = 100;
+    let respiratoryScore = calculateMetricScore({
+      value: healthData.respiratoryRate,
+      baseline: respBase,
+      isHigherBetter: false,
+      penalty: 0,
+      isDataMissing: !healthData.hasRespiratoryData
+    });
 
-    if (!hasRespiratoryData) {
+    if (!healthData.hasRespiratoryData) {
       const penaltyPercent = options.userParams.respiratoryPenaltyForMissing;
       respiratoryScore = Math.min(respiratoryScore, penaltyPercent);
     }
 
-    respiratoryScore = clampPercent(respiratoryScore);
-
     // Sleep Efficiency: already a percentage. Compare to baseline or use directly.
-    const sleepEffBase = 100; // ideal 100%
-    let sleepEffScore = (sleepEfficiency / sleepEffBase) * 100;
-    if (sleepEfficiency >= sleepEffBase) sleepEffScore = 100;
-    sleepEffScore = clampPercent(sleepEffScore);
+    const sleepEffScore = calculateMetricScore({
+      value: healthData.sleepEfficiency,
+      baseline: 100, // ideal 100%
+      isHigherBetter: true
+    });
 
     // 2. Normalize lifestyle metrics against healthy thresholds
     // Hydration (daily water) – compare to target
@@ -341,17 +460,11 @@ export async function calculateRecoveryScore(
     nutritionScore = clampPercent(nutritionScore);
 
     // Strain (active energy) – full score if <=low threshold, zero if >=high threshold, linear in between
-    let strainScore: number;
-    if (activeEnergyBurned <= strainLow) {
-      strainScore = 100;
-    } else if (activeEnergyBurned >= strainHigh) {
-      strainScore = 0;
-    } else {
-      // interpolate between low and high thresholds
-      const excess = activeEnergyBurned - strainLow;
-      strainScore = 100 - (excess / (strainHigh - strainLow)) * 100;
-    }
-    strainScore = clampPercent(strainScore);
+    const strainScore = calculateStrainScore(
+      healthData.activeEnergyBurned,
+      strainLow,
+      strainHigh
+    );
 
     // 3. Apply weighting to combine metrics
     // Weights: 50% biometrics, 50% lifestyle (each metric equally weighted within its category here)
@@ -405,7 +518,35 @@ export async function calculateRecoveryScore(
       }`
     );
   }
-}
+};
+
+/**
+ * Calculate recovery average for a specific date range
+ */
+const calculateRecoveryAverage = async (
+  dateRange: { from: Date; to: Date },
+  defaults: SystemDefaults,
+  userParams: UserProfile
+): Promise<RecoveryAverages> => {
+  const dates = getDatesArray(dateRange.from, dateRange.to);
+  const recoveryScores: number[] = [];
+
+  for (const date of dates) {
+    try {
+      const recoveryResult = await calculateRecoveryScore({
+        defaults,
+        userParams,
+        targetDate: date,
+      });
+      recoveryScores.push(recoveryResult.totalScore);
+    } catch {
+      // Skip failed calculations
+    }
+  }
+
+  const avgScore = calculateAverage(recoveryScores);
+  return { score: Math.round(avgScore) };
+};
 
 /**
  * Fetch recovery averages for 14 and 30 day periods relative to a target date
@@ -418,56 +559,12 @@ export const fetchRecoveryAverages = async (
   last14Days: RecoveryAverages;
   last30Days: RecoveryAverages;
 }> => {
-  const range14Days = getDateRange(14, targetDate);
-  const range30Days = getDateRange(30, targetDate);
+  const [last14Days, last30Days] = await Promise.all([
+    calculateRecoveryAverage(getDateRange(14, targetDate), defaults, userParams),
+    calculateRecoveryAverage(getDateRange(30, targetDate), defaults, userParams)
+  ]);
 
-  const calculate14DayAverage = async () => {
-    const dates = getDatesArray(range14Days.from, range14Days.to);
-    const recoveryScores: number[] = [];
-
-    for (const date of dates) {
-      try {
-        // Calculate daily recovery score for each specific date
-        const recoveryResult = await calculateRecoveryScore({
-          defaults,
-          userParams,
-          targetDate: date,
-        });
-        recoveryScores.push(recoveryResult.totalScore);
-      } catch {
-        // Skip failed calculations
-      }
-    }
-
-    const avgScore = calculateAverage(recoveryScores);
-    return { score: Math.round(avgScore) };
-  };
-
-  const calculate30DayAverage = async () => {
-    const dates = getDatesArray(range30Days.from, range30Days.to);
-    const recoveryScores: number[] = [];
-
-    for (const date of dates) {
-      try {
-        const recoveryResult = await calculateRecoveryScore({
-          defaults,
-          userParams,
-          targetDate: date,
-        });
-        recoveryScores.push(recoveryResult.totalScore);
-      } catch {
-        // Skip failed calculations
-      }
-    }
-
-    const avgScore = calculateAverage(recoveryScores);
-    return { score: Math.round(avgScore) };
-  };
-
-  return {
-    last14Days: await calculate14DayAverage(),
-    last30Days: await calculate30DayAverage(),
-  };
+  return { last14Days, last30Days };
 };
 
 /**
@@ -562,4 +659,4 @@ export async function getRecoveryMetrics(
     recommendation,
     insights,
   };
-}
+};

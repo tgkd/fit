@@ -16,6 +16,11 @@
         "GITHUB_PERSONAL_ACCESS_TOKEN": "${github-pat}"
       }
     },
+    "ESLint": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["@eslint/mcp@latest"]
+    },
     // https://github.com/modelcontextprotocol/servers/tree/main/src/fetch
     "fetch": {
       "command": "uvx",
