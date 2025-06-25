@@ -51,6 +51,54 @@ export interface RecoveryScoreResult {
 // Helper: clamp a value to 0–100
 const clampPercent = (num: number): number => Math.max(0, Math.min(100, num));
 
+/**
+ * Validate user parameters for potential issues
+ */
+const validateUserParameters = (userParams: UserProfile): string[] => {
+  const warnings: string[] = [];
+
+  if (userParams.age && (userParams.age < 10 || userParams.age > 120)) {
+    warnings.push(`Unusual age: ${userParams.age}`);
+  }
+
+  if (
+    userParams.weight &&
+    (userParams.weight < 30 || userParams.weight > 300)
+  ) {
+    warnings.push(`Unusual weight: ${userParams.weight} kg`);
+  }
+
+  if (
+    userParams.height &&
+    (userParams.height < 100 || userParams.height > 250)
+  ) {
+    warnings.push(`Unusual height: ${userParams.height} cm`);
+  }
+
+  if (
+    userParams.baselineHRV &&
+    (userParams.baselineHRV < 10 || userParams.baselineHRV > 200)
+  ) {
+    warnings.push(`Unusual baseline HRV: ${userParams.baselineHRV} ms`);
+  }
+
+  if (
+    userParams.baselineRHR &&
+    (userParams.baselineRHR < 30 || userParams.baselineRHR > 120)
+  ) {
+    warnings.push(`Unusual baseline RHR: ${userParams.baselineRHR} bpm`);
+  }
+
+  if (
+    userParams.sleepEfficiency &&
+    (userParams.sleepEfficiency < 40 || userParams.sleepEfficiency > 100)
+  ) {
+    warnings.push(`Unusual sleep efficiency: ${userParams.sleepEfficiency}%`);
+  }
+
+  return warnings;
+};
+
 interface DateRanges {
   now: Date;
   startOfDay: Date;
@@ -167,7 +215,8 @@ const fetchHealthData = async (
   const hrvValues = (hrvSamples as QuantitySample[]).map(
     (s: QuantitySample) => s.quantity
   );
-  const currentHrv = hrvValues.length > 0 ? mean(hrvValues) : defaults.HRV_BASELINE;
+  const currentHrv =
+    hrvValues.length > 0 ? mean(hrvValues) : defaults.HRV_BASELINE;
 
   // Respiratory rate validation - handle null/empty response
   const hasRespiratoryData = !!respiratoryStats?.averageQuantity?.quantity;
@@ -182,14 +231,16 @@ const fetchHealthData = async (
   const baselineHrvValues = (baselineHrvSamples as QuantitySample[]).map(
     (s: QuantitySample) => s.quantity
   );
-  const baselineHrv = baselineHrvValues.length > 0 ? mean(baselineHrvValues) : undefined;
+  const baselineHrv =
+    baselineHrvValues.length > 0 ? mean(baselineHrvValues) : undefined;
 
   const baselineRhrValues = (baselineRhrSamples as QuantitySample[]).map(
     (s: QuantitySample) => s.quantity
   );
-  const baselineRhr = baselineRhrValues.length > 0 ? mean(baselineRhrValues) : undefined;
+  const baselineRhr =
+    baselineRhrValues.length > 0 ? mean(baselineRhrValues) : undefined;
 
-  return {
+  const result = {
     restingHR,
     currentHrv,
     respiratoryRate,
@@ -199,6 +250,8 @@ const fetchHealthData = async (
     baselineRhr,
     sleepEfficiency: processedSleepEfficiency,
   };
+
+  return result;
 };
 
 interface UserTargets {
@@ -217,44 +270,45 @@ interface MetricCalculation {
 }
 
 /**
- * Calculate a standardized metric score based on value vs baseline
+ * Calculate a baseline-deviation recovery score using percentage deviations
+ * This approach is more sensitive to personal baselines and provides realistic scoring
  */
-const calculateMetricScore = ({
+const calculateBaselineDeviationScore = ({
   value,
   baseline,
   isHigherBetter = true,
   penalty = 0,
-  isDataMissing = false
+  isDataMissing = false,
 }: MetricCalculation): number => {
   if (isDataMissing && penalty > 0) {
     return Math.min(100, penalty);
   }
 
-  let score: number;
+  // Calculate percentage deviation from baseline
+  const deviation = (value - baseline) / baseline;
+  let score = 50; // Start at neutral (50%)
+
   if (isHigherBetter) {
-    score = (value / baseline) * 100;
-    if (value >= baseline) score = 100;
+    // Higher values are better (e.g., HRV)
+    if (deviation > 0) {
+      // Above baseline: scale from 50 to 100
+      score = Math.min(100, 50 + deviation * 100);
+    } else {
+      // Below baseline: scale from 50 to 0
+      score = Math.max(0, 50 + deviation * 100);
+    }
   } else {
-    score = (baseline / value) * 100;
-    if (value <= baseline) score = 100;
+    // Lower values are better (e.g., RHR)
+    if (deviation < 0) {
+      // Below baseline (good): scale from 50 to 100
+      score = Math.min(100, 50 + Math.abs(deviation) * 100);
+    } else {
+      // Above baseline (bad): scale from 50 to 0
+      score = Math.max(0, 50 - deviation * 100);
+    }
   }
 
   return clampPercent(score - penalty);
-};
-
-/**
- * Calculate strain score based on thresholds
- */
-const calculateStrainScore = (
-  activeEnergy: number,
-  lowThreshold: number,
-  highThreshold: number
-): number => {
-  if (activeEnergy <= lowThreshold) return 100;
-  if (activeEnergy >= highThreshold) return 0;
-
-  const excess = activeEnergy - lowThreshold;
-  return clampPercent(100 - (excess / (highThreshold - lowThreshold)) * 100);
 };
 
 /**
@@ -264,8 +318,13 @@ const calculateHrvBaseline = (
   userParams: UserProfile,
   healthData: HealthDataResult
 ): number => {
-  if (userParams.baselineHRV) return userParams.baselineHRV;
-  if (healthData.baselineHrv) return healthData.baselineHrv;
+  if (userParams.baselineHRV) {
+    return userParams.baselineHRV;
+  }
+
+  if (healthData.baselineHrv) {
+    return healthData.baselineHrv;
+  }
 
   if (userParams.age) {
     const declineRate = userParams.hrvAgeDeclineRate;
@@ -282,15 +341,21 @@ const calculateRhrBaseline = (
   userParams: UserProfile,
   healthData: HealthDataResult
 ): number => {
-  if (userParams.baselineRHR) return userParams.baselineRHR;
-  if (healthData.baselineRhr) return healthData.baselineRhr;
+  if (userParams.baselineRHR) {
+    return userParams.baselineRHR;
+  }
+
+  if (healthData.baselineRhr) {
+    return healthData.baselineRhr;
+  }
 
   if (userParams.age) {
     const baseRHR = userParams.hrBaselineValue;
     const referenceAge = userParams.hrBaselineAgeReference;
-    const ageAdjustment = (userParams.age - referenceAge) * userParams.rhrAgeIncreaseRate;
-    const fitnessAdjustment = userParams.fitnessRhrAdjustments[userParams.fitnessLevel];
-
+    const ageAdjustment =
+      (userParams.age - referenceAge) * userParams.rhrAgeIncreaseRate;
+    const fitnessAdjustment =
+      userParams.fitnessRhrAdjustments[userParams.fitnessLevel];
     return Math.max(40, baseRHR + ageAdjustment + fitnessAdjustment);
   }
 
@@ -300,7 +365,10 @@ const calculateRhrBaseline = (
 /**
  * Calculate user-specific targets for water intake, calories, and strain thresholds
  */
-const calculateUserTargets = (userParams: UserProfile, defaults: SystemDefaults): UserTargets => {
+const calculateUserTargets = (
+  userParams: UserProfile,
+  defaults: SystemDefaults
+): UserTargets => {
   // Calculate personalized water target based on weight and activity
   let waterTarget = defaults.WATER_TARGET;
   if (userParams.weight) {
@@ -325,9 +393,7 @@ const calculateUserTargets = (userParams: UserProfile, defaults: SystemDefaults)
     const activityMultiplier = activityMultipliers[userParams.fitnessLevel];
 
     const deficitPercentage = userParams.caloricDeficitPercentage;
-    calorieTarget = Math.round(
-      bmr * activityMultiplier * deficitPercentage
-    );
+    calorieTarget = Math.round(bmr * activityMultiplier * deficitPercentage);
   }
   if (userParams.dailyCalorieTarget) {
     calorieTarget = userParams.dailyCalorieTarget;
@@ -353,11 +419,22 @@ const calculateUserTargets = (userParams: UserProfile, defaults: SystemDefaults)
 export async function calculateRecoveryScore(
   options: RecoveryCalculationOptions
 ): Promise<RecoveryScoreResult> {
+  // Validate user parameters
+  const userValidationWarnings = validateUserParameters(options.userParams);
+  if (userValidationWarnings.length > 0) {
+    console.warn(
+      "⚠️ User Parameter Validation Warnings",
+      userValidationWarnings
+    );
+  }
+
   try {
     const dateRanges = calculateDateRanges(options.targetDate);
-    const healthData = await fetchHealthData(dateRanges, options.defaults, options.sleepEfficiency);
-
-    // Calculate user-specific targets
+    const healthData = await fetchHealthData(
+      dateRanges,
+      options.defaults,
+      options.sleepEfficiency
+    );
     const targets = calculateUserTargets(options.userParams, options.defaults);
 
     const waterIntakeAssumption = options.userParams.waterIntakeAssumption;
@@ -373,7 +450,6 @@ export async function calculateRecoveryScore(
       options.userParams.baselineHRV || options.defaults.NORMATIVE_HRV;
     const waterTarget = targets.waterTarget;
     const calorieTarget = targets.calorieTarget;
-    const strainLow = targets.strainLow;
     const strainHigh = targets.strainHigh;
     const respBase = options.defaults.RESPIRATORY_BASELINE;
 
@@ -397,11 +473,11 @@ export async function calculateRecoveryScore(
     const hrvBaseline = calculateHrvBaseline(options.userParams, healthData);
     const rhrBaseline = calculateRhrBaseline(options.userParams, healthData);
 
-    // Calculate biometric scores
-    let hrvScore = calculateMetricScore({
+    // Calculate biometric scores using baseline deviation approach
+    let hrvScore = calculateBaselineDeviationScore({
       value: healthData.currentHrv,
       baseline: hrvBaseline,
-      isHigherBetter: true
+      isHigherBetter: true,
     });
 
     // Use configurable baseline comparison threshold
@@ -410,84 +486,116 @@ export async function calculateRecoveryScore(
       (healthData.baselineHrv ? 14 : 0) < baselineMinSamples &&
       Math.abs(healthData.currentHrv - hrvBaseline) < 1
     ) {
-      hrvScore = calculateMetricScore({
+      hrvScore = calculateBaselineDeviationScore({
         value: healthData.currentHrv,
         baseline: normativeHrv,
-        isHigherBetter: true
+        isHigherBetter: true,
       });
     }
 
-    const rhrScore = calculateMetricScore({
+    const rhrScore = calculateBaselineDeviationScore({
       value: healthData.restingHR,
       baseline: rhrBaseline,
-      isHigherBetter: false
+      isHigherBetter: false,
     });
 
-    // Respiratory Rate: lower (within normal range) is better
-    let respiratoryScore = calculateMetricScore({
-      value: healthData.respiratoryRate,
-      baseline: respBase,
-      isHigherBetter: false,
-      penalty: 0,
-      isDataMissing: !healthData.hasRespiratoryData
-    });
+    // Respiratory Rate: deviations from baseline are bad
+    const rrDeviation =
+      Math.abs(healthData.respiratoryRate - respBase) / respBase;
+    let respiratoryScore = 100;
+    if (rrDeviation > 0.1) {
+      // >10% deviation is concerning
+      respiratoryScore = Math.max(0, 100 - rrDeviation * 200);
+    }
 
     if (!healthData.hasRespiratoryData) {
       const penaltyPercent = options.userParams.respiratoryPenaltyForMissing;
       respiratoryScore = Math.min(respiratoryScore, penaltyPercent);
     }
 
-    // Sleep Efficiency: already a percentage. Compare to baseline or use directly.
-    const sleepEffScore = calculateMetricScore({
-      value: healthData.sleepEfficiency,
-      baseline: 100, // ideal 100%
-      isHigherBetter: true
+    // Sleep Efficiency: direct percentage, but apply ceiling effect later
+    const sleepEffScore = healthData.sleepEfficiency;
+
+    // 2. Calculate vital signs score using research-based weighting
+    // HRV and RHR are the primary indicators, with respiratory rate as anomaly detector
+    const vitalsScore =
+      hrvScore * 0.45 + // HRV gets highest weight (most predictive)
+      rhrScore * 0.35 + // RHR second highest (cardiovascular readiness)
+      respiratoryScore * 0.2; // Respiratory as anomaly detector
+
+    // 3. Apply sleep ceiling effect - poor sleep caps recovery potential
+    // This is critical: if sleep is inadequate, recovery cannot be high regardless of vitals
+    const sleepFactor = Math.min(1.0, sleepEffScore / 75); // Sleep below 75% starts limiting recovery
+    const cappedVitalsScore = vitalsScore * sleepFactor;
+
+    console.log("� Sleep Ceiling Applied", {
+      sleepEffScore: Math.round(sleepEffScore),
+      sleepFactor: sleepFactor.toFixed(2),
+      vitalsBeforeCap: Math.round(vitalsScore),
+      vitalsAfterCap: Math.round(cappedVitalsScore),
     });
 
-    // 2. Normalize lifestyle metrics against healthy thresholds
-    // Hydration (daily water) – compare to target
+    // 4. Calculate strain penalty from yesterday's activity
+    let strainPenalty = 0;
+    if (healthData.activeEnergyBurned > strainHigh) {
+      strainPenalty = Math.min(
+        20,
+        (healthData.activeEnergyBurned - strainHigh) / 50
+      );
+    }
+
+    // 5. Final recovery calculation: blend capped vitals with sleep, then apply strain penalty
+    const recoveryScore = cappedVitalsScore * 0.7 + sleepEffScore * 0.3;
+    const totalScore = Math.max(
+      0,
+      Math.min(100, recoveryScore - strainPenalty)
+    );
+
+    // 6. Calculate simplified lifestyle scores for breakdown display
     let hydrationScore = (waterIntake / waterTarget) * 100;
     hydrationScore = clampPercent(hydrationScore);
 
-    // Alcohol – 0 drinks ideal. Use configurable threshold for zero score.
     let alcoholScore = 100 - alcoholDrinks * alcoholPenalty;
     const maxAlcoholDrinks = options.userParams.maxAlcoholForZeroScore;
     if (alcoholDrinks >= maxAlcoholDrinks) alcoholScore = 0;
     alcoholScore = clampPercent(alcoholScore);
 
-    // Nutrition (calories) – compare to minimum target
     let nutritionScore = (caloriesConsumed / calorieTarget) * 100;
     nutritionScore = clampPercent(nutritionScore);
 
-    // Strain (active energy) – full score if <=low threshold, zero if >=high threshold, linear in between
-    const strainScore = calculateStrainScore(
-      healthData.activeEnergyBurned,
-      strainLow,
-      strainHigh
-    );
+    const strainScore = Math.max(0, 100 - strainPenalty);
 
-    // 3. Apply weighting to combine metrics
-    // Weights: 50% biometrics, 50% lifestyle (each metric equally weighted within its category here)
-    const biometricMetrics = [
-      hrvScore,
-      rhrScore,
-      respiratoryScore,
-      sleepEffScore,
-    ];
-    const lifestyleMetrics = [
-      hydrationScore,
-      alcoholScore,
-      nutritionScore,
-      strainScore,
-    ];
-    const biometricScore =
-      biometricMetrics.reduce((sum, val) => sum + val, 0) /
-      biometricMetrics.length;
-    const lifestyleScore =
-      lifestyleMetrics.reduce((sum, val) => sum + val, 0) /
-      lifestyleMetrics.length;
-    // Combine category scores (equal weight)
-    const totalScore = biometricScore * 0.5 + lifestyleScore * 0.5;
+    // Validate final scores for realistic ranges
+    const scoreValidation = {
+      totalScoreInRange: totalScore >= 0 && totalScore <= 100,
+      vitalsScoreRealistic: cappedVitalsScore >= 0 && cappedVitalsScore <= 100,
+      sleepScoreValid: sleepEffScore >= 0 && sleepEffScore <= 100,
+      allComponentsValid: [
+        hrvScore,
+        rhrScore,
+        respiratoryScore,
+        sleepEffScore,
+        hydrationScore,
+        alcoholScore,
+        nutritionScore,
+        strainScore,
+        totalScore,
+      ].every((score) => score >= 0 && score <= 100),
+    };
+
+    if (!scoreValidation.allComponentsValid) {
+      console.warn("⚠️ Score Out of Range Detected", {
+        hrvScore,
+        rhrScore,
+        respiratoryScore,
+        sleepEffScore,
+        hydrationScore,
+        alcoholScore,
+        nutritionScore,
+        strainScore,
+        totalScore,
+      });
+    }
 
     // 4. Prepare detailed breakdown with validation info
     const breakdown: RecoveryScoreBreakdown = {
@@ -507,18 +615,29 @@ export async function calculateRecoveryScore(
 
     return {
       totalScore: Math.round(totalScore),
-      biometricScore: Math.round(biometricScore),
-      lifestyleScore: Math.round(lifestyleScore),
+      biometricScore: Math.round(cappedVitalsScore), // Use capped vitals as biometric score
+      lifestyleScore: Math.round(
+        (hydrationScore + alcoholScore + nutritionScore + strainScore) / 4
+      ), // Average lifestyle factors
       breakdown,
     };
   } catch (error) {
+    console.error("❌ Recovery Calculation Failed", {
+      error: error instanceof Error ? error.message : "Unknown error",
+      stack: error instanceof Error ? error.stack : undefined,
+      options: {
+        targetDate: options.targetDate?.toISOString(),
+        sleepEfficiency: options.sleepEfficiency,
+        userAge: options.userParams.age,
+      },
+    });
     throw new Error(
       `Failed to calculate recovery: ${
         error instanceof Error ? error.message : "Unknown error"
       }`
     );
   }
-};
+}
 
 /**
  * Calculate recovery average for a specific date range
@@ -560,8 +679,16 @@ export const fetchRecoveryAverages = async (
   last30Days: RecoveryAverages;
 }> => {
   const [last14Days, last30Days] = await Promise.all([
-    calculateRecoveryAverage(getDateRange(14, targetDate), defaults, userParams),
-    calculateRecoveryAverage(getDateRange(30, targetDate), defaults, userParams)
+    calculateRecoveryAverage(
+      getDateRange(14, targetDate),
+      defaults,
+      userParams
+    ),
+    calculateRecoveryAverage(
+      getDateRange(30, targetDate),
+      defaults,
+      userParams
+    ),
   ]);
 
   return { last14Days, last30Days };
@@ -659,4 +786,4 @@ export async function getRecoveryMetrics(
     recommendation,
     insights,
   };
-};
+}
