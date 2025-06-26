@@ -1,7 +1,7 @@
-import { LinearGradient, useFont, vec } from "@shopify/react-native-skia";
+import { LinearGradient, Path, useFont, vec } from "@shopify/react-native-skia";
 import React from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
-import { Area, CartesianChart } from "victory-native";
+import { CartesianChart, type PointsArray, useLinePath } from "victory-native";
 
 // import hiFont from "@/assets/fonts/Hikasami-Regular.ttf";
 import { ThemedText } from "@/components/ThemedText";
@@ -39,13 +39,8 @@ export function StressMonitorCard({
     );
   }
 
-  const {
-    chartPlotData,
-    currentStressForVisualization,
-    yDomainForVisualization,
-    xAxisDataType,
-    lastUpdatedDisplay,
-  } = healthData.stressChartDisplayData;
+  const { chartPlotData, yDomainForVisualization, lastUpdatedDisplay } =
+    healthData.stressChartDisplayData;
 
   return (
     <TouchableOpacity
@@ -70,9 +65,7 @@ export function StressMonitorCard({
       <View style={styles.chartOuterContainer}>
         <StressVisualization
           data={chartPlotData}
-          currentStress={currentStressForVisualization}
           yDomain={yDomainForVisualization}
-          xAxisDataType={xAxisDataType}
         />
       </View>
     </TouchableOpacity>
@@ -81,20 +74,12 @@ export function StressMonitorCard({
 
 interface StressVisualizationProps {
   data: StressChartDataPoint[];
-  currentStress: number;
   yDomain: [number, number];
-  xAxisDataType: "hourly" | "daily";
 }
 
-function StressVisualization({
-  data,
-  currentStress,
-  yDomain,
-  xAxisDataType,
-}: StressVisualizationProps) {
+function StressVisualization({ data, yDomain }: StressVisualizationProps) {
   const font = useFont(require("@/assets/fonts/Hikasami-Regular.ttf"), 12);
   const themedTextColor = useThemeColor({}, "text");
-  const themedLineColor = useThemeColor({}, "tint");
   const themedGridColor = useThemeColor({}, "textSecondary");
 
   if (!data || data.length < 1) {
@@ -152,24 +137,33 @@ function StressVisualization({
           formatYLabel: (value) => `${Math.round(value as number)}`,
         }}
       >
-        {({ points, chartBounds, canvasSize, yScale, yTicks }) => (
-          <Area
-            y0={chartBounds.bottom}
-            points={points.y}
-            curveType="linear"
-            color={themedLineColor}
-            opacity={0.3}
-            animate={{ type: "timing", duration: 300 }}
-          >
-            <LinearGradient
-              start={vec(0, 0)}
-              end={vec(0, chartBounds.bottom)}
-              colors={["#ef4444", "#f59e0b", "#10b981"]}
-            />
-          </Area>
+        {({ points }) => (
+          <>
+            <StressLine points={points.y} />
+          </>
         )}
       </CartesianChart>
     </View>
+  );
+}
+
+interface StressLineProps {
+  points: PointsArray;
+}
+
+function StressLine({ points }: StressLineProps) {
+  const { path } = useLinePath(points);
+
+  const chartHeight = 180;
+
+  return (
+    <Path path={path} style="stroke" strokeWidth={2}>
+      <LinearGradient
+        start={vec(0, 0)}
+        end={vec(0, chartHeight)}
+        colors={["#F59E0B", "#22C55E"]}
+      />
+    </Path>
   );
 }
 

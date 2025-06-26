@@ -528,13 +528,6 @@ export async function calculateRecoveryScore(
     const sleepFactor = Math.min(1.0, sleepEffScore / 75); // Sleep below 75% starts limiting recovery
     const cappedVitalsScore = vitalsScore * sleepFactor;
 
-    console.log("� Sleep Ceiling Applied", {
-      sleepEffScore: Math.round(sleepEffScore),
-      sleepFactor: sleepFactor.toFixed(2),
-      vitalsBeforeCap: Math.round(vitalsScore),
-      vitalsAfterCap: Math.round(cappedVitalsScore),
-    });
-
     // 4. Calculate strain penalty from yesterday's activity
     let strainPenalty = 0;
     if (healthData.activeEnergyBurned > strainHigh) {

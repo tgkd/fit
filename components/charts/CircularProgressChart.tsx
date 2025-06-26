@@ -1,8 +1,8 @@
 import React from "react";
 import { StyleSheet, View } from "react-native";
+import Svg, { Circle } from "react-native-svg";
 
-import { Pie, PolarChart } from "victory-native";
-
+import { Colors } from "@/constants/Colors";
 import { ThemedText } from "../ThemedText";
 
 interface Props {
@@ -19,46 +19,42 @@ export function CircularProgressChart({
   value,
   maxValue = 100,
   color = "#4CAF50",
-  backgroundColor = "#2a2a2a",
+  backgroundColor = Colors.charts.chartBackground,
   size = 96,
+  strokeWidth = 8,
   label,
 }: Props) {
   const percentage = Math.max(0, Math.min(100, (value / maxValue) * 100));
-  const remainingPercentage = 100 - percentage;
-  const chartSize = size - 4;
-
-  const data = [
-    {
-      value: percentage,
-      color: color,
-      label: "progress",
-    },
-    {
-      value: remainingPercentage,
-      color: backgroundColor,
-      label: "remaining",
-    },
-  ];
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDasharray = circumference;
+  const strokeDashoffset = circumference - (percentage / 100) * circumference;
 
   return (
     <View style={styles.container}>
       <View style={[styles.chartContainer, { width: size, height: size }]}>
-        <PolarChart
-          data={data}
-          labelKey="label"
-          valueKey="value"
-          colorKey="color"
-          canvasStyle={{
-            width: chartSize,
-            height: chartSize,
-          }}
-        >
-          <Pie.Chart innerRadius="80%" startAngle={-90}>
-            {({ slice }) => {
-              return <Pie.Slice />;
-            }}
-          </Pie.Chart>
-        </PolarChart>
+        <Svg width={size} height={size} style={styles.svg}>
+          <Circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            stroke={backgroundColor}
+            strokeWidth={strokeWidth}
+          />
+          <Circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeDasharray={strokeDasharray}
+            strokeDashoffset={strokeDashoffset}
+            strokeLinecap="round"
+            transform={`rotate(-90 ${size / 2} ${size / 2})`}
+          />
+        </Svg>
 
         <View style={styles.percentageContainer}>
           <ThemedText style={[styles.percentageText, { color: color }]}>
@@ -83,6 +79,11 @@ const styles = StyleSheet.create({
   },
   chartContainer: {
     position: "relative",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  svg: {
+    position: "absolute",
   },
   percentageContainer: {
     position: "absolute",

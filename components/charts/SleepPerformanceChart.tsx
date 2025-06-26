@@ -16,7 +16,7 @@ interface SleepPerformanceChartProps {
 export function SleepPerformanceChart({
   percentage,
   size = 200,
-  strokeWidth = 8,
+  strokeWidth = 12,
 }: SleepPerformanceChartProps) {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;

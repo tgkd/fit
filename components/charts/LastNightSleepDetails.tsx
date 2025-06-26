@@ -24,39 +24,31 @@ function SleepStageRow({
   return (
     <View>
       <View style={styles.stageInfo}>
-        <View style={[styles.colorIndicator, { backgroundColor: color }]} />
         <ThemedText type="defaultSemiBold" size="sm" style={styles.stageName}>
           {name}
         </ThemedText>
         <ThemedText
           type="defaultSemiBold"
           size="sm"
-          style={styles.stagePercentage}
+          style={styles.stageMetrics}
         >
-          {percentage}%
+          {formatDurationHHMM(duration)} • {percentage}%
         </ThemedText>
       </View>
 
       <View style={styles.progressContainer}>
-        <View style={styles.progressBar}>
+        <View style={styles.fullWidthBar}>
+          <View style={styles.progressBackground} />
           <View
             style={[
               styles.progressFill,
               {
                 backgroundColor: color,
                 width: `${percentage}%`,
-              },
+              }
             ]}
           />
         </View>
-
-        <ThemedText
-          type="defaultSemiBold"
-          size="sm"
-          style={styles.durationText}
-        >
-          {formatDurationHHMM(duration)}
-        </ThemedText>
       </View>
     </View>
   );
@@ -69,7 +61,7 @@ interface LastNightSleepDetailsProps {
 export function LastNightSleepDetails({ sleep }: LastNightSleepDetailsProps) {
   return (
     <View style={styles.container}>
-      <View>
+      <View style={styles.titleView}>
         <ThemedText type="subtitle" size="md">
           {i18n.t("sleep.lastNightsSleep")}
         </ThemedText>
@@ -114,10 +106,8 @@ const styles = StyleSheet.create({
   container: {
     rowGap: 16,
   },
-  sleepTimeRow: {
-    flexDirection: "row",
-    alignItems: "baseline",
-    columnGap: 12,
+  titleView: {
+    gap: 4,
   },
   rangeHeader: {
     flexDirection: "row",
@@ -131,47 +121,34 @@ const styles = StyleSheet.create({
   stageInfo: {
     flexDirection: "row",
     alignItems: "center",
-  },
-  colorIndicator: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 12,
+    justifyContent: "space-between",
   },
   stageName: {
     flex: 1,
   },
-  stagePercentage: {
-    minWidth: 40,
+  stageMetrics: {
     textAlign: "right",
   },
   progressContainer: {
     flexDirection: "row",
     alignItems: "center",
+    marginTop: 4,
   },
-  progressBar: {
+  fullWidthBar: {
     flex: 1,
-    height: 8,
-    backgroundColor: Colors.charts.chartBackground,
-    borderRadius: 4,
-    marginRight: 12,
+    height: 12,
     position: "relative",
   },
-  progressFill: {
-    height: "100%",
-    borderRadius: 4,
-  },
-  typicalRangeIndicator: {
+  progressBackground: {
     position: "absolute",
-    right: 0,
-    top: 0,
-    bottom: 0,
-    width: 2,
-    backgroundColor: "#666666",
-    borderRadius: 1,
+    width: "100%",
+    height: "100%",
+    backgroundColor: Colors.charts.chartBackground,
+    borderRadius: 6,
   },
-  durationText: {
-    minWidth: 40,
-    textAlign: "right",
+  progressFill: {
+    position: "absolute",
+    height: "100%",
+    borderRadius: 6,
   },
 });

@@ -1,3 +1,4 @@
+import { Canvas, Path, Skia } from "@shopify/react-native-skia";
 import React from "react";
 import { StyleSheet, View } from "react-native";
 
@@ -16,6 +17,24 @@ interface MetricRowProps {
 
 function MetricRow({ icon, label, percentage }: MetricRowProps) {
   const metricColor = getPerformanceColor(percentage);
+  const barWidth = 120;
+  const barHeight = 12;
+  const fillWidth = (percentage / 100) * barWidth;
+
+  // Create paths for the bars
+  const backgroundPath = Skia.Path.Make();
+  backgroundPath.addRRect({
+    rect: { x: 0, y: 0, width: barWidth, height: barHeight },
+    rx: 8,
+    ry: 8,
+  });
+
+  const fillPath = Skia.Path.Make();
+  fillPath.addRRect({
+    rect: { x: 0, y: 0, width: fillWidth, height: barHeight },
+    rx: 8,
+    ry: 8,
+  });
 
   return (
     <View style={styles.metricRow}>
@@ -26,18 +45,10 @@ function MetricRow({ icon, label, percentage }: MetricRowProps) {
         </ThemedText>
       </View>
       <View style={styles.metricValue}>
-        <View style={styles.progressBar}>
-          <View style={styles.progressTrack} />
-          <View
-            style={[
-              styles.progressFill,
-              {
-                backgroundColor: metricColor,
-                width: `${Math.min(percentage, 100)}%`,
-              },
-            ]}
-          />
-        </View>
+        <Canvas style={{ width: barWidth, height: barHeight }}>
+          <Path path={backgroundPath} color={Colors.charts.chartBackground} />
+          <Path path={fillPath} color={metricColor} />
+        </Canvas>
         <ThemedText
           type="defaultSemiBold"
           size="md"
@@ -102,24 +113,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flex: 1,
     justifyContent: "flex-end",
-  },
-  progressBar: {
-    width: 80,
-    height: 4,
-    marginRight: 12,
-    position: "relative",
-  },
-  progressTrack: {
-    position: "absolute",
-    width: "100%",
-    height: "100%",
-    backgroundColor: Colors.charts.chartBackground,
-    borderRadius: 2,
-  },
-  progressFill: {
-    position: "absolute",
-    height: "100%",
-    borderRadius: 2,
+    gap: 12,
   },
   percentageText: {
     minWidth: 40,

@@ -42,7 +42,7 @@ export const Colors = {
   charts: {
     sleep: "#005BBB", // Darker blue for better contrast
     recovery: "#2BA349", // Darker green
-    strain: "#CC7600", // Darker orange
+    strain: "#4CAF50", // Darker orange
     stress: "#CC2F26", // Darker red
     chartBackground: "#F2F2F7", // iOS light gray background for charts
     primary: "#007AFF", // iOS blue

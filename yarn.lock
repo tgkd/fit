@@ -1920,6 +1920,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@react-native-segmented-control/segmented-control@npm:2.5.7":
+  version: 2.5.7
+  resolution: "@react-native-segmented-control/segmented-control@npm:2.5.7"
+  peerDependencies:
+    react: ">=16.0"
+    react-native: ">=0.62"
+  checksum: 10c0/4f684cbcac813d53598107a88056ae8c9e7a5e4e0ed94776706f400828f50ff3bf87e1fda3a34b437b9c5776331f8a4fab4b080b3260534db5183dcc3f20a3c7
+  languageName: node
+  linkType: hard
+
 "@react-native/assets-registry@npm:0.79.3":
   version: 0.79.3
   resolution: "@react-native/assets-registry@npm:0.79.3"
@@ -5378,6 +5388,7 @@ __metadata:
     "@babel/core": "npm:^7.25.2"
     "@expo/vector-icons": "npm:^14.1.0"
     "@kingstinct/react-native-healthkit": "npm:^9.0.7"
+    "@react-native-segmented-control/segmented-control": "npm:2.5.7"
     "@react-navigation/bottom-tabs": "npm:^7.3.10"
     "@react-navigation/elements": "npm:^2.3.8"
     "@react-navigation/native": "npm:^7.1.6"

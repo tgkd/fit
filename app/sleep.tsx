@@ -9,15 +9,14 @@ import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/ui/Card";
 import { ThemedScrollView } from "@/components/ui/ThemedScrollView";
 import { HealthDataContext } from "@/context/HealthDataContext";
-import i18n from "@/lib/i18n";
 
 export default function SleepScreen() {
-  const { data } = use(HealthDataContext);
+  const { data, date, formatDate } = use(HealthDataContext);
 
   return (
     <ThemedScrollView paddingTop={16}>
       <ThemedText type="defaultSemiBold" size="md" textAlign="center">
-        {i18n.t("sleep.today")}
+        {formatDate(date)}
       </ThemedText>
 
       <Card style={styles.chartCard}>
