@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, StyleSheet } from "react-native";
 import { CircularProgressChart } from "@/components/charts/CircularProgressChart";
 import { StressMonitorCard } from "@/components/charts/StressMonitorCard";
 import { DateSlider } from "@/components/DateSlider";
+import { RealtimeHeartRateMonitor } from "@/components/health/RealtimeHeartRateMonitor";
 import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/ui/Card";
 import { ThemedScrollView } from "@/components/ui/ThemedScrollView";
@@ -59,15 +60,7 @@ function ScreenContent({ data }: { data: HealthData }) {
         }}
       />
 
-      <Card>
-        <ThemedText type="subtitle">{i18n.t("home.heartRate")}</ThemedText>
-        <ThemedText type="title">
-          {i18n.t("home.restingHeartRateValue", {
-            value: data.restingHeartRate,
-          })}
-        </ThemedText>
-        <ThemedText>{i18n.t("home.restingHeartRate")}</ThemedText>
-      </Card>
+      <RealtimeHeartRateMonitor />
 
       <Card>
         <ThemedText type="subtitle">{i18n.t("home.activity")}</ThemedText>

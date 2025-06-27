@@ -73,4 +73,21 @@ export const Colors = {
     poor: "#F57C00", // Darker orange
     veryPoor: "#D32F2F", // Darker red
   },
+  heartRate: {
+    zones: {
+      recovery: "#00ff88", // Zone 1 - Recovery (Green)
+      base: "#88ff00", // Zone 2 - Base (Light Green) 
+      aerobic: "#ffdd00", // Zone 3 - Aerobic (Yellow)
+      threshold: "#ff8800", // Zone 4 - Threshold (Orange)
+      anaerobic: "#ff4444", // Zone 5 - Anaerobic (Red)
+    },
+    error: "#ff4444", // Red for errors
+    warning: "#ffaa00", // Orange for warnings
+    defaultStroke: "#ff6b6b", // Default heart rate line color
+  },
+  ui: {
+    closeButton: "#f0f0f0", // Light gray for close button background
+    errorBackground: "#ff444420", // Error background with transparency
+    warningBackground: "#ffaa0020", // Warning background with transparency
+  },
 };
