@@ -353,6 +353,25 @@ export const calculateWorkoutStats = (
   };
 };
 
+export const getTodaysWorkouts = (workouts: readonly WorkoutSample[]): HealthKitWorkout[] => {
+  const today = new Date();
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+
+  return workouts
+    .filter(workout => {
+      const workoutDate = new Date(workout.startDate);
+      return workoutDate >= todayStart && workoutDate < todayEnd;
+    })
+    .map(workout => ({
+      uuid: workout.uuid,
+      workoutActivityType: workout.workoutActivityType,
+      startDate: workout.startDate.toString(),
+      endDate: workout.endDate.toString(),
+      totalEnergyBurned: workout.totalEnergyBurned,
+    }));
+};
+
 /**
  * Process workout data for the workouts screen
  * Returns all workouts, last 7 days workouts, and current month statistics

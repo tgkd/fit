@@ -6,13 +6,14 @@ import { CircularProgressChart } from "@/components/charts/CircularProgressChart
 import { StressMonitorCard } from "@/components/charts/StressMonitorCard";
 import { DateSlider } from "@/components/DateSlider";
 import { RealtimeHeartRateMonitor } from "@/components/health/RealtimeHeartRateMonitor";
-import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/ui/Card";
 import { ThemedScrollView } from "@/components/ui/ThemedScrollView";
+import { TodayActivitiesCard } from "@/components/workouts/TodayActivitiesCard";
 import { Colors } from "@/constants/Colors";
 import { HealthDataContext } from "@/context/HealthDataContext";
 import { MAX_STRAIN } from "@/lib/health/strain";
 import { HealthData } from "@/lib/health/types";
+import { getTodaysWorkouts } from "@/lib/health/workouts";
 import i18n from "@/lib/i18n";
 
 export default function HomeScreen() {
@@ -28,6 +29,8 @@ export default function HomeScreen() {
 
 function ScreenContent({ data }: { data: HealthData }) {
   const router = useRouter();
+  const todaysWorkouts = getTodaysWorkouts(data.workouts);
+
   return (
     <>
       <Card style={styles.circularChartsContainer}>
@@ -53,6 +56,8 @@ function ScreenContent({ data }: { data: HealthData }) {
         </Pressable>
       </Card>
 
+      <TodayActivitiesCard workouts={todaysWorkouts} />
+
       <StressMonitorCard
         healthData={data}
         onPress={() => {
@@ -61,59 +66,6 @@ function ScreenContent({ data }: { data: HealthData }) {
       />
 
       <RealtimeHeartRateMonitor />
-
-      <Card>
-        <ThemedText type="subtitle">{i18n.t("home.activity")}</ThemedText>
-        <ThemedText type="title">{data.steps.toLocaleString()}</ThemedText>
-        <ThemedText>{i18n.t("home.stepsToday")}</ThemedText>
-        <ThemedText>
-          {i18n.t("home.caloriesBurned", {
-            calories: Math.round(data.moveKcal),
-          })}
-        </ThemedText>
-      </Card>
-
-      <Card>
-        <ThemedText type="subtitle">{i18n.t("home.recovery")}</ThemedText>
-        <ThemedText type="title">
-          {i18n.t("home.recoveryScore", {
-            score: data.recoveryScore.toFixed(1),
-          })}
-        </ThemedText>
-        <ThemedText>{i18n.t("home.recoveryScoreLabel")}</ThemedText>
-      </Card>
-
-      <Card>
-        <ThemedText type="subtitle">{i18n.t("home.strain")}</ThemedText>
-        <ThemedText type="title">
-          {i18n.t("home.strainScore", {
-            score: data.strainScore.toFixed(1),
-          })}
-        </ThemedText>
-        <ThemedText>{i18n.t("home.trainingStrain")}</ThemedText>
-      </Card>
-
-      {data.bloodOxygen?.value ? (
-        <Card>
-          <ThemedText type="subtitle">{i18n.t("home.bloodOxygen")}</ThemedText>
-          <ThemedText type="title">
-            {i18n.t("home.bloodOxygenValue", {
-              value: data.bloodOxygen.value.toFixed(1),
-            })}
-          </ThemedText>
-          <ThemedText>{i18n.t("home.spo2")}</ThemedText>
-        </Card>
-      ) : null}
-
-      <Card>
-        <ThemedText type="subtitle">{i18n.t("home.stress")}</ThemedText>
-        <ThemedText type="title">
-          {i18n.t("home.stressLevelValue", {
-            value: data.stressLevel.toFixed(1),
-          })}
-        </ThemedText>
-        <ThemedText>{i18n.t("home.stressLevel")}</ThemedText>
-      </Card>
     </>
   );
 }

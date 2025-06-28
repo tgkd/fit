@@ -317,7 +317,22 @@ function generateFakeHealthData(): HealthData {
     standHours: 10,
     moveKcal: 500,
     rawCalories: [],
-    workouts: [],
+    workouts: [
+      {
+        uuid: "fake-workout-1",
+        workoutActivityType: 37, // Running
+        startDate: new Date().toISOString(),
+        endDate: new Date(new Date().getTime() + 30 * 60 * 1000).toISOString(), // 30 mins later
+        totalEnergyBurned: { quantity: 250 },
+      },
+      {
+        uuid: "fake-workout-2", 
+        workoutActivityType: 13, // Cycling
+        startDate: new Date(new Date().getTime() - 4 * 60 * 60 * 1000).toISOString(), // 4 hours ago
+        endDate: new Date(new Date().getTime() - 3 * 60 * 60 * 1000).toISOString(), // 3 hours ago
+        totalEnergyBurned: { quantity: 180 },
+      },
+    ],
 
     sleep: {
       hoursVsNeeded: 81,

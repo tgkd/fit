@@ -3,7 +3,6 @@ import { StyleSheet, View } from "react-native";
 
 import { StressChart } from "@/components/charts/StressChart";
 import { ThemedText } from "@/components/ThemedText";
-import { ThemedView } from "@/components/ThemedView";
 import { Card } from "@/components/ui/Card";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { ThemedScrollView } from "@/components/ui/ThemedScrollView";
@@ -104,85 +103,11 @@ export default function StressScreen() {
       <>
         {/* Detailed Stress Chart */}
         {data.stressChartDisplayData && <StressChart data={data} />}
-
-        {/* Stress Metrics Grid */}
-        <View style={styles.metricsContainer}>
-          <ThemedView style={styles.metricCard}>
-            <View style={styles.metricHeader}>
-              <IconSymbol name="sun.max.fill" size={18} color={textSecondary} />
-              <ThemedText size="sm" textAlign="center">
-                {i18n.t("hrvScreen.totalDay")}
-              </ThemedText>
-            </View>
-            <ThemedText
-              type="title"
-              size="lg"
-              style={[
-                { color: getStressColor(data.stressDetails.totalDayStress) },
-              ]}
-            >
-              {data.stressDetails.totalDayStress.toFixed(1)}
-            </ThemedText>
-            <ThemedText type="secondary" size="xs">
-              {getStressLabel(data.stressDetails.totalDayStress)}
-            </ThemedText>
-          </ThemedView>
-
-          <ThemedView style={styles.metricCard}>
-            <View style={styles.metricHeader}>
-              <IconSymbol name="moon.fill" size={18} color={textSecondary} />
-              <ThemedText size="sm" textAlign="center">
-                {i18n.t("hrvScreen.sleep")}
-              </ThemedText>
-            </View>
-            <ThemedText
-              type="title"
-              size="lg"
-              style={[
-                { color: getStressColor(data.stressDetails.sleepStress) },
-              ]}
-            >
-              {data.stressDetails.sleepStress.toFixed(1)}
-            </ThemedText>
-            <ThemedText type="secondary" size="xs">
-              {getStressLabel(data.stressDetails.sleepStress)}
-            </ThemedText>
-          </ThemedView>
-
-          <ThemedView style={styles.metricCard}>
-            <View style={styles.metricHeader}>
-              <IconSymbol name="figure.walk" size={18} color={textSecondary} />
-              <ThemedText size="sm" textAlign="center">
-                {i18n.t("hrvScreen.daily")}
-              </ThemedText>
-            </View>
-            <ThemedText
-              type="title"
-              size="lg"
-              style={[
-                {
-                  color: getStressColor(data.stressDetails.nonActivityStress),
-                },
-              ]}
-            >
-              {data.stressDetails.nonActivityStress.toFixed(1)}
-            </ThemedText>
-            <ThemedText type="secondary" size="xs">
-              {getStressLabel(data.stressDetails.nonActivityStress)}
-            </ThemedText>
-          </ThemedView>
-        </View>
       </>
     </ThemedScrollView>
   );
 }
 
-function getStressLabel(stressValue: number): string {
-  if (stressValue < 1.0) return i18n.t("stressChart.low");
-  if (stressValue < 2.0) return i18n.t("stressChart.mild");
-  if (stressValue < 2.5) return i18n.t("stressChart.moderate");
-  return i18n.t("stressChart.high");
-}
 
 const styles = StyleSheet.create({
   container: {
@@ -197,31 +122,6 @@ const styles = StyleSheet.create({
   currentStressContainer: {
     alignItems: "center",
     marginBottom: 8,
-  },
-  metricsContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 16,
-    gap: 12,
-  },
-  metricCard: {
-    flex: 1,
-    borderRadius: 16,
-    padding: 16,
-    rowGap: 8,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    minHeight: 120,
-    justifyContent: "center",
-  },
-  metricHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
   },
   sectionHeader: {
     flexDirection: "row",

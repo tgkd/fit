@@ -296,37 +296,37 @@ export const computeStressMoment = (
   baselineHRV: number,
   hourOfDay?: number
 ): number => {
-  // HR stress: how far above resting HR (improved scaling for better variation)
+  // HR stress: how far above resting HR (adjusted for better sensitivity)
   const hrDelta = currentHR - baselineRHR;
   const hrStress =
     baselineRHR > 0
-      ? Math.max(0, Math.min(1.0, hrDelta / (baselineRHR * 0.6))) // Back to 1.0 max but use 0.6 for sensitivity
+      ? Math.max(0, Math.min(1.0, hrDelta / (baselineRHR * 1.0))) // Use 1.0 multiplier for more realistic sensitivity
       : 0;
 
   // Handle missing HRV data more gracefully with better HR-based estimation
   let hrvStress: number;
   if (currentHRV === 0 || baselineHRV <= 0) {
-    // When HRV is missing, estimate stress more dynamically based on HR elevation
+    // When HRV is missing, estimate stress more conservatively based on HR elevation
     const hrElevationRatio = hrDelta / baselineRHR;
 
-    if (hrElevationRatio > 1.0) {
-      // HR elevated by >100% suggests high stress (more moderate)
-      hrvStress = 0.6 + Math.min(0.3, (hrElevationRatio - 1.0) * 0.3);
-    } else if (hrElevationRatio > 0.6) {
-      // HR elevated by 60-100% suggests moderate-high stress
-      hrvStress = 0.4 + (hrElevationRatio - 0.6) * 0.5;
-    } else if (hrElevationRatio > 0.3) {
-      // HR elevated by 30-60% suggests moderate stress
-      hrvStress = 0.2 + (hrElevationRatio - 0.3) * 0.67;
-    } else if (hrElevationRatio > 0.1) {
-      // HR elevated by 10-30% suggests mild stress
-      hrvStress = 0.05 + (hrElevationRatio - 0.1) * 0.75;
+    if (hrElevationRatio > 1.5) {
+      // HR elevated by >150% suggests high stress
+      hrvStress = 0.7 + Math.min(0.3, (hrElevationRatio - 1.5) * 0.2);
+    } else if (hrElevationRatio > 1.0) {
+      // HR elevated by 100-150% suggests moderate-high stress
+      hrvStress = 0.4 + (hrElevationRatio - 1.0) * 0.6;
+    } else if (hrElevationRatio > 0.5) {
+      // HR elevated by 50-100% suggests moderate stress
+      hrvStress = 0.2 + (hrElevationRatio - 0.5) * 0.4;
+    } else if (hrElevationRatio > 0.2) {
+      // HR elevated by 20-50% suggests mild stress
+      hrvStress = 0.05 + (hrElevationRatio - 0.2) * 0.5;
     } else if (hrElevationRatio < -0.1) {
       // HR significantly below baseline suggests very low stress
-      hrvStress = 0.02;
+      hrvStress = 0.01;
     } else {
       // HR close to baseline suggests low stress
-      hrvStress = 0.05;
+      hrvStress = 0.03;
     }
   } else {
     // Normal HRV-based calculation when HRV data is available
@@ -343,8 +343,9 @@ export const computeStressMoment = (
     combinedStress = hrStress * 0.5 + hrvStress * 0.5;
   }
 
-  // Scale to 0–3 range with improved sensitivity
-  let raw = combinedStress * 3;
+  // Scale to 0–3 range with better distribution for low-stress values
+  // Use a curve that gives more space to lower stress values
+  let raw = Math.pow(combinedStress, 0.8) * 3;
 
   // Apply time-of-day adjustments if hour is provided
   if (hourOfDay !== undefined) {
@@ -361,24 +362,27 @@ export const computeStressMoment = (
  * Adjust stress values based on time of day context
  */
 const adjustForTimeOfDay = (stressValue: number, hourOfDay: number): number => {
-  // Apply more significant time-based adjustments for better variation
+  let multiplier = 1.0;
+
+  // Apply time-based adjustments that allow for peak stress during midday
   if (hourOfDay >= 22 || hourOfDay < 6) {
     // Late night/early morning: elevated HR is more significant (high stress indicator)
-    return stressValue * 1.4;
-  } else if (hourOfDay >= 14 && hourOfDay < 16) {
-    // Post-lunch dip: elevated HR is less concerning (natural afternoon pattern)
-    return stressValue * 0.7;
+    multiplier = 1.4;
   } else if (hourOfDay >= 6 && hourOfDay < 9) {
     // Morning: HR naturally higher due to cortisol awakening response
-    return stressValue * 0.8;
-  } else if (hourOfDay >= 16 && hourOfDay < 18) {
-    // Late afternoon: stress often peaks due to daily accumulation
-    return stressValue * 1.2;
-  } else if (hourOfDay >= 18 && hourOfDay < 22) {
-    // Evening: should be winding down, elevated HR more concerning
-    return stressValue * 1.1;
+    multiplier = 0.8;
+  } else if (hourOfDay >= 9 && hourOfDay < 17) {
+    // Midday peak hours: allow full stress expression (work/activity peak)
+    multiplier = 1.0;
+  } else if (hourOfDay >= 17 && hourOfDay < 20) {
+    // Early evening: stress can still be elevated
+    multiplier = 1.1;
+  } else if (hourOfDay >= 20 && hourOfDay < 22) {
+    // Late evening: should be winding down, elevated HR more concerning
+    multiplier = 1.2;
   }
-  return stressValue;
+
+  return stressValue * multiplier;
 };
 
 /**
@@ -535,27 +539,41 @@ export const prepareStressChartDisplayData = async (
       const startOfDay = new Date(singleHour);
       startOfDay.setHours(6, 0, 0, 0); // Start at 6 AM
 
-      chartPlotData = Array.from({ length: 18 }, (_, index) => {
+      // Don't show data beyond current time
+      const now = new Date();
+      const currentHour = now.getHours();
+      const maxHour = Math.min(23, currentHour); // Cap at current hour or 11 PM
+      const hoursToShow = Math.max(1, maxHour - 6 + 1); // At least 1 hour, from 6 AM to current hour
+
+      chartPlotData = Array.from({ length: hoursToShow }, (_, index) => {
         const hourTime = new Date(startOfDay);
-        hourTime.setHours(6 + index); // 6 AM to 12 AM (midnight)
+        hourTime.setHours(6 + index); // 6 AM to current hour
+
+        // Don't show future hours
+        if (hourTime.getHours() > currentHour) {
+          return null;
+        }
 
         // Create realistic stress variation throughout the day
-        let stressMultiplier = 1;
+        // Use absolute stress values instead of multipliers to avoid high baseline issues
+        let targetStress = 1.0; // Default moderate stress
         const hour = hourTime.getHours();
 
-        // Lower stress in early morning and late evening
-        if (hour >= 6 && hour <= 8) stressMultiplier = 0.7; // Early morning
-        else if (hour >= 22) stressMultiplier = 0.6; // Late evening
-        else if (hour >= 9 && hour <= 11)
-          stressMultiplier = 1.2; // Morning peak
-        else if (hour >= 14 && hour <= 16) stressMultiplier = 1.1; // Afternoon
-        else stressMultiplier = 1.0; // Normal hours
+        // Set realistic stress levels by hour (absolute values, not multipliers)
+        if (hour >= 22 || hour <= 5) targetStress = 0.3; // Very low - deep sleep/rest
+        else if (hour >= 6 && hour <= 7) targetStress = 0.6; // Low - early morning
+        else if (hour >= 8 && hour <= 9) targetStress = 0.9; // Mild - morning routine
+        else if (hour >= 10 && hour <= 11) targetStress = Math.min(2.5, baseStress); // Peak - use real data but cap
+        else if (hour >= 12 && hour <= 16) targetStress = 1.8; // Moderate-high - active day
+        else if (hour >= 17 && hour <= 19) targetStress = 1.4; // Moderate - evening
+        else if (hour >= 20 && hour <= 21) targetStress = 0.8; // Low - winding down
+        else targetStress = 1.0; // Default
 
         // Add some random variation
-        const variation = (Math.random() - 0.5) * 0.3;
+        const variation = (Math.random() - 0.5) * 0.4;
         const stress = Math.max(
-          0,
-          Math.min(3, baseStress * stressMultiplier + variation)
+          0.1, // Minimum stress level
+          Math.min(3, targetStress + variation)
         );
 
         return {
@@ -563,7 +581,7 @@ export const prepareStressChartDisplayData = async (
           stress: Number(stress.toFixed(2)),
           timestamp: formatHourDisplay(hourTime),
         };
-      });
+      }).filter(Boolean) as StressChartDataPoint[];
     } else {
     }
 
