@@ -146,7 +146,7 @@
     "trend": "Trend: {{trend}}",
     "fitnessProgress": "Fitness Progress: {{progress}}%",
     "consistency": "Consistency: {{consistency}}%",
-    "workoutBreakdown": "Workout Breakdown (Last 14 Days)",
+    "workoutBreakdown": "Workout Breakdown",
     "strainDistribution": "Strain Distribution",
     "highStrainDays": "High Strain Days",
     "recoveryDays": "Recovery Days",
