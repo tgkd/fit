@@ -54,10 +54,15 @@ export function WorkoutBreakdownChart({
   const maxCount = Math.max(...victoryData.map((d) => d.count));
   const yMax = maxCount * 1.1;
 
+  // Calculate dynamic bar width based on number of bars
+  const dynamicBarWidth = victoryData.length === 2 
+    ? 80 
+    : Math.min(60, Math.max(20, 240 / victoryData.length));
+
   if (victoryData.length === 0) {
     return (
       <View style={styles.container}>
-        <ThemedText type="defaultSemiBold" size="md" style={styles.title}>
+        <ThemedText type="defaultSemiBold" size="md">
           {title}
         </ThemedText>
         <View style={[styles.emptyContainer, { height }]}>
@@ -71,7 +76,7 @@ export function WorkoutBreakdownChart({
 
   return (
     <View style={styles.container}>
-      <ThemedText type="defaultSemiBold" size="md" style={styles.title}>
+      <ThemedText type="defaultSemiBold" size="md">
         {title}
       </ThemedText>
 
@@ -80,8 +85,7 @@ export function WorkoutBreakdownChart({
           data={victoryData}
           xKey="index"
           yKeys={["count"]}
-          padding={5}
-          domainPadding={{ left: 20, right: 20, top: 20, bottom: 20 }}
+          domainPadding={{ left: 80, right: 40 }}
           domain={{ y: [0, yMax] }}
           xAxis={{
             tickCount: victoryData.length,
@@ -99,8 +103,9 @@ export function WorkoutBreakdownChart({
             {
               yKeys: ["count"],
               labelColor: textSecondary,
-              lineWidth: 0,
-              tickCount: 4,
+              lineWidth: 1,
+              lineColor: "rgba(142, 142, 147, 0.2)",
+              tickCount: 3,
               formatYLabel: (value) => Math.round(value).toString(),
             },
           ]}
@@ -113,7 +118,8 @@ export function WorkoutBreakdownChart({
               points={points.count}
               chartBounds={chartBounds}
               animate={{ type: "spring", damping: 15, stiffness: 150 }}
-              innerPadding={0.3}
+              barCount={victoryData.length}
+              barWidth={dynamicBarWidth}
               roundedCorners={{
                 topLeft: 4,
                 topRight: 4,
@@ -134,18 +140,15 @@ export function WorkoutBreakdownChart({
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 8,
-  },
-  title: {
-    marginBottom: 12,
+    gap: 12,
   },
   chartContainer: {
-    backgroundColor: "rgba(255, 255, 255, 0.02)",
+    backgroundColor: "rgba(0, 0, 0, 0.02)",
     borderRadius: 8,
-    padding: 8,
+    padding: 4,
   },
   emptyContainer: {
-    backgroundColor: "rgba(255, 255, 255, 0.02)",
+    backgroundColor: "rgba(0, 0, 0, 0.02)",
     borderRadius: 8,
     padding: 16,
     justifyContent: "center",

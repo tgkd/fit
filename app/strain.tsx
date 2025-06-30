@@ -1,30 +1,39 @@
 import React, { use, useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 
-import { StrainBarChart, WorkoutBreakdownChart } from "@/components/charts";
+import { StrainBarChart } from "@/components/charts";
+import { CircularProgressChart } from "@/components/charts/CircularProgressChart";
 import { ThemedText } from "@/components/ThemedText";
 import { Card } from "@/components/ui/Card";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { ThemedScrollView } from "@/components/ui/ThemedScrollView";
+import { Colors } from "@/constants/Colors";
 import { HealthDataContext } from "@/context/HealthDataContext";
 import { useThemeColor } from "@/hooks/useThemeColor";
 import {
   getLast14DaysStrainStats,
   getLast30DaysStrainStats,
   getStrainMetrics,
+  MAX_STRAIN,
 } from "@/lib/health/strain";
 import { StrainPeriodStats } from "@/lib/health/types";
 import i18n from "@/lib/i18n";
 
+type StrainMetrics = {
+  strainScore: number;
+  category: string;
+  recommendation: string;
+};
+
 export default function StrainScreen() {
-  const { data, systemDefaults, userParams } = use(HealthDataContext);
+  const { data, systemDefaults, userParams, date, formatDate } = use(HealthDataContext);
   const textSecondary = useThemeColor({}, "textSecondary");
   const [strainStats14Days, setStrainStats14Days] =
     useState<StrainPeriodStats | null>(null);
   const [strainStats30Days, setStrainStats30Days] =
     useState<StrainPeriodStats | null>(null);
-  const [todayStrainMetrics, setTodayStrainMetrics] = useState<any>(null);
+  const [todayStrainMetrics, setTodayStrainMetrics] = useState<StrainMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState<"14" | "30">("14");
 
@@ -81,21 +90,19 @@ export default function StrainScreen() {
   return (
     <ThemedScrollView paddingTop={16}>
       <ThemedText type="defaultSemiBold" size="md" textAlign="center">
-        {i18n.t("strainScreen.title")}
+        {formatDate(date)}
       </ThemedText>
 
       {/* Today's Strain Score */}
       <Card style={styles.chartCard}>
         <View style={styles.strainScoreContainer}>
-          <ThemedText type="title" size="xxl" textAlign="center">
-            {data.strainScore}
-          </ThemedText>
-          <ThemedText type="subtitle" size="lg" textAlign="center">
-            {todayStrainMetrics?.category || i18n.t("strainScreen.unknown")}
-          </ThemedText>
-          <ThemedText type="secondary" size="sm" textAlign="center">
-            {i18n.t("strainScreen.todaysStrainScore")}
-          </ThemedText>
+          <CircularProgressChart
+            value={data.strainScore}
+            maxValue={MAX_STRAIN}
+            color={Colors.charts.strain}
+            size={120}
+            strokeWidth={12}
+          />
           {todayStrainMetrics?.recommendation && (
             <ThemedText
               type="secondary"
@@ -234,11 +241,12 @@ export default function StrainScreen() {
         Object.keys(activeStrainStats.aggregations.workoutsByType).length >
           0 && (
           <Card>
-            <WorkoutBreakdownChart
+{/*             <WorkoutBreakdownChart
               data={activeStrainStats.aggregations.workoutsByType}
               title={i18n.t("strainScreen.workoutBreakdown")}
+              height={180}
             />
-
+ */}
             {Object.entries(activeStrainStats.aggregations.workoutsByType)
               .sort(([, a], [, b]) => (b as number) - (a as number))
               .slice(0, 3)

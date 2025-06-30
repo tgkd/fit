@@ -1,9 +1,11 @@
 import React from "react";
-import { StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 
 import { Colors } from "@/constants/Colors";
 import { ThemedText } from "../ThemedText";
+import { IconSymbol } from "../ui/IconSymbol";
+import { useThemeColor } from "@/hooks/useThemeColor";
 
 interface Props {
   value: number;
@@ -13,6 +15,7 @@ interface Props {
   size?: number;
   strokeWidth?: number;
   label?: string;
+  onPress?: () => void;
 }
 
 export function CircularProgressChart({
@@ -23,14 +26,18 @@ export function CircularProgressChart({
   size = 96,
   strokeWidth = 8,
   label,
+  onPress,
 }: Props) {
+  const iconColor = useThemeColor({}, 'icon');
   const percentage = Math.max(0, Math.min(100, (value / maxValue) * 100));
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const strokeDasharray = circumference;
   const strokeDashoffset = circumference - (percentage / 100) * circumference;
 
-  return (
+  const isPressable = onPress && label;
+
+  const content = (
     <View style={styles.container}>
       <View style={[styles.chartContainer, { width: size, height: size }]}>
         <Svg width={size} height={size} style={styles.svg}>
@@ -64,18 +71,50 @@ export function CircularProgressChart({
       </View>
 
       {label ? (
-        <ThemedText size="xs" type="secondary" style={styles.labelText}>
-          {label}
-        </ThemedText>
+        <View style={styles.labelContainer}>
+          <ThemedText size="xs" type="secondary" style={styles.labelText}>
+            {label}
+          </ThemedText>
+          {isPressable && (
+            <IconSymbol
+              name="chevron.right"
+              size={12}
+              color={iconColor}
+              style={styles.chevronIcon}
+            />
+          )}
+        </View>
       ) : null}
     </View>
   );
+
+  if (isPressable) {
+    return (
+      <Pressable
+        style={({ pressed }) => [
+          styles.pressableContainer,
+          pressed && styles.pressed,
+        ]}
+        onPress={onPress}
+      >
+        {content}
+      </Pressable>
+    );
+  }
+
+  return content;
 }
 
 const styles = StyleSheet.create({
   container: {
     alignItems: "center",
     justifyContent: "center",
+  },
+  pressableContainer: {
+    borderRadius: 8,
+  },
+  pressed: {
+    opacity: 0.7,
   },
   chartContainer: {
     position: "relative",
@@ -97,8 +136,15 @@ const styles = StyleSheet.create({
   percentageText: {
     fontWeight: "bold",
   },
-  labelText: {
-    marginLeft: -4,
+  labelContainer: {
+    flexDirection: "row",
+    alignItems: "center",
     marginTop: 4,
+  },
+  labelText: {
+    marginLeft: -2,
+  },
+  chevronIcon: {
+    marginLeft: 4,
   },
 });

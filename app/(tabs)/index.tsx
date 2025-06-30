@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import React, { use } from "react";
-import { ActivityIndicator, Pressable, StyleSheet } from "react-native";
+import { ActivityIndicator, StyleSheet } from "react-native";
 
 import { CircularProgressChart } from "@/components/charts/CircularProgressChart";
 import { StressMonitorCard } from "@/components/charts/StressMonitorCard";
@@ -34,26 +34,24 @@ function ScreenContent({ data }: { data: HealthData }) {
   return (
     <>
       <Card style={styles.circularChartsContainer}>
-        <Pressable onPress={() => router.push("/sleep")}>
-          <CircularProgressChart
-            value={data.sleep.overallPerformance}
-            color={Colors.charts.sleep}
-            label={i18n.t("home.sleep").toUpperCase()}
-          />
-        </Pressable>
+        <CircularProgressChart
+          value={data.sleep.overallPerformance}
+          color={Colors.charts.sleep}
+          label={i18n.t("home.sleep").toUpperCase()}
+          onPress={() => router.push("/sleep")}
+        />
         <CircularProgressChart
           value={data.recoveryScore}
           color={Colors.charts.recovery}
           label={i18n.t("home.recovery").toUpperCase()}
         />
-        <Pressable onPress={() => router.push("/strain")}>
-          <CircularProgressChart
-            value={data.strainScore}
-            color={Colors.charts.strain}
-            label={i18n.t("home.strain").toUpperCase()}
-            maxValue={MAX_STRAIN}
-          />
-        </Pressable>
+        <CircularProgressChart
+          value={data.strainScore}
+          color={Colors.charts.strain}
+          label={i18n.t("home.strain").toUpperCase()}
+          maxValue={MAX_STRAIN}
+          onPress={() => router.push("/strain")}
+        />
       </Card>
 
       <TodayActivitiesCard workouts={todaysWorkouts} />
