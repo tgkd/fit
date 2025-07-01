@@ -1,29 +1,31 @@
 import { Colors } from "@/constants/Colors";
 import { bucketBy, mean } from "@/utils/dates";
 import {
-    getMostRecentQuantitySample,
-    queryQuantitySamples, type QuantitySample
+  getMostRecentQuantitySample,
+  queryQuantitySamples,
+  WorkoutSample,
+  type QuantitySample,
 } from "@kingstinct/react-native-healthkit";
 
 import {
-    HeartStressStats,
-    HourlyHeartData,
-    StressAverages,
-    StressChartDataPoint,
-    StressChartDisplayData,
-    StressMetrics,
-    SystemDefaults,
-    TimeInterval,
+  HeartStressStats,
+  HourlyHeartData,
+  StressAverages,
+  StressChartDataPoint,
+  StressChartDisplayData,
+  StressMetrics,
+  SystemDefaults,
+  TimeInterval,
 } from "./types";
 import {
-    calculateAverage,
-    createHourStart,
-    formatHourDisplay,
-    formatTimeDisplay,
-    getDateRange,
-    getDateRanges,
-    getExtendedDateRanges,
-    roundTo,
+  calculateAverage,
+  createHourStart,
+  formatHourDisplay,
+  formatTimeDisplay,
+  getDateRange,
+  getDateRanges,
+  getExtendedDateRanges,
+  roundTo,
 } from "./utils";
 
 /**
@@ -120,9 +122,8 @@ export const calculateStressLevel = async (
     currentHour
   );
 
-  // Convert from 0-3 scale to 0-100 scale for compatibility
-  const stressLevel = (stressMoment / 3) * 100;
-  return roundTo(stressLevel, 1);
+  // Return stress level in 0-3 scale as calculated
+  return stressMoment;
 };
 
 /**
@@ -214,21 +215,12 @@ export const processHrv = (hrvValues: number[]) => {
  * Updated to use bucketBy for more efficient data processing
  */
 export const getHourlyHRandHRV = async (
-  targetDate: Date,
-  useLast24Hours = false
+  targetDate: Date
 ): Promise<HourlyHeartData[]> => {
   // Get date ranges for the target date
-  let startDate: Date, endDate: Date;
-
-  if (useLast24Hours) {
-    // Rolling 24-hour window: from 24 hours ago to now
-    endDate = new Date();
-    startDate = new Date(endDate.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
-  } else {
-    const ranges = getDateRanges(targetDate);
-    startDate = ranges.startOfTargetDay;
-    endDate = ranges.endOfTargetDay;
-  }
+  const ranges = getDateRanges(targetDate);
+  const startDate = ranges.startOfTargetDay;
+  const endDate = ranges.endOfTargetDay;
 
   // Query all heart rate samples for the target day at once
   const hrSamples = await queryQuantitySamples(
@@ -394,8 +386,7 @@ export const isInIntervals = (t: Date, intervals: TimeInterval[]): boolean => {
 
 export const calculateStressMetrics = async (
   defaults: SystemDefaults,
-  targetDate: Date,
-  useLast24Hours = false
+  targetDate: Date
 ): Promise<StressMetrics> => {
   // Calculate 14-day baselines using modern approach
   const [baselineHRV, baselineRHR] = await Promise.all([
@@ -403,8 +394,8 @@ export const calculateStressMetrics = async (
     calculateBaselineRHR(defaults, targetDate),
   ]);
 
-  // Get hourly HR & HRV data for the target date or last 24 hours
-  const hourlyData = await getHourlyHRandHRV(targetDate, useLast24Hours);
+  // Get hourly HR & HRV data for the target date
+  const hourlyData = await getHourlyHRandHRV(targetDate);
 
   // TODO: Add sleep and workout interval detection
   // For now, we'll use empty arrays and implement these later
@@ -504,25 +495,36 @@ const generateModernStressChartData = async (
  * 2. Fallback to simplified visualization if detailed data unavailable
  */
 export const prepareStressChartDisplayData = async (
-  hrvValues: number[] | undefined,
-  restingHeartRate: number | null | undefined,
-  overallStressLevelFromContext: number | undefined, // 0-100 scale
-  stressDetails: StressMetrics | null | undefined,
+  overallStressLevelFromContext: number, // 0-3 scale - always exists
+  stressDetails: StressMetrics, // always exists
   defaults: SystemDefaults,
   targetDate: Date,
-  useLast24Hours = false
+  workouts: readonly WorkoutSample[] = []
 ): Promise<StressChartDisplayData> => {
   let chartPlotData: StressChartDataPoint[] = [];
   let currentStressForVisualization: number = 0;
   let yDomainForVisualization: [number, number] = [0, 3]; // Default for modern scale (0-3)
   let xAxisDataType: "hourly" | "daily" = "hourly"; // Default for modern approach
 
+  // Get chart date ranges
+  const { startOfTargetDay, endOfTargetDay } = getDateRanges(targetDate);
+
+  // Prepare workouts data sliced by chart dates
+  const chartWorkouts = workouts
+    .filter((workout) => {
+      const startDate = new Date(workout.startDate);
+      const endDate = new Date(workout.endDate);
+      return startDate >= startOfTargetDay && endDate <= endOfTargetDay;
+    })
+    .map((workout) => ({
+      type: workout.workoutActivityType,
+      id: workout.uuid,
+      startDate: new Date(workout.startDate),
+      endDate: new Date(workout.endDate),
+    }));
+
   // 1. Prioritize stressDetails.hourlyStress (modern detailed calculation)
-  if (
-    stressDetails &&
-    stressDetails.hourlyStress &&
-    stressDetails.hourlyStress.length > 0
-  ) {
+  if (stressDetails.hourlyStress && stressDetails.hourlyStress.length > 0) {
     chartPlotData = stressDetails.hourlyStress.map((item) => ({
       time: new Date(item.hourStart).getTime(),
       stress: item.stress, // 0-3 scale
@@ -560,13 +562,23 @@ export const prepareStressChartDisplayData = async (
         const hour = hourTime.getHours();
 
         // Set realistic stress levels by hour (absolute values, not multipliers)
-        if (hour >= 22 || hour <= 5) targetStress = 0.3; // Very low - deep sleep/rest
-        else if (hour >= 6 && hour <= 7) targetStress = 0.6; // Low - early morning
-        else if (hour >= 8 && hour <= 9) targetStress = 0.9; // Mild - morning routine
-        else if (hour >= 10 && hour <= 11) targetStress = Math.min(2.5, baseStress); // Peak - use real data but cap
-        else if (hour >= 12 && hour <= 16) targetStress = 1.8; // Moderate-high - active day
-        else if (hour >= 17 && hour <= 19) targetStress = 1.4; // Moderate - evening
-        else if (hour >= 20 && hour <= 21) targetStress = 0.8; // Low - winding down
+        if (hour >= 22 || hour <= 5)
+          targetStress = 0.3; // Very low - deep sleep/rest
+        else if (hour >= 6 && hour <= 7)
+          targetStress = 0.6; // Low - early morning
+        else if (hour >= 8 && hour <= 9)
+          targetStress = 0.9; // Mild - morning routine
+        else if (hour >= 10 && hour <= 11)
+          targetStress = Math.min(
+            2.5,
+            baseStress
+          ); // Peak - use real data but cap
+        else if (hour >= 12 && hour <= 16)
+          targetStress = 1.8; // Moderate-high - active day
+        else if (hour >= 17 && hour <= 19)
+          targetStress = 1.4; // Moderate - evening
+        else if (hour >= 20 && hour <= 21)
+          targetStress = 0.8; // Low - winding down
         else targetStress = 1.0; // Default
 
         // Add some random variation
@@ -603,9 +615,9 @@ export const prepareStressChartDisplayData = async (
       xAxisDataType = "hourly";
     }
     // 3. Final fallback - simplified view based on basic stress level
-    else if (overallStressLevelFromContext !== undefined) {
-      // Convert 0-100 scale to 0-3 scale for visualization
-      currentStressForVisualization = (overallStressLevelFromContext / 100) * 3;
+    else {
+      // Use stress level directly (already in 0-3 scale)
+      currentStressForVisualization = overallStressLevelFromContext;
 
       // Create a simple 24-hour visualization with current stress level
       const now = new Date();
@@ -646,22 +658,19 @@ export const prepareStressChartDisplayData = async (
     yDomainForVisualization,
     xAxisDataType,
     lastUpdatedDisplay,
+    workouts: chartWorkouts,
   };
 
   return result;
 };
 
 /**
- * Get stress color based on stress level
- * Works with both legacy (0-100) and modern (0-3) stress scales
+ * Get stress color based on stress level (0-3 scale)
+ * 0-1: excellent (low stress), 1-2: good (moderate), 2-3: poor (high stress)
  */
 export function getStressColor(stressLevel: number): string {
-  // Auto-detect scale based on value range
-  const normalizedLevel =
-    stressLevel > 10 ? (stressLevel / 100) * 3 : stressLevel;
-
-  if (normalizedLevel < 1) return Colors.hrv.excellent;
-  if (normalizedLevel < 2) return Colors.hrv.good;
+  if (stressLevel < 1) return Colors.hrv.excellent;
+  if (stressLevel < 2) return Colors.hrv.good;
   return Colors.hrv.poor;
 }
 

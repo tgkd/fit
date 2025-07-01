@@ -37,8 +37,12 @@ export function StressMonitorCard({
     );
   }
 
-  const { chartPlotData, yDomainForVisualization, lastUpdatedDisplay } =
-    healthData.stressChartDisplayData;
+  const {
+    chartPlotData,
+    yDomainForVisualization,
+    lastUpdatedDisplay,
+    workouts,
+  } = healthData.stressChartDisplayData;
 
   return (
     <TouchableOpacity
@@ -66,6 +70,7 @@ export function StressMonitorCard({
           yDomain={yDomainForVisualization}
           height={180}
           showXAxisTicks={3}
+          workouts={workouts}
         />
       </View>
     </TouchableOpacity>
@@ -80,14 +85,11 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start", // Changed from "center" to accommodate multiple lines
+    alignItems: "flex-start",
     marginBottom: 8,
   },
   chartOuterContainer: {
     minHeight: 180,
     marginTop: 10,
-  },
-  chartVisualizationContainer: {
-    height: 180,
   },
 });

@@ -109,29 +109,21 @@ export const getAllHealthStats = async (
       );
     }
 
-    const stressDetails = await calculateStressMetrics(defaults, date, true);
+    const stressDetails = await calculateStressMetrics(defaults, date);
 
-    const recoveryScore = userParams
-      ? await calculatePersonalizedRecovery(
-          userParams as UserProfile,
-          defaults,
-          date
-        )
-      : await calculatePersonalizedRecovery(
-          DEFAULT_USER_PROFILE,
-          defaults,
-          date
-        );
+    const recoveryScore = await calculatePersonalizedRecovery(
+      userParams ?? DEFAULT_USER_PROFILE,
+      defaults,
+      date
+    );
 
     const stressChartDisplayData: StressChartDisplayData =
       await prepareStressChartDisplayData(
-        heartStressStats.hrvValues,
-        heartStressStats.restingHeartRate,
         heartStressStats.stressLevel,
         stressDetails,
         defaults,
         date,
-        true
+        workoutStats.workouts
       );
 
     const strainScore = userParams

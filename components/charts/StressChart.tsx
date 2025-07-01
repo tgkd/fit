@@ -32,7 +32,7 @@ export function StressChart({ data: initData }: StressChartProps) {
     );
   }
 
-  const { chartPlotData, yDomainForVisualization } =
+  const { chartPlotData, yDomainForVisualization, workouts } =
     initData.stressChartDisplayData;
 
   // Calculate stats for display
@@ -76,6 +76,7 @@ export function StressChart({ data: initData }: StressChartProps) {
           yDomain={yDomainForVisualization}
           height={220}
           showXAxisTicks={4}
+          workouts={workouts}
         />
       </View>
     </Card>

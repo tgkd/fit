@@ -1,6 +1,7 @@
 import {
     QuantitySample,
     WorkoutSample,
+    WorkoutActivityType,
 } from "@kingstinct/react-native-healthkit";
 
 // Shared interfaces for all health modules
@@ -77,7 +78,7 @@ export interface HeartStressStats {
   hrv7DayAvg: number;
   hrvMostRecent: number;
   hrvValues: number[];
-  stressLevel: number;
+  stressLevel: number; // 0-3 scale: 0=no stress, 1=low, 2=moderate, 3=high
   bloodOxygen: { value: number; date: Date | null } | null;
 }
 
@@ -118,6 +119,12 @@ export interface StressChartDisplayData {
   yDomainForVisualization: [number, number];
   xAxisDataType: "hourly" | "daily";
   lastUpdatedDisplay: string;
+  workouts: Array<{
+    type: WorkoutActivityType;
+    id: string;
+    startDate: Date;
+    endDate: Date;
+  }>;
 }
 
 // Period averages interfaces for historical data
@@ -134,7 +141,7 @@ export interface SleepAverages {
 }
 
 export interface StressAverages {
-  level: number; // 0-100 stress level
+  level: number; // 0-100 stress level (historical average calculation)
   hrvAverage: number; // ms
   restingHeartRate: number; // bpm
 }
