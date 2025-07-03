@@ -23,7 +23,22 @@ export const fetchGeneralStats = async (
   // Get age from date of birth
   const dob = await getDateOfBirthAsync();
   const currentDate = new Date();
-  const age = dob ? currentDate.getFullYear() - dob.getFullYear() : null;
+  let age: number | null = null;
+  
+  if (dob) {
+    const ageMs = currentDate.getTime() - dob.getTime();
+    if (ageMs > 0) {
+      const calculatedAge = Math.floor(ageMs / (365.25 * 24 * 60 * 60 * 1000));
+      // Validate age is reasonable (between 0 and 120)
+      if (calculatedAge >= 0 && calculatedAge <= 120) {
+        age = calculatedAge;
+      } else {
+        console.warn(`Calculated age ${calculatedAge} is outside valid range, setting to null`);
+      }
+    } else {
+      console.warn('Date of birth is in the future, setting age to null');
+    }
+  }
 
   // Get most recent weight
   const weightSample: QuantitySample | undefined =

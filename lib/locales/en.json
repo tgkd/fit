@@ -331,7 +331,7 @@
     "sleep": "Sleep",
     "daily": "Daily",
     "baselines": "Baselines: HRV {{hrv}}ms • RHR {{rhr}}bpm",
-    "stressDataUnavailable": "Stress data unavailable. Using basic stress: {{stressLevel}}/100",
+    "stressDataUnavailable": "Stress data unavailable. Using basic stress: {{stressLevel}}/3.0",
     "requires14DaysData": "Requires 14 days of HRV and heart rate data for personal baselines.",
     "outOf3": "out of 3.0",
     "personalBaselines": "Personal Baselines",

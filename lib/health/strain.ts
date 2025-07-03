@@ -80,9 +80,16 @@ async function calculateStrainCore(
   } = defaults;
 
   // Ensure zone bounds are in decimal format (0.5, 0.6, etc.) not percentages (50, 60, etc.)
-  const normalizedZoneBounds = HRR_ZONE_BOUNDS.map((bound) =>
-    bound > 1 ? bound / 100 : bound
-  );
+  const normalizedZoneBounds = HRR_ZONE_BOUNDS.map((bound) => {
+    if (typeof bound !== 'number' || !isFinite(bound)) {
+      console.warn(`Invalid zone bound type: ${bound}, using fallback`);
+      return 0.5; // Fallback to moderate intensity
+    }
+    if (bound > 1 && bound <= 100) return bound / 100;
+    if (bound <= 1 && bound >= 0) return bound;
+    console.warn(`Invalid zone bound value: ${bound}, using fallback`);
+    return 0.5; // Fallback to moderate intensity
+  });
 
   // 1. Define the time range for the day
   const dateFrom = startOfDay(date);

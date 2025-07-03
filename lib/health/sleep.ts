@@ -6,7 +6,7 @@ import {
   type QuantitySample,
 } from "@kingstinct/react-native-healthkit";
 
-import { differenceInMilliseconds, format } from "date-fns";
+import { differenceInMilliseconds, format, subDays } from "date-fns";
 
 import { Colors } from "@/constants/Colors";
 import { formatDuration } from "@/lib/formatters";
@@ -36,7 +36,6 @@ export type {
 
 export const SLEEP_PERFORMANCE_GOAL_HOURS = 8;
 export const SLEEP_CONSISTENCY_MAX_STD_DEV_HOURS = 2.5;
-const QUERY_LIMIT = 100;
 
 export const ACTUAL_SLEEP_VALUES = [
   CategoryValueSleepAnalysis.asleepUnspecified,
@@ -50,7 +49,7 @@ export const fetchSleepAnalysis = async (
 ): Promise<SleepAnalysis> => {
   const sleepSamples: CategorySampleTyped<"HKCategoryTypeIdentifierSleepAnalysis">[] =
     await queryCategorySamples("HKCategoryTypeIdentifierSleepAnalysis", {
-      limit: QUERY_LIMIT,
+      limit: 1000,
     });
 
   const { totalSleep, dailySleepDurations } = processSleepData(
@@ -64,7 +63,7 @@ export const fetchSleepAnalysis = async (
 
   try {
     performanceMetrics = await calculateEnhancedSleepPerformance(targetDate);
-  } catch {
+  } catch (error) {
     const basicMetrics = calculateSleepMetrics(
       sleepSamples,
       totalSleep,
@@ -328,8 +327,7 @@ const getSleepSamplesForDate = (
   sleepSamples: readonly CategorySampleTyped<"HKCategoryTypeIdentifierSleepAnalysis">[],
   targetDate: Date
 ): CategorySampleTyped<"HKCategoryTypeIdentifierSleepAnalysis">[] => {
-  const startOfWindow = new Date(targetDate);
-  startOfWindow.setDate(startOfWindow.getDate() - 1);
+  const startOfWindow = new Date(subDays(targetDate, 1));
   startOfWindow.setHours(12, 0, 0, 0);
 
   const endOfWindow = new Date(targetDate);
@@ -614,7 +612,7 @@ export const calculateSleepNeed = (
   };
 };
 
-export const calculatEnhancedSleepConsistency = (
+export const calculateEnhancedSleepConsistency = (
   clusters: SleepCluster[]
 ): number => {
   const mainSleepClusters = clusters
@@ -662,20 +660,22 @@ export const calculateSleepStress = async (
         filter: {
           startDate: start,
           endDate: end,
-          unit: "count/min",
-          limit: 100,
         },
+        unit: "count/min",
+        limit: 100,
       }),
       queryQuantitySamples("HKQuantityTypeIdentifierHeartRateVariabilitySDNN", {
-        filter: { startDate: start, endDate: end, unit: "ms", limit: 100 },
+        filter: { startDate: start, endDate: end },
+        unit: "ms",
+        limit: 100,
       }),
       queryQuantitySamples("HKQuantityTypeIdentifierRespiratoryRate", {
         filter: {
           startDate: start,
           endDate: end,
-          unit: "count/min",
-          limit: 100,
         },
+        unit: "count/min",
+        limit: 100,
       }),
     ]);
 
@@ -758,7 +758,7 @@ export const calculateEnhancedSleepPerformance = async (
 ): Promise<SleepPerformanceMetrics> => {
   const sleepSamples: CategorySampleTyped<"HKCategoryTypeIdentifierSleepAnalysis">[] =
     await queryCategorySamples("HKCategoryTypeIdentifierSleepAnalysis", {
-      limit: QUERY_LIMIT,
+      limit: 1000,
     });
 
   if (!sleepSamples || sleepSamples.length === 0) {
@@ -767,13 +767,22 @@ export const calculateEnhancedSleepPerformance = async (
 
   const clusters = createSleepClusters(sleepSamples);
 
-  // Filter clusters for the target date (sleep from previous evening to target morning)
-  const targetDateClusters = clusters.filter((cluster) => {
-    const sleepDate = new Date(cluster.end);
-    const targetDateString = format(targetDate, "yyyy-MM-dd");
-    const sleepDateString = format(sleepDate, "yyyy-MM-dd");
+  // Filter clusters for the target date using proper sleep window logic
+  // Sleep window: 12:00 PM previous day to 12:00 PM target date
+  // This captures sleep from the night before the target date
+  const startOfWindow = new Date(subDays(targetDate, 1));
+  startOfWindow.setHours(12, 0, 0, 0); // 12 PM previous day
 
-    return sleepDateString === targetDateString;
+  const endOfWindow = new Date(targetDate);
+  endOfWindow.setHours(12, 0, 0, 0); // 12 PM target date
+
+  const targetDateClusters = clusters.filter((cluster) => {
+    // Include clusters that overlap with the sleep window
+    return (
+      (cluster.start >= startOfWindow && cluster.start < endOfWindow) ||
+      (cluster.end > startOfWindow && cluster.end <= endOfWindow) ||
+      (cluster.start < startOfWindow && cluster.end > endOfWindow)
+    );
   });
 
   const mainCluster = targetDateClusters.find((c) => c.isMainSleep);
@@ -802,7 +811,7 @@ export const calculateEnhancedSleepPerformance = async (
         )
       : 100;
 
-  const sleepConsistency = calculateSleepConsistency(sleepSamples, targetDate);
+  const sleepConsistency = calculateEnhancedSleepConsistency(clusters);
 
   const sleepEfficiency =
     mainCluster.timeInBedMs > 0
@@ -871,9 +880,7 @@ export const calculateSleepDebt = async (
   targetHours: number = 8.0
 ): Promise<number> => {
   const sleepSamples: CategorySampleTyped<"HKCategoryTypeIdentifierSleepAnalysis">[] =
-    await queryCategorySamples("HKCategoryTypeIdentifierSleepAnalysis", {
-      limit: QUERY_LIMIT,
-    });
+    await queryCategorySamples("HKCategoryTypeIdentifierSleepAnalysis");
 
   const clusters = createSleepClusters(sleepSamples);
   const mainSleepClusters = clusters.filter((c) => c.isMainSleep);
@@ -897,9 +904,7 @@ export const fetchSleepAverages = async (
 }> => {
   const range14Days = getDateRange(14, targetDate);
   const sleepSamples30: CategorySampleTyped<"HKCategoryTypeIdentifierSleepAnalysis">[] =
-    await queryCategorySamples("HKCategoryTypeIdentifierSleepAnalysis", {
-      limit: 3000,
-    });
+    await queryCategorySamples("HKCategoryTypeIdentifierSleepAnalysis");
 
   const sleepSamples14 = sleepSamples30.filter(
     (sample: CategorySampleTyped<"HKCategoryTypeIdentifierSleepAnalysis">) =>

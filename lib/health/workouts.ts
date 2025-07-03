@@ -11,12 +11,6 @@ import { WorkoutData } from "../workouts/config";
 import { ActivitySample, WorkoutStats } from "./types";
 import { getDateRanges, getDurationMinutes } from "./utils";
 
-// Constants from original healthStats.ts
-export const ACTIVITY_MULTIPLIERS = {
-  LOW_INTENSITY: 0.9, // < 4 METs
-  MODERATE_INTENSITY: 1.1, // 4-7 METs
-  HIGH_INTENSITY: 1.4, // > 7 METs
-};
 
 // Interface for raw workout data from HealthKit
 export interface HealthKitWorkout {

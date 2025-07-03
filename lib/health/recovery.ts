@@ -284,8 +284,20 @@ const calculateBaselineDeviationScore = ({
     return Math.min(100, penalty);
   }
 
+  // Input validation
+  if (typeof value !== 'number' || typeof baseline !== 'number' || 
+      !isFinite(value) || !isFinite(baseline)) {
+    console.warn('Invalid input values for baseline deviation calculation', { value, baseline });
+    return 50; // Return neutral score for invalid inputs
+  }
+
+  if (baseline <= 0) {
+    console.warn('Baseline must be positive for percentage calculation', { baseline });
+    return 50; // Return neutral score for invalid baseline
+  }
+
   // Calculate percentage deviation from baseline
-  const deviation = (value - baseline) / baseline;
+  const deviation = Math.max(-1, Math.min(2, (value - baseline) / baseline));
   let score = 50; // Start at neutral (50%)
 
   if (isHigherBetter) {

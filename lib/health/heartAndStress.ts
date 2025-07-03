@@ -720,10 +720,12 @@ export const fetchStressAverages = async (
 
     // Calculate stress level based on HRV deviation from baseline
     const baselineHRV = await calculateBaselineHRV(defaults, targetDate);
-    const stressLevel = Math.max(
+    // Convert to 0-3 scale to match main stress calculation
+    const rawStress = Math.max(
       0,
       Math.min(100, 100 - (avgHrv / baselineHRV) * 100)
     );
+    const stressLevel = (rawStress / 100) * 3;
 
     return {
       level: roundTo(stressLevel, 1),
@@ -744,10 +746,12 @@ export const fetchStressAverages = async (
     const avgRhr = calculateAverage(rhrValues);
 
     const baselineHRV = await calculateBaselineHRV(defaults, targetDate);
-    const stressLevel = Math.max(
+    // Convert to 0-3 scale to match main stress calculation
+    const rawStress = Math.max(
       0,
       Math.min(100, 100 - (avgHrv / baselineHRV) * 100)
     );
+    const stressLevel = (rawStress / 100) * 3;
 
     return {
       level: roundTo(stressLevel, 1),
